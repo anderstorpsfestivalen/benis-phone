@@ -64,13 +64,13 @@ def gather_api_data():
 
     for x in time_stable['RESPONSE']['RESULT']:
         res = next(iter(x['TrainAnnouncement']))
-        #print res
+        # print res
 
-        # Get info about FromLocation and set it to be converted
+        # Get info about FromLocation and send it to be converted
         for y in res.get('FromLocation'):
             FromLocation = convert_StationName(y.get('LocationName'))
 
-        # Get info about ToLocation and set it to be converted
+        # Get info about ToLocation and send it to be converted
         for y in res.get('ToLocation'):
             ToLocation = convert_StationName(y.get('LocationName'))
 
@@ -86,9 +86,10 @@ def gather_api_data():
         # Prepare message
         message = ""
         message = message + res.get('InformationOwner') + ", " + \
-            res.get('ProductInformation')[0] + ", " + res.get('TypeOfTraffic') + " nummer, " + res.get('TechnicalTrainIdent') + ", " \
-            + unicode("Fr\xc3\xa5n, ", "UTF-8") + FromLocation + ", " + "Till, " + ToLocation \
-            + ", " + unicode("avg\xc3\xa5r fr\xc3\xa5n sp\xc3\xa5r, ", "UTF-8") \
+            res.get('ProductInformation')[0] + ", " + res.get('TypeOfTraffic') + " nummer, " \
+            + res.get('TechnicalTrainIdent') + ", " + unicode("Fr\xc3\xa5n, ", "UTF-8") \
+            + FromLocation + ", " + "Till, " + ToLocation + ", " \
+            + unicode("avg\xc3\xa5r fr\xc3\xa5n sp\xc3\xa5r, ", "UTF-8") \
             + FixedTrackAtLocation + ", klockan, " + \
             str(d.hour) + ", och, " + str(d.minute)
 
