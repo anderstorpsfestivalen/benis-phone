@@ -64,10 +64,13 @@ def gather_api_data():
 
     for x in time_stable['RESPONSE']['RESULT']:
         res = next(iter(x['TrainAnnouncement']))
+        #print res
 
+        # Get info about FromLocation and set it to be converted
         for y in res.get('FromLocation'):
             FromLocation = convert_StationName(y.get('LocationName'))
 
+        # Get info about ToLocation and set it to be converted
         for y in res.get('ToLocation'):
             ToLocation = convert_StationName(y.get('LocationName'))
 
@@ -89,6 +92,7 @@ def gather_api_data():
             + FixedTrackAtLocation + ", klockan, " + \
             str(d.hour) + ", och, " + str(d.minute)
 
+        # Debug
         print message
 
         # Return message
