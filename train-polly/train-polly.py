@@ -64,14 +64,16 @@ def gather_api_data():
 
     for x in time_stable['RESPONSE']['RESULT']:
         res = next(iter(x['TrainAnnouncement']))
-        # print res
+        # print (res)
 
         # Get info about FromLocation and send it to be converted
         for y in res.get('FromLocation'):
+            # print (y.get('LocationName'))
             FromLocation = convert_StationName(y.get('LocationName'))
 
         # Get info about ToLocation and send it to be converted
         for y in res.get('ToLocation'):
+            # print (y.get('LocationName'))
             ToLocation = convert_StationName(y.get('LocationName'))
 
         # Fix time
@@ -85,34 +87,31 @@ def gather_api_data():
 
         # Prepare message
         message = ""
-        message = message + res.get('InformationOwner') + ", " + \
-            res.get('ProductInformation')[0] + ", " + res.get('TypeOfTraffic') + " nummer, " \
-            + res.get('TechnicalTrainIdent') + ", " + unicode("Fr\xc3\xa5n, ", "UTF-8") \
-            + FromLocation + ", " + "Till, " + ToLocation + ", " \
-            + unicode("avg\xc3\xa5r fr\xc3\xa5n sp\xc3\xa5r, ", "UTF-8") \
-            + FixedTrackAtLocation + ", klockan, " + \
-            str(d.hour) + ", och, " + str(d.minute)
+        message = message + res.get('InformationOwner') + \
+            ", " + res.get('ProductInformation')[0] + \
+            ", " + res.get('TypeOfTraffic') + " nummer, " + \
+            res.get('TechnicalTrainIdent') + ", " + ("Från ") + \
+            str(FromLocation) + ", " + "Till, " + str(ToLocation) + \
+            ", " + ("avgår från spår, ") + FixedTrackAtLocation + \
+            ", klockan, " + str(d.hour) + ", och, " + str(d.minute)
 
         # Debug
-        print message
+        print (message)
 
         # Return message
         return message
 
 
 def convert_StationName(StationName):
-    request_short_name_to_full_name = '''
-    <REQUEST>
-      <LOGIN authenticationkey="''' + creds.trafiklab_key + '''"/>
-      <QUERY objecttype="TrainStation" schemaversion="1">
-            <FILTER>
-                  <EQ name="Advertised" value="true" />
-                  <EQ name="LocationSignature" value="''' + StationName.encode('UTF-8') + '''" />
-            </FILTER>
-            <INCLUDE>AdvertisedLocationName</INCLUDE>
-      </QUERY>
-    </REQUEST>
-    '''
+    part1 = '''<REQUEST><LOGIN authenticationkey ="'''
+    part2 = creds.trafiklab_key
+    part3 = '''"/><QUERY objecttype="TrainStation" schemaversion="1"><FILTER><EQ name="Advertised" value="true"/><EQ name="LocationSignature" value ="'''
+    part4 = StationName
+    part5 = '''"/></FILTER><INCLUDE>AdvertisedLocationName</INCLUDE></QUERY></REQUEST>'''
+
+    request_short_name_to_full_name = (
+        part1+part2+part3+part4+part5).encode('utf-8')
+
     short_name_to_full_name = requests.post(
         'https://api.trafikinfo.trafikverket.se/v1/data.json', data=request_short_name_to_full_name).json()
 
