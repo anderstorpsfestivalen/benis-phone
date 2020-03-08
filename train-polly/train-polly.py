@@ -100,21 +100,6 @@ def gather_api_data():
         return message
 
 
-def polly(message):
-    polly_client = boto3.Session(
-        aws_access_key_id=creds.aws_key,
-        aws_secret_access_key=creds.aws_secret,
-        region_name='eu-north-1').client('polly')
-
-    response = polly_client.synthesize_speech(VoiceId='Astrid',
-                                              OutputFormat='mp3',
-                                              Text=message)
-
-    file = open('output.mp3', 'wb')
-    file.write(response['AudioStream'].read())
-    file.close()
-
-
 def convert_StationName(StationName):
     request_short_name_to_full_name = '''
     <REQUEST>
@@ -134,6 +119,21 @@ def convert_StationName(StationName):
     for x in short_name_to_full_name['RESPONSE']['RESULT']:
         for y in x['TrainStation']:
             return y['AdvertisedLocationName']
+
+
+def polly(message):
+    polly_client = boto3.Session(
+        aws_access_key_id=creds.aws_key,
+        aws_secret_access_key=creds.aws_secret,
+        region_name='eu-north-1').client('polly')
+
+    response = polly_client.synthesize_speech(VoiceId='Astrid',
+                                              OutputFormat='mp3',
+                                              Text=message)
+
+    file = open('output.mp3', 'wb')
+    file.write(response['AudioStream'].read())
+    file.close()
 
 
 if __name__ == '__main__':
