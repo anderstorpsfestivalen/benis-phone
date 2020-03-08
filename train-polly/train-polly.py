@@ -63,45 +63,33 @@ def gather_api_data():
     # print(time_stable)
 
     for x in time_stable['RESPONSE']['RESULT']:
+        res = next(iter(x['TrainAnnouncement']))
 
-        for y in x['TrainAnnouncement']:
-            ActivityType = y['ActivityType']
-            TechnicalTrainIdent = y['TechnicalTrainIdent']
-            AdvertisedTimeAtLocation = y['AdvertisedTimeAtLocation']
-            InformationOwner = y['InformationOwner']
-            ProductInformation = y['ProductInformation'][0]
-            TrackAtLocation = y['TrackAtLocation']
-            TypeOfTraffic = y['TypeOfTraffic']
+        for y in res.get('FromLocation'):
+            FromLocation = convert_StationName(y.get('LocationName'))
 
-        for z in y['FromLocation']:
-            StationName = z['LocationName']
-            FromLocation = convert_StationName(StationName)
-
-        for z in y['ToLocation']:
-            StationName = z['LocationName']
-            ToLocation = convert_StationName(StationName)
-
-        # for z in y['ViaToLocation']:
-        #    StationName = z['LocationName']
-        #    ViaToLocation = convert_StationName(StationName)
+        for y in res.get('ToLocation'):
+            ToLocation = convert_StationName(y.get('LocationName'))
 
         # Fix time
-        d = dateutil.parser.parse(AdvertisedTimeAtLocation)
+        d = dateutil.parser.parse(res.get('AdvertisedTimeAtLocation'))
 
         # Manipulate track number if 1 (pronounced "en" otherwise)
-        if '1' in TrackAtLocation:
+        if '1' in res.get('TrackAtLocation'):
             FixedTrackAtLocation = "ett"
         else:
-            FixedTrackAtLocation = TrackAtLocation
+            FixedTrackAtLocation = res.get('TrackAtLocation')
 
         # Prepare message
         message = ""
-        message = message + InformationOwner + ", " + \
-            ProductInformation + ", " + TypeOfTraffic + " nummer, " + TechnicalTrainIdent + ", " \
+        message = message + res.get('InformationOwner') + ", " + \
+            res.get('ProductInformation')[0] + ", " + res.get('TypeOfTraffic') + " nummer, " + res.get('TechnicalTrainIdent') + ", " \
             + unicode("Fr\xc3\xa5n, ", "UTF-8") + FromLocation + ", " + "Till, " + ToLocation \
             + ", " + unicode("avg\xc3\xa5r fr\xc3\xa5n sp\xc3\xa5r, ", "UTF-8") \
-            + FixedTrackAtLocation + ", klockan, " \
-            + str(d.hour) + ", och, " + str(d.minute)
+            + FixedTrackAtLocation + ", klockan, " + \
+            str(d.hour) + ", och, " + str(d.minute)
+
+        print message
 
         # Return message
         return message
