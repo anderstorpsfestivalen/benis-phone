@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/stianeikeland/go-rpio/v4"
 )
@@ -10,14 +11,17 @@ import (
 var handset_picked_up bool = false
 
 var (
-	// Use pin 10, corresponds to physical pin 19 on the pi
-	pin = rpio.Pin(10)
+	// Use pin 6
+	pin = rpio.Pin(6)
 )
 
 func main() {
 	init_gpio()
-	res := read_gpio()
-	fmt.Println(res)
+	for x := 0; x < 100; x++ {
+		res := read_gpio()
+		fmt.Println(res)
+		time.Sleep(1 * time.Second)
+	}
 }
 
 func init_gpio() {
@@ -27,9 +31,15 @@ func init_gpio() {
 	}
 }
 
-func read_gpio() rpio.State {
+func read_gpio() bool {
 	pin.Input()
 	res := pin.Read()
-	defer rpio.Close()
-	return res
+	if res == 1 {
+		handset_picked_up = true
+	}
+	if res == 0 {
+		handset_picked_up = false
+	}
+	//defer rpio.Close()
+	return handset_picked_up
 }
