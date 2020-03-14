@@ -9,50 +9,44 @@ import (
 
 type MpdClient struct {
 	Host string
+	m    *mpd.Client
 }
 
 func Init(h string) MpdClient {
 	var c MpdClient
 	c.Host = h
 	c.PlaylistClear()
+	conn, err := mpd.Dial("tcp", c.Host)
+	if err != nil {
+		fmt.Println("BENIS")
+	}
+	c.m = conn
 	return c
 }
 
-func (c MpdClient) Add(f string) {
-	conn, err := mpd.Dial("tcp", c.Host)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	defer conn.Close()
+func (c MpdClient) Close() {
+	c.m.Close()
+}
 
-	conn.Update(f)
+func (c MpdClient) Add(f string) {
+
+	c.m.Update(f)
 
 	fmt.Println("Adding %s\n", f)
-	conn.Add(f)
+	c.m.Add(f)
 }
 
 func (c MpdClient) Next() {
-	conn, err := mpd.Dial("tcp", c.Host)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	defer conn.Close()
-
 	fmt.Println("Playging next in playlist\n")
-	conn.Next()
+	c.m.Next()
 }
 
 func (c MpdClient) PlaylistClear() {
-	conn, err := mpd.Dial("tcp", c.Host)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	defer conn.Close()
 
 	fmt.Println("Clearing playlist\n")
 
 	//err = conn.PlaylistClear("default")
-	err = conn.Clear()
+	err := c.m.Clear()
 	if err != nil {
 		log.Fatalln(err)
 	}

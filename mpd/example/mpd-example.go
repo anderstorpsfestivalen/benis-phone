@@ -9,6 +9,8 @@ import (
 func main() {
 	host := "[::1]:6600"
 	m := mpd.Init(host)
+
+	defer m.Close()
 	fmt.Println(m)
 
 	m.Add("output.mp3")
