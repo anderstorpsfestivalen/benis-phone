@@ -1,3 +1,5 @@
+github.com/fhs/gompd v2.0.0+incompatible h1:pv5XKTatya1k3r1woaWLwFQiF0BfAsgWSe5ev2XZ0UM=
+github.com/fhs/gompd v2.0.0+incompatible/go.mod h1:UVZXd9wmFBH5tIXLYeI+CGUIt15ZvtGQvVO6SDHy1os=
 github.com/stianeikeland/go-rpio v4.2.0+incompatible h1:CUOlIxdJdT+H1obJPsmg8byu7jMSECLfAN9zynm5QGo=
 github.com/stianeikeland/go-rpio/v4 v4.4.0 h1:LScvNyXHF412co42LG5t7bvBDbtDAhLF828ebaGqmjA=
 github.com/stianeikeland/go-rpio/v4 v4.4.0/go.mod h1:BkK52zk+FRk8wCTDf88/86Sojc+NfUiCAHd1ZV3RuTM=
