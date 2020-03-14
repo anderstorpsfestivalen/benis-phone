@@ -14,6 +14,10 @@ func main() {
 	fmt.Println(m)
 
 	m.Add("output.mp3")
-	m.Next()
+	m.Add("pip.wav")
+	m.Add("astrid.mp3")
+	m.Add("pip.wav")
+	//m.Next()
+	m.Play()
 	//m.PlaylistClear()
 }

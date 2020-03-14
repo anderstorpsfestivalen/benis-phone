@@ -15,12 +15,12 @@ type MpdClient struct {
 func Init(h string) MpdClient {
 	var c MpdClient
 	c.Host = h
-	c.PlaylistClear()
 	conn, err := mpd.Dial("tcp", c.Host)
 	if err != nil {
 		fmt.Println("BENIS")
 	}
 	c.m = conn
+	c.PlaylistClear()
 	return c
 }
 
@@ -29,10 +29,9 @@ func (c MpdClient) Close() {
 }
 
 func (c MpdClient) Add(f string) {
-
 	c.m.Update(f)
 
-	fmt.Println("Adding %s\n", f)
+	fmt.Printf("Adding %s\n", f)
 	c.m.Add(f)
 }
 
@@ -41,8 +40,15 @@ func (c MpdClient) Next() {
 	c.m.Next()
 }
 
-func (c MpdClient) PlaylistClear() {
+func (c MpdClient) Play() {
+	fmt.Println("Play first in queue\n")
+	err := c.m.Play(-1)
+	if err != nil {
+		log.Fatalln(err)
+	}
+}
 
+func (c MpdClient) PlaylistClear() {
 	fmt.Println("Clearing playlist\n")
 
 	//err = conn.PlaylistClear("default")
