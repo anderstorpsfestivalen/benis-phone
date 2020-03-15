@@ -17,7 +17,6 @@ func main() {
 	m.Add("pip.wav")
 	m.Add("astrid.mp3")
 	m.Add("pip.wav")
-	//m.Next()
 	m.Play()
-	//m.PlaylistClear()
+	//m.Clear()
 }

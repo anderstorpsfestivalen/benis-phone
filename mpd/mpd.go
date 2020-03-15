@@ -17,10 +17,11 @@ func Init(h string) MpdClient {
 	c.Host = h
 	conn, err := mpd.Dial("tcp", c.Host)
 	if err != nil {
-		fmt.Println("BENIS")
+		log.Fatalln(err)
 	}
 	c.m = conn
-	c.PlaylistClear()
+	c.Clear()
+	c.m.Consume(true)
 	return c
 }
 
@@ -48,7 +49,7 @@ func (c MpdClient) Play() {
 	}
 }
 
-func (c MpdClient) PlaylistClear() {
+func (c MpdClient) Clear() {
 	fmt.Println("Clearing playlist\n")
 
 	//err = conn.PlaylistClear("default")
