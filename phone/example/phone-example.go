@@ -8,7 +8,8 @@ import (
 
 func main() {
 
-	state := phone.State()
+	ph := phone.Init(6)
+	state := ph.State()
 	fmt.Println(state)
 
 }

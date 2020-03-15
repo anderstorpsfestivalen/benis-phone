@@ -8,27 +8,28 @@ import (
 )
 
 type Phone struct {
-	GPIO_Pin      *rpio.Pin(6)
+	GPIO_Pin      rpio.Pin
 	handset_state bool
 }
 
-func Init_GPIO() {
-	var p *Phone
+func Init(physicalPin uint8) Phone {
 
-	_ = rpio.Pin(p.GPIO_Pin)
 	if err := rpio.Open(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+
+	return Phone{
+		GPIO_Pin: rpio.Pin(physicalPin),
+	}
+
 }
 
-func Close() {
-	defer rpio.Close()
+func (p *Phone) Close() {
+	rpio.Close()
 }
 
-func State() bool {
-	Init_GPIO()
-	var p *Phone
+func (p *Phone) State() bool {
 	p.GPIO_Pin.Input()
 	res := p.GPIO_Pin.Read()
 	if res == 1 {
