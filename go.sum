@@ -1,5 +1,9 @@
+github.com/bmizerany/aws4 v0.0.0-20141025110357-5fb2e7239626 h1:+BShUYeLVWnZfJBzodJp3Y+pMsKZzYEwWItSoL+r61s=
+github.com/bmizerany/aws4 v0.0.0-20141025110357-5fb2e7239626/go.mod h1:1qbMWKr5WUBWWACRFRTMcN2ntzeuWyevPq0e1YplD3Y=
 github.com/fhs/gompd v2.0.0+incompatible h1:pv5XKTatya1k3r1woaWLwFQiF0BfAsgWSe5ev2XZ0UM=
 github.com/fhs/gompd v2.0.0+incompatible/go.mod h1:UVZXd9wmFBH5tIXLYeI+CGUIt15ZvtGQvVO6SDHy1os=
+github.com/leprosus/golang-tts v0.0.0-20190516104601-a4737dbd315b h1:hZESw99IEESXvTemMNOehuV+u43lbsdwr6GI31NWZUM=
+github.com/leprosus/golang-tts v0.0.0-20190516104601-a4737dbd315b/go.mod h1:KCxUIrXJ4Sa3cmb5Nrk+4fszr5TTbiMrC6BqvFZziO8=
 github.com/stianeikeland/go-rpio v4.2.0+incompatible h1:CUOlIxdJdT+H1obJPsmg8byu7jMSECLfAN9zynm5QGo=
 github.com/stianeikeland/go-rpio/v4 v4.4.0 h1:LScvNyXHF412co42LG5t7bvBDbtDAhLF828ebaGqmjA=
 github.com/stianeikeland/go-rpio/v4 v4.4.0/go.mod h1:BkK52zk+FRk8wCTDf88/86Sojc+NfUiCAHd1ZV3RuTM=
