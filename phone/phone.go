@@ -23,7 +23,7 @@ func Init(physicalPin uint8) Phone {
 
 	p := Phone{
 		HookPin:     rpio.Pin(physicalPin),
-		HookChannel: make(chan bool, 5000),
+		HookChannel: make(chan bool),
 	}
 
 	go p.startRead()
