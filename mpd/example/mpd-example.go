@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"gitlab.com/anderstorpsfestivalen/benis-phone/mpd"
 )
 
@@ -11,7 +9,6 @@ func main() {
 	m := mpd.Init(host)
 
 	defer m.Close()
-	fmt.Println(m)
 
 	m.Add("output.mp3")
 	m.Add("pip.wav")

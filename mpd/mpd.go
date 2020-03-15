@@ -20,7 +20,7 @@ func Init(h string) MpdClient {
 		log.Fatalln(err)
 	}
 	c.m = conn
-	c.Clear()
+	c.m.Clear()
 	c.m.Consume(true)
 	return c
 }
