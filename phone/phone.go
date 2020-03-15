@@ -8,7 +8,7 @@ import (
 )
 
 type Phone struct {
-	Pin_GPIO      string
+	Pin_GPIO      rpio.Pin
 	handset_state bool
 }
 
