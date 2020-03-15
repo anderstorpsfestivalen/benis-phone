@@ -8,14 +8,13 @@ import (
 )
 
 type Phone struct {
-	GPIO_Pin      *rpio.Pin
+	GPIO_Pin      *rpio.Pin(6)
 	handset_state bool
 }
 
 func Init_GPIO() {
 	var p *Phone
 
-	p.GPIO_Pin = 6
 	_ = rpio.Pin(p.GPIO_Pin)
 	if err := rpio.Open(); err != nil {
 		fmt.Println(err)
