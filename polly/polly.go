@@ -23,7 +23,7 @@ func TTS(message string, voice string) string {
 	polly := golang_tts.New(a.aws_key, a.aws_secret)
 
 	polly.Format(golang_tts.MP3)
-	polly.Voice(golang_tts.Astrid)
+	polly.Voice(voice)
 
 	bytes, err := polly.Speech(message)
 	if err != nil {
