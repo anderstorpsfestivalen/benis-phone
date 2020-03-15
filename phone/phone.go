@@ -3,13 +3,15 @@ package phone
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/stianeikeland/go-rpio/v4"
 )
 
 type Phone struct {
-	GPIO_Pin      rpio.Pin
-	handset_state bool
+	HookPin     rpio.Pin
+	HookChannel chan bool
+	hookState   bool
 }
 
 func Init(physicalPin uint8) Phone {
@@ -19,9 +21,14 @@ func Init(physicalPin uint8) Phone {
 		os.Exit(1)
 	}
 
-	return Phone{
-		GPIO_Pin: rpio.Pin(physicalPin),
+	p := Phone{
+		HookPin:     rpio.Pin(physicalPin),
+		HookChannel: make(chan bool, 5000),
 	}
+
+	go p.startRead()
+
+	return p
 
 }
 
@@ -29,14 +36,36 @@ func (p *Phone) Close() {
 	rpio.Close()
 }
 
+func (p *Phone) startRead() {
+	p.HookPin.Input()
+
+	ticker := time.NewTicker(100 * time.Millisecond)
+
+	for {
+		//BLOCK
+		_ = <-ticker.C
+
+		res := p.HookPin.Read()
+
+		var t bool
+		if res == 1 {
+			t = true
+		}
+		if res == 0 {
+			t = false
+		}
+
+		if t != p.hookState {
+			p.HookChannel <- t
+		}
+
+		p.hookState = t
+
+	}
+
+}
+
 func (p *Phone) State() bool {
-	p.GPIO_Pin.Input()
-	res := p.GPIO_Pin.Read()
-	if res == 1 {
-		p.handset_state = true
-	}
-	if res == 0 {
-		p.handset_state = false
-	}
-	return p.handset_state
+
+	return p.hookState
 }

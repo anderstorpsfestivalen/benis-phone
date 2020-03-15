@@ -9,7 +9,10 @@ import (
 func main() {
 
 	ph := phone.Init(6)
-	state := ph.State()
-	fmt.Println(state)
+
+	for {
+		s := <-ph.HookChannel
+		fmt.Println(s)
+	}
 
 }
