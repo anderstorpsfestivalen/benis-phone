@@ -16,7 +16,7 @@ var (
 )
 
 func main() {
-	fmt.Printf("%T\n", pin)
+	fmt.Printf("%T\n", rpio.Pin(6))
 	init_gpio()
 	for x := 0; x < 100; x++ {
 		res := read_gpio()
