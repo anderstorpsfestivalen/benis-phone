@@ -3,39 +3,69 @@ package phone
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/stianeikeland/go-rpio/v4"
 )
 
 type Phone struct {
-	GPIO_Pin      *rpio.Pin(6)
-	handset_state bool
+	HookPin     rpio.Pin
+	HookChannel chan bool
+	hookState   bool
 }
 
-func Init_GPIO() {
-	var p *Phone
+func Init(physicalPin uint8) Phone {
 
-	_ = rpio.Pin(p.GPIO_Pin)
 	if err := rpio.Open(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+
+	p := Phone{
+		HookPin:     rpio.Pin(physicalPin),
+		HookChannel: make(chan bool),
+	}
+
+	go p.startRead()
+
+	return p
+
 }
 
-func Close() {
-	defer rpio.Close()
+func (p *Phone) Close() {
+	rpio.Close()
 }
 
-func State() bool {
-	Init_GPIO()
-	var p *Phone
-	p.GPIO_Pin.Input()
-	res := p.GPIO_Pin.Read()
-	if res == 1 {
-		p.handset_state = true
+func (p *Phone) startRead() {
+	p.HookPin.Input()
+
+	ticker := time.NewTicker(100 * time.Millisecond)
+
+	for {
+		//BLOCK
+		_ = <-ticker.C
+
+		res := p.HookPin.Read()
+
+		var t bool
+		if res == 1 {
+			t = true
+		}
+		if res == 0 {
+			t = false
+		}
+
+		if t != p.hookState {
+			p.HookChannel <- t
+		}
+
+		p.hookState = t
+
 	}
-	if res == 0 {
-		p.handset_state = false
-	}
-	return p.handset_state
+
+}
+
+func (p *Phone) State() bool {
+
+	return p.hookState
 }
