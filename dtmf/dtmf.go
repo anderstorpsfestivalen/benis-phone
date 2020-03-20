@@ -31,8 +31,8 @@ func (d *Dtmf) startRead() {
 		_ = <-ticker.C
 
 		stdin_read, _ := reader.ReadString('\n')
-
-		d.HookKey <- stdin_read
+		first_char := string([]byte(stdin_read)[0])
+		d.HookKey <- first_char
 	}
 
 }
