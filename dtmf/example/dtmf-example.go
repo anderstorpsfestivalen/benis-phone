@@ -7,9 +7,9 @@ import (
 )
 
 func main() {
-	dt := dtmf.Init()
+	dtmf := dtmf.Init()
 
-	s := <-dt.HookChannel
+	s := <-dtmf.HookKey
 	fmt.Println(s)
 
 }

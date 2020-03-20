@@ -7,15 +7,13 @@ import (
 )
 
 type Dtmf struct {
-	HookChannel chan string
-	HookKey     string
+	HookKey chan string
 }
 
 func Init() Dtmf {
 
 	d := Dtmf{
-		HookKey:     "null",
-		HookChannel: make(chan string),
+		HookKey: make(chan string),
 	}
 
 	go d.startRead()
@@ -34,8 +32,7 @@ func (d *Dtmf) startRead() {
 
 		stdin_read, _ := reader.ReadString('\n')
 
-		d.HookKey = stdin_read
-		d.HookChannel <- stdin_read
+		d.HookKey <- stdin_read
 	}
 
 }
