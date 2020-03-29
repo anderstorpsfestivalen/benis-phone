@@ -1,60 +1,51 @@
 package controller
 
 import (
-	"fmt"
-
 	"gitlab.com/anderstorpsfestivalen/benis-phone/dtmf"
 
 	"gitlab.com/anderstorpsfestivalen/benis-phone/mpd"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/phone"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/polly"
 )
 
+var MenuOptions = map[string]MenuOption{
+	"mainmenu": &MainMenu{},
+}
+
 type Controller struct {
-	phone phone.Phone
-	mpd   mpd.MpdClient
-	dtmf  dtmf.Dtmf
+	Phone phone.Phone
+	Mpd   mpd.MpdClient
+	Dtmf  dtmf.Dtmf
+	Where string
 }
 
 func New(ph phone.Phone, mpd mpd.MpdClient, dtmf dtmf.Dtmf) Controller {
 	return Controller{
-		phone: ph,
-		mpd:   mpd,
-		dtmf:  dtmf,
+		Phone: ph,
+		Mpd:   mpd,
+		Dtmf:  dtmf,
+		Where: "mainmenu",
 	}
 }
 
 func (c *Controller) Start() {
 
+	var keys string
+
 	for {
-		s := <-c.phone.HookChannel
+		c.Where = "mainmenu"
+		s := <-c.Phone.HookChannel
 		if s {
 			select {
-			case dtmf_key := <-c.dtmf.HookKey:
-				c.MainMenu(dtmf_key)
+			case dtmf_key := <-c.Dtmf.HookKey:
+				il := MenuOptions[c.Where].InputLength()
+				if len(keys) < il {
+					keys += dtmf_key
+				} else {
+					MenuOptions[c.Where].Run(c, keys)
+				}
 			}
 		} else {
-			c.mpd.Clear()
+			c.Mpd.Clear()
 		}
-	}
-}
-
-func (c *Controller) MainMenu(dtmf_key string) {
-
-	switch dtmf_key {
-	case "1":
-		message := "orvars korvar och makaroner"
-		polly.TTS(message, "Astrid")
-		fmt.Println(dtmf_key, message)
-
-		c.mpd.Add("test.mp3")
-		c.mpd.Play()
-	case "2":
-		message := "penis lasse"
-		polly.TTS(message, "Astrid")
-		fmt.Println(dtmf_key, message)
-
-		c.mpd.Add("test.mp3")
-		c.mpd.Play()
 	}
 }
