@@ -1,15 +1,16 @@
 package controller
 
 import (
-	"fmt"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/mpd"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/phone"
 )
 
 var MenuOptions = map[string]MenuOption{
 	"mainmenu": &MainMenu{},
+	"announce": &Announce{},
 }
 
 type Controller struct {
@@ -34,21 +35,26 @@ func (c *Controller) Start() {
 	hookchan := c.Phone.GetHookChannel()
 	keychan := c.Phone.GetKeyChannel()
 
-	fmt.Println("starting main loop")
+	log.Info("Starting Main Loop")
 	for {
 		select {
 		case hook := <-hookchan:
 			if hook {
 				hookstate = true
+				log.Info("Hook is lifted")
 			} else {
 				hookstate = false
 				c.Mpd.Clear()
 				c.Where = "mainmenu"
+				log.Info("Hook is slammed")
 			}
 		case key := <-keychan:
 			if hookstate {
 				il := MenuOptions[c.Where].InputLength()
-				fmt.Println(key)
+				log.WithFields(log.Fields{
+					"Function":     c.Where,
+					"Input Length": il,
+				}).Info("Entering function")
 				keys += key
 				if len(keys) == il {
 					c.TriggerFunction(keys)

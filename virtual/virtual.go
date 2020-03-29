@@ -2,8 +2,9 @@ package virtual
 
 import (
 	"bufio"
-	"fmt"
 	"os"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type Virtual struct {
@@ -31,7 +32,7 @@ func (d *Virtual) startRead() {
 		text := []byte(scanner.Text())
 		if len(text) > 0 {
 			s := string(text[0])
-			fmt.Println("Keyboard Input: " + s)
+			log.Debug("Keyboard input: " + s)
 			if s == "o" || s == "k" {
 				var dem bool = false
 				if s == "o" {
@@ -39,13 +40,13 @@ func (d *Virtual) startRead() {
 				}
 				select {
 				case d.HookChannel <- dem:
-					fmt.Println("Wrote Hookchannel")
+					log.Debug("Wrote to hookchannel")
 				default:
 				}
 			} else {
 				select {
 				case d.KeyChannel <- s:
-					fmt.Println("Wrote Keychannel")
+					log.Debug("Wrote key: " + s + " to keychannel")
 				default:
 				}
 			}

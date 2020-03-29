@@ -1,9 +1,17 @@
 github.com/bmizerany/aws4 v0.0.0-20141025110357-5fb2e7239626 h1:+BShUYeLVWnZfJBzodJp3Y+pMsKZzYEwWItSoL+r61s=
 github.com/bmizerany/aws4 v0.0.0-20141025110357-5fb2e7239626/go.mod h1:1qbMWKr5WUBWWACRFRTMcN2ntzeuWyevPq0e1YplD3Y=
+github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/fhs/gompd v2.0.0+incompatible h1:pv5XKTatya1k3r1woaWLwFQiF0BfAsgWSe5ev2XZ0UM=
 github.com/fhs/gompd v2.0.0+incompatible/go.mod h1:UVZXd9wmFBH5tIXLYeI+CGUIt15ZvtGQvVO6SDHy1os=
+github.com/konsorten/go-windows-terminal-sequences v1.0.1/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=
 github.com/leprosus/golang-tts v0.0.0-20190516104601-a4737dbd315b h1:hZESw99IEESXvTemMNOehuV+u43lbsdwr6GI31NWZUM=
 github.com/leprosus/golang-tts v0.0.0-20190516104601-a4737dbd315b/go.mod h1:KCxUIrXJ4Sa3cmb5Nrk+4fszr5TTbiMrC6BqvFZziO8=
+github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
+github.com/sirupsen/logrus v1.5.0 h1:1N5EYkVAPEywqZRJd7cwnRtCb6xJx7NH3T3WUTF980Q=
+github.com/sirupsen/logrus v1.5.0/go.mod h1:+F7Ogzej0PZc/94MaYx/nvG9jOFMD2osvC3s+Squfpo=
 github.com/stianeikeland/go-rpio v4.2.0+incompatible h1:CUOlIxdJdT+H1obJPsmg8byu7jMSECLfAN9zynm5QGo=
 github.com/stianeikeland/go-rpio/v4 v4.4.0 h1:LScvNyXHF412co42LG5t7bvBDbtDAhLF828ebaGqmjA=
 github.com/stianeikeland/go-rpio/v4 v4.4.0/go.mod h1:BkK52zk+FRk8wCTDf88/86Sojc+NfUiCAHd1ZV3RuTM=
+github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
+golang.org/x/sys v0.0.0-20190422165155-953cdadca894 h1:Cz4ceDQGXuKRnVBDTS23GTn/pU5OE2C0WrNTOYK1Uuc=
+golang.org/x/sys v0.0.0-20190422165155-953cdadca894/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=

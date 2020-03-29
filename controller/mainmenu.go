@@ -27,6 +27,12 @@ func (m *MainMenu) Run(c *Controller, k string) MenuReturn {
 
 		c.Mpd.Add("test.mp3")
 		c.Mpd.Play()
+	case "3":
+		c.Mpd.Clear()
+		return MenuReturn{
+			NextAction:   "LUL",
+			NextFunction: "announce",
+		}
 	}
 
 	return MenuReturn{
@@ -37,8 +43,4 @@ func (m *MainMenu) Run(c *Controller, k string) MenuReturn {
 
 func (m *MainMenu) InputLength() int {
 	return 1
-}
-
-func (m *MainMenu) Name() string {
-	return "mainmenu"
 }
