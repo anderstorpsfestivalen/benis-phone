@@ -1,6 +1,7 @@
 github.com/bmizerany/aws4 v0.0.0-20141025110357-5fb2e7239626 h1:+BShUYeLVWnZfJBzodJp3Y+pMsKZzYEwWItSoL+r61s=
 github.com/bmizerany/aws4 v0.0.0-20141025110357-5fb2e7239626/go.mod h1:1qbMWKr5WUBWWACRFRTMcN2ntzeuWyevPq0e1YplD3Y=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+github.com/fhs/gompd v1.0.0 h1:BlZFN8lDsLKHd6ftLYdHl1QvjbnR+03srQvNDhrPpNk=
 github.com/fhs/gompd v2.0.0+incompatible h1:pv5XKTatya1k3r1woaWLwFQiF0BfAsgWSe5ev2XZ0UM=
 github.com/fhs/gompd v2.0.0+incompatible/go.mod h1:UVZXd9wmFBH5tIXLYeI+CGUIt15ZvtGQvVO6SDHy1os=
 github.com/konsorten/go-windows-terminal-sequences v1.0.1/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=

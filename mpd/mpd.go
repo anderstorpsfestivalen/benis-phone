@@ -3,6 +3,7 @@ package mpd
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/fhs/gompd/mpd"
 )
@@ -46,6 +47,37 @@ func (c MpdClient) Play() {
 	err := c.m.Play(-1)
 	if err != nil {
 		log.Fatalln(err)
+	}
+}
+
+func (c MpdClient) PlayBlocking() {
+	fmt.Println("Play first in queue\n")
+	err := c.m.Play(-1)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	for {
+		attr, _ := c.m.Status()
+		if state, ok := attr["state"]; ok {
+			if state != "play" {
+				break
+			}
+		} else {
+			break
+		}
+
+		time.Sleep(time.Microsecond * 100)
+	}
+
+}
+
+func (c MpdClient) State() (string, error) {
+	attr, err := c.m.Status()
+	if state, ok := attr["state"]; ok {
+		return state, nil
+	} else {
+		return "", err
 	}
 }
 
