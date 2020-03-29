@@ -1,7 +1,8 @@
 package controller
 
 import (
-	"gitlab.com/anderstorpsfestivalen/benis-phone/dtmf"
+	"fmt"
+	"time"
 
 	"gitlab.com/anderstorpsfestivalen/benis-phone/mpd"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/phone"
@@ -12,17 +13,15 @@ var MenuOptions = map[string]MenuOption{
 }
 
 type Controller struct {
-	Phone phone.Phone
+	Phone phone.FlowPhone
 	Mpd   mpd.MpdClient
-	Dtmf  dtmf.Dtmf
 	Where string
 }
 
-func New(ph phone.Phone, mpd mpd.MpdClient, dtmf dtmf.Dtmf) Controller {
+func New(ph phone.FlowPhone, mpd mpd.MpdClient) Controller {
 	return Controller{
 		Phone: ph,
 		Mpd:   mpd,
-		Dtmf:  dtmf,
 		Where: "mainmenu",
 	}
 }
@@ -30,22 +29,39 @@ func New(ph phone.Phone, mpd mpd.MpdClient, dtmf dtmf.Dtmf) Controller {
 func (c *Controller) Start() {
 
 	var keys string
+	var hookstate bool
 
+	hookchan := c.Phone.GetHookChannel()
+	keychan := c.Phone.GetKeyChannel()
+
+	fmt.Println("starting main loop")
 	for {
-		c.Where = "mainmenu"
-		s := <-c.Phone.HookChannel
-		if s {
-			select {
-			case dtmf_key := <-c.Dtmf.HookKey:
+		select {
+		case hook := <-hookchan:
+			if hook {
+				hookstate = true
+			} else {
+				hookstate = false
+				c.Mpd.Clear()
+				c.Where = "mainmenu"
+			}
+		case key := <-keychan:
+			if hookstate {
 				il := MenuOptions[c.Where].InputLength()
-				if len(keys) < il {
-					keys += dtmf_key
-				} else {
-					MenuOptions[c.Where].Run(c, keys)
+				fmt.Println(key)
+				keys += key
+				if len(keys) == il {
+					c.TriggerFunction(keys)
+					keys = ""
 				}
 			}
-		} else {
-			c.Mpd.Clear()
+		default:
+			time.Sleep(time.Millisecond * 2)
 		}
 	}
+}
+
+func (c *Controller) TriggerFunction(keys string) {
+	res := MenuOptions[c.Where].Run(c, keys)
+	c.Where = res.NextFunction
 }

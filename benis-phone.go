@@ -1,20 +1,27 @@
 package main
 
 import (
+	"fmt"
+
 	"gitlab.com/anderstorpsfestivalen/benis-phone/controller"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/dtmf"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/mpd"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/phone"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/virtual"
 )
 
 func main() {
 
-	dtmf := dtmf.Init()
-	ph := phone.Init(6)
+	//gpioDisabled := flag.Bool("gpio", true, "blah")
+	//flag.Parse()
+
+	phone := virtual.New()
 	mpd := mpd.Init("127.0.0.1:6600")
 
-	ctrl := controller.New(ph, mpd, dtmf)
+	fmt.Println("Starting controller")
 
-	ctrl.Start()
+	ctrl := controller.New(phone, mpd)
+
+	go ctrl.Start()
+
+	phone.Init(0)
 
 }

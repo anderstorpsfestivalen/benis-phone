@@ -8,12 +8,6 @@ import (
 	"github.com/stianeikeland/go-rpio/v4"
 )
 
-type Phone struct {
-	HookPin     rpio.Pin
-	HookChannel chan bool
-	hookState   bool
-}
-
 func Init(physicalPin uint8) Phone {
 
 	if err := rpio.Open(); err != nil {

@@ -9,7 +9,9 @@ import (
 type MainMenu struct {
 }
 
-func (m *MainMenu) Run(c *Controller, k string) {
+func (m *MainMenu) Run(c *Controller, k string) MenuReturn {
+
+	fmt.Println("RECEIVED: " + k)
 	switch k {
 	case "1":
 		message := "orvars korvar och makaroner"
@@ -25,6 +27,11 @@ func (m *MainMenu) Run(c *Controller, k string) {
 
 		c.Mpd.Add("test.mp3")
 		c.Mpd.Play()
+	}
+
+	return MenuReturn{
+		NextAction:   "LUL",
+		NextFunction: "mainmenu",
 	}
 }
 
