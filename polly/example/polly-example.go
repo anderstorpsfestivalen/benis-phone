@@ -7,6 +7,6 @@ import (
 func main() {
 
 	message := "hej hej, testing testing"
-	polly.TTS(message, "Emma")
+	polly.TTS(message, "Astrid")
 
 }

@@ -22,7 +22,7 @@ func (c *Controller) Start() {
 	for {
 		s := <-c.phone.HookChannel
 		if s {
-			c.mpd.Add("test.mp3")
+			//c.mpd.Add("test.mp3")
 			c.mpd.Play()
 		} else {
 			c.mpd.Clear()
