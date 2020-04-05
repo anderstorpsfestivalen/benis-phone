@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -27,7 +28,7 @@ func New(ph phone.FlowPhone, mpd mpd.MpdClient) Controller {
 	}
 }
 
-func (c *Controller) Start() {
+func (c *Controller) Start(wg *sync.WaitGroup) {
 
 	var keys string
 	var hookstate bool
@@ -35,38 +36,49 @@ func (c *Controller) Start() {
 	hookchan := c.Phone.GetHookChannel()
 	keychan := c.Phone.GetKeyChannel()
 
-	log.Info("Starting Main Loop")
-	for {
-		select {
-		case hook := <-hookchan:
-			if hook {
-				hookstate = true
-				log.Info("Hook is lifted")
-				c.Mpd.Add("default.mp3")
-				c.Mpd.PlayBlocking()
-			} else {
-				hookstate = false
-				c.Mpd.Clear()
-				c.Where = "mainmenu"
-				log.Info("Hook is slammed")
-			}
-		case key := <-keychan:
-			if hookstate {
-				il := MenuOptions[c.Where].InputLength()
-				log.WithFields(log.Fields{
-					"Function":     c.Where,
-					"Input Length": il,
-				}).Info("Entering function")
-				keys += key
-				if len(keys) == il {
-					c.TriggerFunction(keys)
-					keys = ""
+	go func() {
+		for {
+			select {
+			case hook := <-hookchan:
+				if hook {
+					hookstate = true
+					log.Info("Hook is lifted")
+					c.Mpd.Add("default.mp3")
+					c.Mpd.PlayBlocking()
+				} else {
+					hookstate = false
+					c.Mpd.Clear()
+					c.Where = "mainmenu"
+					log.Info("Hook is slammed")
 				}
+			default:
+				time.Sleep(time.Millisecond * 2)
 			}
-		default:
-			time.Sleep(time.Millisecond * 2)
 		}
-	}
+	}()
+
+	go func() {
+		for {
+			select {
+			case key := <-keychan:
+				if hookstate {
+					il := MenuOptions[c.Where].InputLength()
+					log.WithFields(log.Fields{
+						"Function":     c.Where,
+						"Input Length": il,
+					}).Info("Entering function")
+					keys += key
+					if len(keys) == il {
+						c.TriggerFunction(keys)
+						keys = ""
+					}
+				}
+			default:
+				time.Sleep(time.Millisecond * 2)
+			}
+		}
+	}()
+
 }
 
 func (c *Controller) TriggerFunction(keys string) {

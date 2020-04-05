@@ -19,9 +19,9 @@ func New() *Virtual {
 	}
 }
 
-func (d *Virtual) Init(p uint8) {
+func (d *Virtual) Init() {
 
-	d.startRead()
+	go d.startRead()
 
 }
 

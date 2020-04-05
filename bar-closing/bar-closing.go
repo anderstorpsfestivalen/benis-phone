@@ -6,22 +6,21 @@ import (
 )
 
 func main() {
-	//now := time.Now()
+	now := time.Now()
 
 	closing := time.Date(
-		2020, 04, 06, 01, 00, 00, 000000000, time.UTC)
+		now.Year(), now.Month(), now.Day()+1, 01, 00, 00, 000000000, time.UTC)
 
 	fmt.Printf("%T", closing)
 
 	//init the loc
 	loc, _ := time.LoadLocation("Europe/Stockholm")
 
-	//set timezone,
-	now := time.Now().In(loc)
+	newtime := closing.In(loc)
 
-	fmt.Println(now)
+	fmt.Println(newtime)
 
-	diff := now.Sub(closing)
+	diff := now.Sub(newtime)
 	fmt.Println(diff)
 
 }

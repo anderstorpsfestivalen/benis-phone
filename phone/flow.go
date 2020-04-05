@@ -10,7 +10,7 @@ type Phone struct {
 }
 
 type FlowPhone interface {
-	Init(pin uint8)
+	Init()
 	Close()
 	State() bool
 	GetKeyChannel() chan string
