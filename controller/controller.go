@@ -42,6 +42,8 @@ func (c *Controller) Start() {
 			if hook {
 				hookstate = true
 				log.Info("Hook is lifted")
+				c.Mpd.Add("default.mp3")
+				c.Mpd.PlayBlocking()
 			} else {
 				hookstate = false
 				c.Mpd.Clear()
