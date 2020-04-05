@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/bmizerany/aws4 v0.0.0-20141025110357-5fb2e7239626 // indirect
+	github.com/coral/trafikverket v0.0.0-20200311030026-ca90853e5cf6
 	github.com/fhs/gompd v2.0.0+incompatible
 	github.com/leprosus/golang-tts v0.0.0-20190516104601-a4737dbd315b
 	github.com/sirupsen/logrus v1.5.0

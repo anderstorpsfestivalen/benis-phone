@@ -1,5 +1,7 @@
 github.com/bmizerany/aws4 v0.0.0-20141025110357-5fb2e7239626 h1:+BShUYeLVWnZfJBzodJp3Y+pMsKZzYEwWItSoL+r61s=
 github.com/bmizerany/aws4 v0.0.0-20141025110357-5fb2e7239626/go.mod h1:1qbMWKr5WUBWWACRFRTMcN2ntzeuWyevPq0e1YplD3Y=
+github.com/coral/trafikverket v0.0.0-20200311030026-ca90853e5cf6 h1:/E5LctsaNeAnVjAsgve5eii/n87M4Ut9Pku+zlsnL84=
+github.com/coral/trafikverket v0.0.0-20200311030026-ca90853e5cf6/go.mod h1:W91+8TBweaXFASPQWiXWpzF2OKGtSbWdrXj9wMEf3r0=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/fhs/gompd v1.0.0 h1:BlZFN8lDsLKHd6ftLYdHl1QvjbnR+03srQvNDhrPpNk=
 github.com/fhs/gompd v2.0.0+incompatible h1:pv5XKTatya1k3r1woaWLwFQiF0BfAsgWSe5ev2XZ0UM=
