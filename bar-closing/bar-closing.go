@@ -8,8 +8,14 @@ import (
 func main() {
 	now := time.Now()
 
+	add := 1
+
+	if now.Hour() < 3 {
+		add = 0
+	}
+
 	closing := time.Date(
-		now.Year(), now.Month(), now.Day()+1, 01, 00, 00, 000000000, time.UTC)
+		now.Year(), now.Month(), now.Day()+add, 01, 00, 00, 000000000, time.UTC)
 
 	fmt.Printf("%T", closing)
 
