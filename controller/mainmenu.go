@@ -4,13 +4,12 @@ import (
 	"fmt"
 
 	"gitlab.com/anderstorpsfestivalen/benis-phone/polly"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/train"
 )
 
 type MainMenu struct {
 }
 
-func (m *MainMenu) Run(c *Controller, k string) MenuReturn {
+func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 
 	fmt.Println("RECEIVED: " + k)
 	switch k {
@@ -33,19 +32,15 @@ func (m *MainMenu) Run(c *Controller, k string) MenuReturn {
 	case "3":
 		c.Mpd.Clear()
 		return MenuReturn{
-			NextAction:   "LUL",
 			NextFunction: "announce",
 		}
 	case "4":
 		c.Mpd.Clear()
-		message := train.Get()
-		fmt.Println(message)
-		polly.TTS(message, "Astrid")
-		c.Mpd.Add("test.mp3")
-		c.Mpd.PlayBlocking()
+		return MenuReturn{
+			NextFunction: "trainmenu",
+		}
 	}
 	return MenuReturn{
-		NextAction:   "LUL",
 		NextFunction: "mainmenu",
 	}
 
@@ -53,4 +48,8 @@ func (m *MainMenu) Run(c *Controller, k string) MenuReturn {
 
 func (m *MainMenu) InputLength() int {
 	return 1
+}
+
+func (m *MainMenu) Name() string {
+	return "mainmenu"
 }

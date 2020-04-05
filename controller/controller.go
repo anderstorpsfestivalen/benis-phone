@@ -10,14 +10,16 @@ import (
 )
 
 var MenuOptions = map[string]MenuOption{
-	"mainmenu": &MainMenu{},
-	"announce": &Announce{},
+	"mainmenu":  &MainMenu{},
+	"announce":  &Announce{},
+	"trainmenu": &TrainMenu{},
 }
 
 type Controller struct {
 	Phone phone.FlowPhone
 	Mpd   mpd.MpdClient
 	Where string
+	Menu  MenuReturn
 }
 
 func New(ph phone.FlowPhone, mpd mpd.MpdClient) Controller {
@@ -25,6 +27,7 @@ func New(ph phone.FlowPhone, mpd mpd.MpdClient) Controller {
 		Phone: ph,
 		Mpd:   mpd,
 		Where: "mainmenu",
+		Menu:  MenuReturn{},
 	}
 }
 
@@ -63,14 +66,23 @@ func (c *Controller) Start(wg *sync.WaitGroup) {
 			case key := <-keychan:
 				if hookstate {
 					il := MenuOptions[c.Where].InputLength()
-					log.WithFields(log.Fields{
-						"Function":     c.Where,
-						"Input Length": il,
-					}).Info("Entering function")
 					keys += key
-					if len(keys) == il {
+					if il == 0 {
+						log.WithFields(log.Fields{
+							"Function":     c.Where,
+							"Input Length": il,
+						}).Info("Entering function")
 						c.TriggerFunction(keys)
 						keys = ""
+					} else {
+						if len(keys) == il {
+							log.WithFields(log.Fields{
+								"Function":     c.Where,
+								"Input Length": il,
+							}).Info("Entering function")
+							c.TriggerFunction(keys)
+							keys = ""
+						}
 					}
 				}
 			default:
@@ -82,6 +94,12 @@ func (c *Controller) Start(wg *sync.WaitGroup) {
 }
 
 func (c *Controller) TriggerFunction(keys string) {
-	res := MenuOptions[c.Where].Run(c, keys)
+	res := MenuOptions[c.Where].Run(c, keys, c.Menu)
+	res.Caller = MenuOptions[c.Where].Name()
+	c.Menu = res
 	c.Where = res.NextFunction
+
+	if MenuOptions[c.Where].InputLength() == 0 {
+		c.TriggerFunction("")
+	}
 }

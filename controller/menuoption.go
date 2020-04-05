@@ -1,11 +1,12 @@
 package controller
 
 type MenuOption interface {
-	Run(c *Controller, key string) MenuReturn
+	Run(c *Controller, key string, menu MenuReturn) MenuReturn
 	InputLength() int
+	Name() string
 }
 
 type MenuReturn struct {
-	NextAction   string
+	Caller       string
 	NextFunction string
 }

@@ -4,7 +4,7 @@ import "fmt"
 
 type Announce struct{}
 
-func (m *Announce) Run(c *Controller, k string) MenuReturn {
+func (m *Announce) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 
 	if k == "121212" {
 		fmt.Println("ANNOUNCE")
@@ -13,10 +13,13 @@ func (m *Announce) Run(c *Controller, k string) MenuReturn {
 	}
 
 	return MenuReturn{
-		NextAction:   "LUL",
 		NextFunction: "mainmenu",
 	}
 }
 func (m *Announce) InputLength() int {
 	return 6
+}
+
+func (m *Announce) Name() string {
+	return "announce"
 }

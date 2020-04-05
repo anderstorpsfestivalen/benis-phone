@@ -1,8 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"sync"
+
+	log "github.com/sirupsen/logrus"
 
 	"gitlab.com/anderstorpsfestivalen/benis-phone/controller"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/mpd"
@@ -17,8 +18,8 @@ func main() {
 	virtual := virtual.New()
 	mpd := mpd.Init("127.0.0.1:6600")
 
-	fmt.Println("Starting controller")
-
+	log.Info("Starting Controller")
+	log.SetLevel(log.DebugLevel)
 	ctrl := controller.New(virtual, mpd)
 
 	var waitgroup sync.WaitGroup
