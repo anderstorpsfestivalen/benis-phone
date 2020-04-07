@@ -3,6 +3,7 @@ module gitlab.com/anderstorpsfestivalen/benis-phone
 go 1.13
 
 require (
+	github.com/aws/aws-sdk-go v1.30.6
 	github.com/bmizerany/aws4 v0.0.0-20141025110357-5fb2e7239626 // indirect
 	github.com/coral/trafikverket v0.0.0-20200311030026-ca90853e5cf6
 	github.com/fhs/gompd v2.0.0+incompatible
