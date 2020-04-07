@@ -17,16 +17,16 @@ func main() {
 	closing := time.Date(
 		now.Year(), now.Month(), now.Day()+add, 01, 00, 00, 000000000, time.UTC)
 
-	fmt.Printf("%T", closing)
-
 	//init the loc
 	loc, _ := time.LoadLocation("Europe/Stockholm")
 
 	newtime := closing.In(loc)
 
-	fmt.Println(newtime)
+	fmt.Printf("closing: %v\n", newtime)
 
 	diff := now.Sub(newtime)
-	fmt.Println(diff)
+	fmt.Printf("diff is type: %T\n", diff)
+	fmt.Printf("diff is %v \n", diff)
 
+	fmt.Printf("%v\n", diff.Hours)
 }
