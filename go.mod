@@ -7,7 +7,7 @@ require (
 	github.com/bmizerany/aws4 v0.0.0-20141025110357-5fb2e7239626 // indirect
 	github.com/coral/trafikverket v0.0.0-20200311030026-ca90853e5cf6
 	github.com/fhs/gompd v2.0.0+incompatible
-	github.com/go-redis/redis v6.15.7+incompatible // indirect
+	github.com/go-redis/redis v6.15.7+incompatible
 	github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible // indirect
 	github.com/jmoiron/sqlx v1.2.0 // indirect
 	github.com/leprosus/golang-tts v0.0.0-20190516104601-a4737dbd315b
