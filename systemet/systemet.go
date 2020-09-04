@@ -1,15 +1,11 @@
-package main
+package systemet
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
-	"strings"
-	"time"
 )
 
 type RequestStock struct {
@@ -21,7 +17,11 @@ type RequestProductInfo struct {
 	ProductID string `json:"productId"`
 }
 
-type ResponseStock []struct {
+type ResponseStock struct {
+	Stock []Stock
+}
+
+type Stock struct {
 	SiteID            string `json:"SiteId"`
 	StockTextShort    string `json:"StockTextShort"`
 	StockTextLong     string `json:"StockTextLong"`
@@ -172,62 +172,44 @@ type ResponseProductAnalysis struct {
 	StockBalances []interface{} `json:"StockBalances"`
 }
 
-func main() {
-	// Run before starting the timer
-	requestProductAnalytics()
-	//requestStockData()
-
-	pollInterval := 5
-
-	tmr := time.Tick(time.Duration(pollInterval) * time.Minute)
-	for range tmr {
-		requestStockData()
-	}
-}
-
-func requestStockData() {
-
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Enter text: ")
-	dtmf_input, _ := reader.ReadString('\n')
-	dtmf_input = strings.Replace(dtmf_input, "\n", "", -1)
-	fmt.Println(dtmf_input)
+func RequestStockData(productID string) (Stock, error) {
 
 	s := ResponseStock{}
 	jsonValue, err := json.Marshal(RequestStock{
 		//ProductID: "508393",
 		//ProdcutID: "507811"
-		ProductID: dtmf_input,
+		ProductID: productID,
 		SiteIds:   []string{"0611"},
 	})
 
 	if err != nil {
-		panic(err)
+		return Stock{}, fmt.Errorf("Could not craft request for systembolaget")
 	}
 
 	res, err := http.Post("https://www.systembolaget.se/api/product/getstockbalance",
 		"application/json",
 		bytes.NewBuffer(jsonValue))
 	if err != nil {
-		panic(err)
+		return Stock{}, fmt.Errorf("No good response from systembolaget")
 	}
 
 	defer res.Body.Close()
 
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		panic(err)
+		return Stock{}, fmt.Errorf("Could not read JSON data from systembolaget")
 	}
 
-	json.Unmarshal(body, &s)
+	json.Unmarshal(body, &s.Stock)
 
-	for _, site := range s {
-
-		fmt.Println(site.StockTextLong)
+	if len(s.Stock) > 0 {
+		return s.Stock[0], nil
+	} else {
+		return Stock{}, fmt.Errorf("Empty response")
 	}
 }
 
-func requestProductAnalytics() {
+func RequestProductAnalytics() {
 
 	s := ResponseProductAnalysis{}
 	jsonValue, err := json.Marshal(RequestProductInfo{
