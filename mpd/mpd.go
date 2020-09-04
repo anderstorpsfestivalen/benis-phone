@@ -13,17 +13,17 @@ type MpdClient struct {
 	m    *mpd.Client
 }
 
-func Init(h string) MpdClient {
+func Init(h string) (MpdClient, error) {
 	var c MpdClient
 	c.Host = h
 	conn, err := mpd.Dial("tcp", c.Host)
 	if err != nil {
-		log.Fatalln(err)
+		return MpdClient{}, err
 	}
 	c.m = conn
 	c.m.Clear()
 	c.m.Consume(true)
-	return c
+	return c, nil
 }
 
 func (c MpdClient) Close() {
