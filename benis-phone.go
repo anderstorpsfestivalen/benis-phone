@@ -1,7 +1,6 @@
 package main
 
 import (
-	"os"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -10,13 +9,16 @@ import (
 	"gitlab.com/anderstorpsfestivalen/benis-phone/filesync"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/mpd"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/polly"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/secrets"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/virtual"
 )
 
 func main() {
 
+	credentials := secrets.LoadSecrets()
+
 	//Synchronize files from S3
-	fsx, err := filesync.Create(os.Getenv("s3_key"), os.Getenv("s3_secret"), "anderstorpsfestivalen", "eu-north-1")
+	fsx, err := filesync.Create(credentials.S3.Key, credentials.S3.Secret, "anderstorpsfestivalen", "eu-north-1")
 	if err != nil {
 		log.Fatal("Could not initialize sync")
 	}
@@ -33,7 +35,7 @@ func main() {
 		}).Panic("Could not initiate connection to MPD")
 	}
 
-	polly := polly.New(os.Getenv("aws_key"), os.Getenv("aws_secret"), "/home/wberg/Music")
+	polly := polly.New(credentials.Polly.Key, credentials.Polly.Secret, "/home/wberg/Music")
 
 	log.Info("Starting Controller")
 	log.SetLevel(log.DebugLevel)
