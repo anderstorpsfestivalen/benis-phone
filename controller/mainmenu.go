@@ -50,6 +50,12 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 			NextFunction: "trainmenu",
 		}
 	}
+	case "5":
+		c.Mpd.Clear()
+		return MenuReturn{
+			NextFunction: "systemet",
+		}
+	}
 	return MenuReturn{
 		NextFunction: "mainmenu",
 	}

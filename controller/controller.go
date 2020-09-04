@@ -13,6 +13,7 @@ import (
 var MenuOptions = map[string]MenuOption{
 	"mainmenu":  &MainMenu{},
 	"announce":  &Announce{},
+	"systemet":  &Systemet{},
 	"trainmenu": &TrainMenu{},
 }
 

@@ -1,9 +1,7 @@
 package controller
 
 import (
-	"fmt"
-
-	"gitlab.com/anderstorpsfestivalen/benis-phone/train"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/systemet"
 )
 
 type Systemet struct {
@@ -12,8 +10,13 @@ type Systemet struct {
 func (m *Systemet) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 
 	c.Mpd.Clear()
-	message := train.Get()
-	fmt.Println(message)
+	stock, err := systemet.RequestStockData("508393")
+	if err != nil {
+		return MenuReturn{
+			NextFunction: "mainmenu",
+		}
+	}
+	message := "Antalet Arboga 10.2 i lager på Systembolaget Gislaved är just nu " + stock.StockTextShort
 	filename, err := c.Polly.TTS(message, "Astrid")
 	if err != nil {
 		return MenuReturn{
@@ -29,10 +32,10 @@ func (m *Systemet) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 
 }
 
-func (m *TrainMenu) InputLength() int {
+func (m *Systemet) InputLength() int {
 	return 0
 }
 
-func (m *TrainMenu) Name() string {
+func (m *Systemet) Name() string {
 	return "systemet"
 }
