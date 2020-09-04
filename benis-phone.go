@@ -26,7 +26,12 @@ func main() {
 	//flag.Parse()
 
 	virtual := virtual.New()
-	mpd := mpd.Init("127.0.0.1:6600")
+	mpd, err := mpd.Init("127.0.0.1:6600")
+	if err != nil {
+		log.WithFields(log.Fields{
+			"MPD error": err,
+		}).Panic("Could not initiate connection to MPD")
+	}
 
 	polly := polly.New(os.Getenv("aws_key"), os.Getenv("aws_secret"), "/tmp")
 
