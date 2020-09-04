@@ -49,7 +49,6 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		return MenuReturn{
 			NextFunction: "trainmenu",
 		}
-	}
 	case "5":
 		c.Mpd.Clear()
 		return MenuReturn{
