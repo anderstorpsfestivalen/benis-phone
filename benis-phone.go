@@ -33,7 +33,7 @@ func main() {
 		}).Panic("Could not initiate connection to MPD")
 	}
 
-	polly := polly.New(os.Getenv("aws_key"), os.Getenv("aws_secret"), "/tmp")
+	polly := polly.New(os.Getenv("aws_key"), os.Getenv("aws_secret"), "/home/wberg/Music")
 
 	log.Info("Starting Controller")
 	log.SetLevel(log.DebugLevel)

@@ -32,6 +32,7 @@ func (c MpdClient) Close() {
 
 func (c MpdClient) Add(f string) {
 	c.m.Update(f)
+	time.Sleep(50 * time.Millisecond)
 
 	fmt.Printf("Adding %s\n", f)
 	c.m.Add(f)
@@ -51,7 +52,8 @@ func (c MpdClient) Play() {
 }
 
 func (c MpdClient) PlayBlocking() {
-	fmt.Println("Play first in queue\n")
+	fmt.Println("Play first in queue blocking\n")
+
 	err := c.m.Play(-1)
 	if err != nil {
 		log.Fatalln(err)
@@ -69,6 +71,8 @@ func (c MpdClient) PlayBlocking() {
 
 		time.Sleep(time.Microsecond * 100)
 	}
+
+	fmt.Println("release")
 
 }
 

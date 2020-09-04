@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"strings"
+
 	"gitlab.com/anderstorpsfestivalen/benis-phone/systemet"
 )
 
@@ -16,7 +18,7 @@ func (m *Systemet) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 			NextFunction: "mainmenu",
 		}
 	}
-	message := "Antalet Arboga 10.2 i lager på Systembolaget Gislaved är just nu " + stock.StockTextShort
+	message := "Antalet Arboga 10.2 i lager på Systembolaget Gislaved är just nu " + strings.Replace(stock.StockTextShort, "st", "stycken     .", -1)
 	filename, err := c.Polly.TTS(message, "Astrid")
 	if err != nil {
 		return MenuReturn{
