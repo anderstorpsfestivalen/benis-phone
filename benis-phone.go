@@ -9,6 +9,7 @@ import (
 	"gitlab.com/anderstorpsfestivalen/benis-phone/controller"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/filesync"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/mpd"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/polly"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/virtual"
 )
 
@@ -27,9 +28,11 @@ func main() {
 	virtual := virtual.New()
 	mpd := mpd.Init("127.0.0.1:6600")
 
+	polly := polly.New(os.Getenv("aws_key"), os.Getenv("aws_secret"), "/tmp")
+
 	log.Info("Starting Controller")
 	log.SetLevel(log.DebugLevel)
-	ctrl := controller.New(virtual, mpd)
+	ctrl := controller.New(virtual, mpd, polly)
 
 	var waitgroup sync.WaitGroup
 	waitgroup.Add(1)

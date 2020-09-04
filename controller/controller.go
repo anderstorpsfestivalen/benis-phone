@@ -7,6 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/mpd"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/phone"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/polly"
 )
 
 var MenuOptions = map[string]MenuOption{
@@ -18,14 +19,16 @@ var MenuOptions = map[string]MenuOption{
 type Controller struct {
 	Phone phone.FlowPhone
 	Mpd   mpd.MpdClient
+	Polly polly.Polly
 	Where string
 	Menu  MenuReturn
 }
 
-func New(ph phone.FlowPhone, mpd mpd.MpdClient) Controller {
+func New(ph phone.FlowPhone, mpd mpd.MpdClient, polly polly.Polly) Controller {
 	return Controller{
 		Phone: ph,
 		Mpd:   mpd,
+		Polly: polly,
 		Where: "mainmenu",
 		Menu:  MenuReturn{},
 	}

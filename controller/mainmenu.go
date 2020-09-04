@@ -3,7 +3,7 @@ package controller
 import (
 	"fmt"
 
-	"gitlab.com/anderstorpsfestivalen/benis-phone/polly"
+	log "github.com/sirupsen/logrus"
 )
 
 type MainMenu struct {
@@ -16,18 +16,28 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 	case "1":
 		c.Mpd.Clear()
 		message := "orvars korvar och makaroner"
-		polly.TTS(message, "Astrid")
-		fmt.Println(k, message)
+		filename, err := c.Polly.TTS(message, "Astrid")
+		if err != nil {
+			log.Error(err)
+			return MenuReturn{
+				NextFunction: "mainmenu",
+			}
+		}
 
-		c.Mpd.Add("test.mp3")
+		c.Mpd.Add(filename)
 		c.Mpd.PlayBlocking()
 	case "2":
 		c.Mpd.Clear()
 		message := "penis lasse"
-		polly.TTS(message, "Astrid")
-		fmt.Println(k, message)
+		filename, err := c.Polly.TTS(message, "Astrid")
+		if err != nil {
+			log.Error(err)
+			return MenuReturn{
+				NextFunction: "mainmenu",
+			}
+		}
 
-		c.Mpd.Add("test.mp3")
+		c.Mpd.Add(filename)
 		c.Mpd.PlayBlocking()
 	case "3":
 		c.Mpd.Clear()

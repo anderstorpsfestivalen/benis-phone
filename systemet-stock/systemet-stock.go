@@ -18,7 +18,7 @@ type RequestStock struct {
 }
 
 type RequestProductInfo struct {
-	ProductNumbers []string `json:"ProductNumbers"`
+	ProductID string `json:"productId"`
 }
 
 type ResponseStock []struct {
@@ -232,10 +232,10 @@ func requestProductAnalytics() {
 	s := ResponseProductAnalysis{}
 	jsonValue, err := json.Marshal(RequestProductInfo{
 		//ProductID: "508393",
-		//ProductID: "507811",
+		ProductID: "507811",
 		//ProductID: dtmf_input,
 		//SiteIds:   []string{"0611"},
-		ProductNumbers: []string{"125512"},
+		//ProductNumbers: []string{"125512"},
 	})
 
 	if err != nil {
@@ -249,8 +249,9 @@ func requestProductAnalytics() {
 		panic(err)
 	}
 
-	//fmt.Println(res)
 	defer res.Body.Close()
+
+	fmt.Println(res)
 
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {

@@ -3,7 +3,6 @@ package controller
 import (
 	"fmt"
 
-	"gitlab.com/anderstorpsfestivalen/benis-phone/polly"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/train"
 )
 
@@ -15,8 +14,13 @@ func (m *TrainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 	c.Mpd.Clear()
 	message := train.Get()
 	fmt.Println(message)
-	polly.TTS(message, "Astrid")
-	c.Mpd.Add("test.mp3")
+	filename, err := c.Polly.TTS(message, "Astrid")
+	if err != nil {
+		return MenuReturn{
+			NextFunction: "mainmenu",
+		}
+	}
+	c.Mpd.Add(filename)
 	c.Mpd.PlayBlocking()
 
 	return MenuReturn{

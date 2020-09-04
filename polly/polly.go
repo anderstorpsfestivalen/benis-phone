@@ -2,9 +2,9 @@ package polly
 
 import (
 	"io/ioutil"
-	"os"
 	"path"
 
+	"github.com/google/uuid"
 	golang_tts "github.com/leprosus/golang-tts"
 )
 
@@ -13,26 +13,35 @@ type AWS struct {
 	aws_secret string
 }
 
-func TTS(message string, voice string) string {
-	var a AWS
+type Polly struct {
+	credentials AWS
+	filepath    string
+}
 
-	// Read temp env variable for key
-	a.aws_key = os.Getenv("aws_key")
-	a.aws_secret = os.Getenv("aws_secret")
+func New(key string, secret string, filepath string) Polly {
+	return Polly{
+		credentials: AWS{
+			aws_key:    key,
+			aws_secret: secret,
+		},
+		filepath: filepath,
+	}
+}
 
-	polly := golang_tts.New(a.aws_key, a.aws_secret)
+func (p *Polly) TTS(message string, voice string) (string, error) {
+
+	polly := golang_tts.New(p.credentials.aws_key, p.credentials.aws_secret)
 
 	polly.Format(golang_tts.MP3)
 	polly.Voice(voice)
 
 	bytes, err := polly.Speech(message)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
-	home, err := os.UserHomeDir()
-	filename := path.Join(home + "/Music/test.mp3")
+	filename := path.Join(p.filepath + "/" + uuid.New().String() + ".mp3")
 	ioutil.WriteFile(filename, bytes, 0644)
 
-	return filename
+	return filename, nil
 }
