@@ -12,6 +12,11 @@ type BarClosingMenu struct {
 func (m *BarClosingMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 	c.Mpd.Clear()
 	message := barclosing.ClosingTime()
+	if err != nil {
+		return MenuReturn{
+			NextFunction: "mainmenu",
+		}
+	}
 	fmt.Println(message)
 	filename, err := c.Polly.TTS(message, "Astrid")
 	if err != nil {
