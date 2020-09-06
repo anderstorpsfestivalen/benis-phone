@@ -42,7 +42,7 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 	case "3":
 		c.Mpd.Clear()
 		return MenuReturn{
-			NextFunction: "announce",
+			NextFunction: "barclosing",
 		}
 	case "4":
 		c.Mpd.Clear()
@@ -54,7 +54,11 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		return MenuReturn{
 			NextFunction: "systemet",
 		}
-	}
+	case "R":
+		c.Mpd.Clear()
+		return MenuReturn{
+			NextFunction: "announce",
+		}	
 	return MenuReturn{
 		NextFunction: "mainmenu",
 	}

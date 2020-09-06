@@ -24,9 +24,10 @@ func main() {
 
 	fmt.Printf("closing: %v\n", newtime)
 
-	diff := now.Sub(newtime)
+	diff := now.Sub(newtime).Round(time.Minute)
 	fmt.Printf("diff is type: %T\n", diff)
 	fmt.Printf("diff is %v \n", diff)
 
 	fmt.Printf("%v\n", diff.Hours)
+	fmt.Printf("%v\n", diff.Minutes)
 }
