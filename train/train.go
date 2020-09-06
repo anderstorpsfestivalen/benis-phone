@@ -3,17 +3,17 @@ package train
 import (
 	"flag"
 	"fmt"
-	"os"
 
 	"github.com/coral/trafikverket"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/secrets"
 )
 
 func Get() string {
-	var apikey = os.Getenv("trafiklab_key")
+	credentials := secrets.LoadSecrets()
 	var searchstation = "Reftele"
 	flag.Parse()
 
-	tf := trafikverket.New(apikey)
+	tf := trafikverket.New(credentials.Trafiklab)
 
 	station, err := tf.LookupStation(searchstation)
 	if err != nil {
