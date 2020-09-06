@@ -5,7 +5,7 @@ import (
   "time"
 )
 
-func Closing() string {
+func ClosingTime() string {
 	now := time.Now()
 
 	add := 1
@@ -29,15 +29,14 @@ func Closing() string {
 	//diff := now.Sub(newtime).Round(time.Minute)
 
 	message := fmtDuration(diff)
-	fmt.Printf(message)
 	return message
 
 }
 
 func fmtDuration(d time.Duration) string {
-  d = d.Round(time.Minute)
-  h := d / time.Hour
-  d -= h * time.Hour
-  m := d / time.Minute
-  return fmt.Sprintf("Baren stänger om, %d, timmar och, %d, minuter", h, m)
+	d = d.Round(time.Minute)
+	h := d / time.Hour
+	d -= h * time.Hour
+	m := d / time.Minute
+	return fmt.Sprintf("Baren stänger om, %d, timmar, och, %d, minuter", h, m)
 }

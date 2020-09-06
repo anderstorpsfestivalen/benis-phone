@@ -10,10 +10,8 @@ type BarClosingMenu struct {
 }
 
 func (m *BarClosingMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
-	fmt.Println("testing1")
 	c.Mpd.Clear()
-	fmt.Println("testing2")
-	message := barclosing.Closing()
+	message := barclosing.ClosingTime()
 	fmt.Println(message)
 	filename, err := c.Polly.TTS(message, "Astrid")
 	if err != nil {

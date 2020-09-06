@@ -15,6 +15,7 @@ var MenuOptions = map[string]MenuOption{
 	"announce":  &Announce{},
 	"systemet":  &Systemet{},
 	"trainmenu": &TrainMenu{},
+	"barclosingmenu": &BarClosingMenu{},
 }
 
 type Controller struct {
