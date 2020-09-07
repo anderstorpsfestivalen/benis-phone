@@ -14,14 +14,13 @@ type Polly struct {
 	fp          string
 }
 
-func New(key string, secret string, filepath string) Polly {
+func New(key string, secret string) Polly {
 
 	return Polly{
 		credentials: AWS{
 			aws_key:    key,
 			aws_secret: secret,
 		},
-		fp: filepath,
 	}
 }
 

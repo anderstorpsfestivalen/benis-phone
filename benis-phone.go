@@ -34,7 +34,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	polly := polly.New(credentials.Polly.Key, credentials.Polly.Secret, "/home/wberg/Music")
+	polly := polly.New(credentials.Polly.Key, credentials.Polly.Secret)
 
 	log.Info("Starting Controller")
 	log.SetLevel(log.DebugLevel)
