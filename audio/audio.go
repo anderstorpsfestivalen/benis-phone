@@ -91,18 +91,18 @@ func (a *Audio) PlayFromFile(filename string) error {
 
 	defer streamer.Close()
 
-	err = a.playback(streamer, format)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return a.playback(streamer, format)
 
 }
 
 // Clear stops the currently playing audio
 func (a *Audio) Clear() {
 	speaker.Clear()
+}
+
+// IsPlaying indicates if there is currently audio streaming
+func (a *Audio) IsPlaying() bool {
+	return a.isPlaying
 }
 
 /////////////////////////////////////////////////
