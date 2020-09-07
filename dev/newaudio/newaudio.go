@@ -11,7 +11,7 @@ import (
 func main() {
 	credentials := secrets.LoadSecrets()
 
-	polly := polly.New(credentials.Polly.Key, credentials.Polly.Secret, "files/")
+	polly := polly.New(credentials.Polly.Key, credentials.Polly.Secret)
 
 	ad := audio.New(44100)
 	err := ad.Init()
