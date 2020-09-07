@@ -1,12 +1,8 @@
 package main
 
-import (
-	"fmt"
-
-	"gitlab.com/anderstorpsfestivalen/benis-phone/systemet"
-)
+import "gitlab.com/anderstorpsfestivalen/benis-phone/audio"
 
 func main() {
-	fmt.Println("Hej")
-	fmt.Println(systemet.RequestStockData("508393"))
+	ad := audio.New(44100)
+	ad.Init()
 }
