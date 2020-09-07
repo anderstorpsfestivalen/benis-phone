@@ -5,31 +5,31 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/mpd"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/audio"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/phone"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/polly"
 )
 
 var MenuOptions = map[string]MenuOption{
-	"mainmenu":  &MainMenu{},
-	"announce":  &Announce{},
-	"systemet":  &Systemet{},
-	"trainmenu": &TrainMenu{},
+	"mainmenu":       &MainMenu{},
+	"announce":       &Announce{},
+	"systemet":       &Systemet{},
+	"trainmenu":      &TrainMenu{},
 	"barclosingmenu": &BarClosingMenu{},
 }
 
 type Controller struct {
 	Phone phone.FlowPhone
-	Mpd   mpd.MpdClient
+	Audio *audio.Audio
 	Polly polly.Polly
 	Where string
 	Menu  MenuReturn
 }
 
-func New(ph phone.FlowPhone, mpd mpd.MpdClient, polly polly.Polly) Controller {
+func New(ph phone.FlowPhone, audio *audio.Audio, polly polly.Polly) Controller {
 	return Controller{
 		Phone: ph,
-		Mpd:   mpd,
+		Audio: audio,
 		Polly: polly,
 		Where: "mainmenu",
 		Menu:  MenuReturn{},
@@ -51,11 +51,10 @@ func (c *Controller) Start(wg *sync.WaitGroup) {
 				if hook {
 					hookstate = true
 					log.Info("Hook is lifted")
-					c.Mpd.Add("default.mp3")
-					c.Mpd.PlayBlocking()
+					c.Audio.PlayFromFile("files/etype.mp3")
 				} else {
 					hookstate = false
-					c.Mpd.Clear()
+					c.Audio.Clear()
 					c.Where = "mainmenu"
 					log.Info("Hook is slammed")
 				}
@@ -99,6 +98,7 @@ func (c *Controller) Start(wg *sync.WaitGroup) {
 }
 
 func (c *Controller) TriggerFunction(keys string) {
+	c.Audio.Clear()
 	res := MenuOptions[c.Where].Run(c, keys, c.Menu)
 	res.Caller = MenuOptions[c.Where].Name()
 	c.Menu = res

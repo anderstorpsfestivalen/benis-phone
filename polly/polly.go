@@ -1,11 +1,6 @@
 package polly
 
 import (
-	"io/ioutil"
-	"path"
-	"path/filepath"
-
-	"github.com/google/uuid"
 	golang_tts "github.com/leprosus/golang-tts"
 )
 
@@ -30,7 +25,25 @@ func New(key string, secret string, filepath string) Polly {
 	}
 }
 
-func (p *Polly) TTS(message string, voice string) (string, error) {
+// func (p *Polly) TTS(message string, voice string) (string, error) {
+
+// 	polly := golang_tts.New(p.credentials.aws_key, p.credentials.aws_secret)
+// 	polly.Language("sv-SE")
+// 	polly.Format(golang_tts.MP3)
+// 	polly.Voice(voice)
+
+// 	bytes, err := polly.Speech(message)
+// 	if err != nil {
+// 		return "", err
+// 	}
+
+// 	filename := path.Join(p.fp + "/" + uuid.New().String() + ".mp3")
+// 	ioutil.WriteFile(filename, bytes, 0644)
+
+// 	return filepath.Base(filename), nil
+// }
+
+func (p *Polly) TTS(message string, voice string) ([]byte, error) {
 
 	polly := golang_tts.New(p.credentials.aws_key, p.credentials.aws_secret)
 	polly.Language("sv-SE")
@@ -39,11 +52,8 @@ func (p *Polly) TTS(message string, voice string) (string, error) {
 
 	bytes, err := polly.Speech(message)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	filename := path.Join(p.fp + "/" + uuid.New().String() + ".mp3")
-	ioutil.WriteFile(filename, bytes, 0644)
-
-	return filepath.Base(filename), nil
+	return bytes, nil
 }

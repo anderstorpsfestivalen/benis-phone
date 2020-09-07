@@ -11,17 +11,15 @@ type TrainMenu struct {
 
 func (m *TrainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 
-	c.Mpd.Clear()
 	message := train.Get()
 	fmt.Println(message)
-	filename, err := c.Polly.TTS(message, "Astrid")
+	ttsData, err := c.Polly.TTS(message, "Astrid")
 	if err != nil {
 		return MenuReturn{
 			NextFunction: "mainmenu",
 		}
 	}
-	c.Mpd.Add(filename)
-	c.Mpd.PlayBlocking()
+	c.Audio.PlayMP3FromStream(ttsData)
 
 	return MenuReturn{
 		NextFunction: menu.Caller,

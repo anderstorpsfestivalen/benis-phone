@@ -5,9 +5,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"gitlab.com/anderstorpsfestivalen/benis-phone/audio"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/controller"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/filesync"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/mpd"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/polly"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/secrets"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/virtual"
@@ -28,18 +28,17 @@ func main() {
 	//flag.Parse()
 
 	virtual := virtual.New()
-	mpd, err := mpd.Init("127.0.0.1:6600")
+	ad := audio.New(44100)
+	err = ad.Init()
 	if err != nil {
-		log.WithFields(log.Fields{
-			"MPD error": err,
-		}).Panic("Could not initiate connection to MPD")
+		log.Fatal(err)
 	}
 
 	polly := polly.New(credentials.Polly.Key, credentials.Polly.Secret, "/home/wberg/Music")
 
 	log.Info("Starting Controller")
 	log.SetLevel(log.DebugLevel)
-	ctrl := controller.New(virtual, mpd, polly)
+	ctrl := controller.New(virtual, ad, polly)
 
 	var waitgroup sync.WaitGroup
 	waitgroup.Add(1)

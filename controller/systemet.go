@@ -11,7 +11,6 @@ type Systemet struct {
 
 func (m *Systemet) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 
-	c.Mpd.Clear()
 	stock, err := systemet.RequestStockData("508393")
 	if err != nil {
 		return MenuReturn{
@@ -19,14 +18,13 @@ func (m *Systemet) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		}
 	}
 	message := "Antalet Arboga 10.2 i lager på Systembolaget Gislaved är just nu " + strings.Replace(stock.StockTextShort, "st", "stycken     .", -1)
-	filename, err := c.Polly.TTS(message, "Astrid")
+	ttsData, err := c.Polly.TTS(message, "Astrid")
 	if err != nil {
 		return MenuReturn{
 			NextFunction: "mainmenu",
 		}
 	}
-	c.Mpd.Add(filename)
-	c.Mpd.PlayBlocking()
+	c.Audio.PlayMP3FromStream(ttsData)
 
 	return MenuReturn{
 		NextFunction: menu.Caller,

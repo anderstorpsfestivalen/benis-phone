@@ -1,8 +1,6 @@
 package controller
 
 import (
-	"fmt"
-
 	"gitlab.com/anderstorpsfestivalen/benis-phone/barclosing"
 )
 
@@ -10,22 +8,15 @@ type BarClosingMenu struct {
 }
 
 func (m *BarClosingMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
-	c.Mpd.Clear()
 	message := barclosing.ClosingTime()
+
+	ttsData, err := c.Polly.TTS(message, "Astrid")
 	if err != nil {
 		return MenuReturn{
 			NextFunction: "mainmenu",
 		}
 	}
-	fmt.Println(message)
-	filename, err := c.Polly.TTS(message, "Astrid")
-	if err != nil {
-		return MenuReturn{
-			NextFunction: "mainmenu",
-		}
-	}
-	c.Mpd.Add(filename)
-	c.Mpd.PlayBlocking()
+	c.Audio.PlayMP3FromStream(ttsData)
 
 	return MenuReturn{
 		NextFunction: menu.Caller,

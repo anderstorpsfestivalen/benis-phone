@@ -14,22 +14,18 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 	fmt.Println("RECEIVED: " + k)
 	switch k {
 	case "1":
-		c.Mpd.Clear()
 		message := "orvars korvar och makaroner"
-		filename, err := c.Polly.TTS(message, "Astrid")
+		ttsData, err := c.Polly.TTS(message, "Astrid")
 		if err != nil {
 			log.Error(err)
 			return MenuReturn{
 				NextFunction: "mainmenu",
 			}
 		}
-
-		c.Mpd.Add(filename)
-		c.Mpd.PlayBlocking()
+		c.Audio.PlayMP3FromStream(ttsData)
 	case "2":
-		c.Mpd.Clear()
 		message := "penis lasse"
-		filename, err := c.Polly.TTS(message, "Astrid")
+		ttsData, err := c.Polly.TTS(message, "Astrid")
 		if err != nil {
 			log.Error(err)
 			return MenuReturn{
@@ -37,32 +33,27 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 			}
 		}
 
-		c.Mpd.Add(filename)
-		c.Mpd.PlayBlocking()
+		c.Audio.PlayMP3FromStream(ttsData)
 	case "3":
-		c.Mpd.Clear()
 		return MenuReturn{
 			NextFunction: "barclosingmenu",
 		}
 	case "4":
-		c.Mpd.Clear()
 		return MenuReturn{
 			NextFunction: "trainmenu",
 		}
 	case "5":
-		c.Mpd.Clear()
 		return MenuReturn{
 			NextFunction: "systemet",
 		}
 	case "R":
-		c.Mpd.Clear()
 		return MenuReturn{
 			NextFunction: "announce",
-		}	
+		}
 	}
 	return MenuReturn{
 		NextFunction: "mainmenu",
-		}
+	}
 }
 
 func (m *MainMenu) InputLength() int {
