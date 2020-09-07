@@ -68,22 +68,22 @@ func (a *Audio) PlayFromFile(filename string) error {
 	switch fileformat := filepath.Ext(filename); fileformat {
 
 	case ".mp3":
-		streamer, format, err = a.decodeMP3(f)
+		streamer, format, err = mp3.Decode(f)
 		if err != nil {
 			return err
 		}
 	case ".wav":
-		streamer, format, err = a.decodeWAV(f)
+		streamer, format, err = wav.Decode(f)
 		if err != nil {
 			return err
 		}
 	case ".flac":
-		streamer, format, err = a.decodeFLAC(f)
+		streamer, format, err = flac.Decode(f)
 		if err != nil {
 			return err
 		}
 	case ".ogg":
-		streamer, format, err = a.decodeOGG(f)
+		streamer, format, err = vorbis.Decode(f)
 		if err != nil {
 			return err
 		}
@@ -122,24 +122,4 @@ func (a *Audio) playback(stream beep.StreamSeekCloser, format beep.Format) error
 	a.isPlaying = false
 
 	return nil
-}
-
-/////////////////////////////////////////////////
-//// INDIVIDUAL DECODING FUNCTIONS
-/////////////////////////////////////////////////
-
-func (a *Audio) decodeMP3(f *os.File) (beep.StreamSeekCloser, beep.Format, error) {
-	return mp3.Decode(f)
-}
-
-func (a *Audio) decodeWAV(f *os.File) (beep.StreamSeekCloser, beep.Format, error) {
-	return wav.Decode(f)
-}
-
-func (a *Audio) decodeFLAC(f *os.File) (beep.StreamSeekCloser, beep.Format, error) {
-	return flac.Decode(f)
-}
-
-func (a *Audio) decodeOGG(f *os.File) (beep.StreamSeekCloser, beep.Format, error) {
-	return vorbis.Decode(f)
 }
