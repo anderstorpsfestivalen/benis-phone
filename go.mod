@@ -28,3 +28,5 @@ require (
 	golang.org/x/mobile v0.0.0-20200801112145-973feb4309de // indirect
 	golang.org/x/sys v0.0.0-20200831180312-196b9ba8737a // indirect
 )
+
+replace github.com/hajimehoshi/go-mp3 => github.com/hajimehoshi/go-mp3 v0.3.1
