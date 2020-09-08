@@ -51,6 +51,10 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 	case "6":
 		c.Audio.PlayFromFile("files/alex tuuta.mp3")
 
+	case "7":
+		return MenuReturn{
+			NextFunction: "syralotto",
+		}
 	case "R":
 		return MenuReturn{
 			NextFunction: "announce",
