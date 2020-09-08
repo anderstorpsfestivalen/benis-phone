@@ -12,37 +12,37 @@ func (m *SyraLotto) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		case key := <-keychan:
 			if key == "1" {
 				fmt.Println("pressed 1")
-				c.Audio.PlayFromFile("files/lasse-liten/e.ogg")
+				go c.Audio.PlayFromFile("files/lasse-liten/e.ogg")
 			} else if key == "2" {
 				fmt.Println("pressed 2")
-				c.Audio.PlayFromFile("files/lasse-liten/lsd.ogg")
+				go c.Audio.PlayFromFile("files/lasse-liten/lsd.ogg")
 			} else if key == "3" {
 				fmt.Println("pressed 3")
-				c.Audio.PlayFromFile("files/lasse-liten/acid-house.ogg")
+				go c.Audio.PlayFromFile("files/lasse-liten/acid-house.ogg")
 			} else if key == "4" {
 				fmt.Println("pressed 4")
-				c.Audio.PlayFromFile("files/lasse-liten/goa-trance.ogg")
+				go c.Audio.PlayFromFile("files/lasse-liten/goa-trance.ogg")
 			} else if key == "5" {
 				fmt.Println("pressed 5")
-				c.Audio.PlayFromFile("files/lasse-liten/electro.ogg")
+				go c.Audio.PlayFromFile("files/lasse-liten/electro.ogg")
 			} else if key == "6" {
 				fmt.Println("pressed 6")
-				c.Audio.PlayFromFile("files/lasse-liten/garage.ogg")
+				go c.Audio.PlayFromFile("files/lasse-liten/garage.ogg")
 			} else if key == "7" {
 				fmt.Println("pressed 7")
-				c.Audio.PlayFromFile("files/lasse-liten/deep-house.ogg")
+				go c.Audio.PlayFromFile("files/lasse-liten/deep-house.ogg")
 			} else if key == "8" {
 				fmt.Println("pressed 8")
-				c.Audio.PlayFromFile("files/lasse-liten/e-type.ogg")
+				go c.Audio.PlayFromFile("files/lasse-liten/e-type.ogg")
 			} else if key == "9" {
 				fmt.Println("pressed 9")
-				c.Audio.PlayFromFile("files/lasse-liten/allt-snurrar.ogg")
+				go c.Audio.PlayFromFile("files/lasse-liten/allt-snurrar.ogg")
 			} else if key == "*" {
 				fmt.Println("pressed *")
-				c.Audio.PlayFromFile("files/lasse-liten/torr-i-munnen.ogg")
+				go c.Audio.PlayFromFile("files/lasse-liten/torr-i-munnen.ogg")
 			} else if key == "#" {
 				fmt.Println("pressed #")
-				c.Audio.PlayFromFile("files/lasse-liten/josses-vad-det-gar-igang.ogg")
+				go c.Audio.PlayFromFile("files/lasse-liten/josses-vad-det-gar-igang.ogg")
 			} else {
 				return MenuReturn{
 					NextFunction: "mainmenu",
