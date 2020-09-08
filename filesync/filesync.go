@@ -2,6 +2,7 @@ package filesync
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -84,7 +85,13 @@ func (f *sync) Start(path string) {
 						"Destination": f.path + p,
 					}).Info("Downloading object")
 
-					f.download(*obj.Key, p)
+					pth := *obj.Key
+					fm := pth[len(pth)-1:]
+					if fm == "/" {
+						os.MkdirAll(filepath.Dir(f.path+p), os.ModePerm)
+					} else {
+						f.download(*obj.Key, p)
+					}
 				}
 
 			}
@@ -101,6 +108,7 @@ func (f *sync) Start(path string) {
 
 func (f *sync) download(key string, path string) {
 
+	os.MkdirAll(filepath.Dir(f.path+path), os.ModePerm)
 	nf, err := os.Create(f.path + path)
 	if err != nil {
 		log.WithFields(log.Fields{
