@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/jmoiron/sqlx/types"
+	"github.com/lib/pq"
 )
 
 type Ingredient struct {
@@ -37,8 +40,29 @@ const (
 	Hidden     IngredientCategory = "hidden"
 )
 
+type Recipe struct {
+	ID                 int64          `db:"id"  json:"-"`
+	RecipeID           string         `db:"recipeid"`
+	Name               string         `db:"name"`
+	Image              string         `db:"image"`
+	PriceOverride      float64        `db:"priceoverride"  json:"-"`
+	Enabled            sql.NullBool   `db:"enabled"`
+	Variations         pq.StringArray `db:"variations,array"`
+	UnpackedVariations map[string]Variation
+}
+
+type Variation struct {
+	ID          int64          `db:"id"  json:"-"`
+	RecipeID    string         `db:"recipeid"`
+	VariationID string         `db:"variationid"`
+	Price       float64        `db:"price"`
+	Name        string         `db:"name"`
+	Recipe      types.JSONText `db:"recipe"`
+}
+
 type MenuAPIResopnse struct {
 	Ingredients map[string]Ingredient
+	Recipes     map[string]Recipe
 }
 
 func ListItems() string {
@@ -58,7 +82,17 @@ func ListItems() string {
 
 	for _, ingredient := range s.Ingredients {
 		if ingredient.Enabled.Bool {
-			fmt.Println(ingredient.Name)
+			fmt.Println(ingredient.Name, ingredient.Price)
+		}
+	}
+	for _, recipe := range s.Recipes {
+		if recipe.Enabled.Bool {
+			fmt.Println(recipe.Name)
+
+			for _, variation := range recipe.UnpackedVariations {
+				fmt.Println(variation.Name, variation.Price)
+
+			}
 		}
 	}
 
