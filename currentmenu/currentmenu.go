@@ -8,7 +8,6 @@ import (
 	"net/http"
 
 	"github.com/jmoiron/sqlx/types"
-	"github.com/lib/pq"
 )
 
 type Ingredient struct {
@@ -41,13 +40,13 @@ const (
 )
 
 type Recipe struct {
-	ID                 int64          `db:"id"  json:"-"`
-	RecipeID           string         `db:"recipeid"`
-	Name               string         `db:"name"`
-	Image              string         `db:"image"`
-	PriceOverride      float64        `db:"priceoverride"  json:"-"`
-	Enabled            sql.NullBool   `db:"enabled"`
-	Variations         pq.StringArray `db:"variations,array"`
+	ID                 int64        `db:"id"  json:"-"`
+	RecipeID           string       `db:"recipeid"`
+	Name               string       `db:"name"`
+	Image              string       `db:"image"`
+	PriceOverride      float64      `db:"priceoverride"  json:"-"`
+	Enabled            sql.NullBool `db:"enabled"`
+	Variations         []string
 	UnpackedVariations map[string]Variation
 }
 
@@ -89,9 +88,11 @@ func ListItems() string {
 		if recipe.Enabled.Bool {
 			fmt.Println(recipe.Name)
 
-			for _, variation := range recipe.UnpackedVariations {
-				fmt.Println(variation.Name, variation.Price)
+			if len(recipe.Variations) > 0 {
 
+				if variation, ok := recipe.UnpackedVariations[recipe.Variations[0]]; ok {
+					fmt.Println(variation.Price)
+				}
 			}
 		}
 	}
