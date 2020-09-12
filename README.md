@@ -1,3 +1,3 @@
 To run on Linux package pkg-config is required. 
 
-On Debian / Ubuntu package libasound2-dev as well as build-essential are also required.
+On Debian / Ubuntu / Raspbian package libasound2-dev and build-essential are also required.
