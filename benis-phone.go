@@ -8,9 +8,9 @@ import (
 	"gitlab.com/anderstorpsfestivalen/benis-phone/audio"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/controller"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/filesync"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/phone"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/polly"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/secrets"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/virtual"
 )
 
 func main() {
@@ -27,7 +27,7 @@ func main() {
 	//gpioDisabled := flag.Bool("gpio", true, "blah")
 	//flag.Parse()
 
-	virtual := virtual.New()
+	virtual := phone.New(5, 6, 13, 19, 26, 18)
 	ad := audio.New(44100)
 	err = ad.Init()
 	if err != nil {

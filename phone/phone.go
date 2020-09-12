@@ -1,65 +1,86 @@
 package phone
 
 import (
-	"fmt"
+	"bufio"
 	"os"
-	"time"
 
-	"github.com/stianeikeland/go-rpio/v4"
+	log "github.com/sirupsen/logrus"
 )
 
-func Init(physicalPin uint8) Phone {
+type Phone struct {
+	KeyChannel  chan string
+	HookChannel chan bool
+	Q1          uint8
+	Q2          uint8
+	Q3          uint8
+	Q4          uint8
+	StQ         uint8
+	HookGPIO    uint8
+}
 
-	if err := rpio.Open(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+func New(pin1 uint8, pin2 uint8, pin3 uint8, pin4 uint8, pin5, uint8, pin6 uint8) *Phone {
+	return &Phone{
+		KeyChannel:  make(chan string, 1),
+		HookChannel: make(chan bool, 1),
+		Q1:          pin1,
+		Q2:          pin2,
+		Q3:          pin3,
+		Q4:          pin4,
+		StQ:         pin5,
+		HookGPIO:    pin6,
 	}
+}
 
-	p := Phone{
-		HookPin:     rpio.Pin(physicalPin),
-		HookChannel: make(chan bool),
-	}
+func (d *Phone) Init() {
 
-	go p.startRead()
-
-	return p
+	go d.startRead()
 
 }
 
-func (p *Phone) Close() {
-	rpio.Close()
-}
+func (d *Phone) startRead() {
 
-func (p *Phone) startRead() {
-	p.HookPin.Input()
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		text := []byte(scanner.Text())
+		if len(text) > 0 {
+			s := string(text[0])
+			log.Debug("Keyboard input: " + s)
+			if s == "o" || s == "k" {
+				var dem bool = false
+				if s == "o" {
+					dem = true
+				}
+				select {
+				case d.HookChannel <- dem:
+					log.Debug("Wrote to hookchannel")
+				default:
+				}
+			} else {
+				select {
+				case d.KeyChannel <- s:
+					log.Debug("Wrote key: " + s + " to keychannel")
+				default:
+				}
+			}
 
-	ticker := time.NewTicker(100 * time.Millisecond)
-
-	for {
-		//BLOCK
-		_ = <-ticker.C
-
-		res := p.HookPin.Read()
-
-		var t bool
-		if res == 1 {
-			t = true
 		}
-		if res == 0 {
-			t = false
-		}
-
-		if t != p.hookState {
-			p.HookChannel <- t
-		}
-
-		p.hookState = t
 
 	}
 
 }
 
-func (p *Phone) State() bool {
+func (d *Phone) Close() {
 
-	return p.hookState
+}
+
+func (d *Phone) State() bool {
+	return true
+}
+
+func (d *Phone) GetKeyChannel() chan string {
+	return d.KeyChannel
+}
+
+func (d *Phone) GetHookChannel() chan bool {
+	return d.HookChannel
 }
