@@ -8,9 +8,11 @@ import (
 	"gitlab.com/anderstorpsfestivalen/benis-phone/audio"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/controller"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/filesync"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/muxer"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/phone"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/polly"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/secrets"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/virtual"
 )
 
 func main() {
@@ -27,7 +29,11 @@ func main() {
 	//gpioDisabled := flag.Bool("gpio", true, "blah")
 	//flag.Parse()
 
-	virtual := phone.New(5, 6, 13, 19, 26, 18)
+	phone := phone.New(5, 6, 13, 19, 26, 18)
+	virtual := virtual.New()
+
+	muxed := muxer.New(phone, virtual)
+
 	ad := audio.New(44100)
 	err = ad.Init()
 	if err != nil {
@@ -38,12 +44,15 @@ func main() {
 
 	log.Info("Starting Controller")
 	log.SetLevel(log.DebugLevel)
-	ctrl := controller.New(virtual, ad, polly)
+	ctrl := controller.New(muxed, ad, polly)
 
 	var waitgroup sync.WaitGroup
 	waitgroup.Add(1)
 
-	virtual.Init()
+	err = muxed.Init()
+	if err != nil {
+		panic(err)
+	}
 
 	go ctrl.Start(&waitgroup)
 

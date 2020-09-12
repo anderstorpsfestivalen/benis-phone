@@ -19,9 +19,11 @@ func New() *Virtual {
 	}
 }
 
-func (d *Virtual) Init() {
+func (d *Virtual) Init() error {
 
 	go d.startRead()
+
+	return nil
 
 }
 

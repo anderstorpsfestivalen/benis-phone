@@ -1,7 +1,7 @@
 package phone
 
 type FlowPhone interface {
-	Init()
+	Init() error
 	Close()
 	State() bool
 	GetKeyChannel() chan string

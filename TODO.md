@@ -3,8 +3,8 @@ Coral:
 byta ut MPD till beep
 Väder
 Bygga funktioner som wberg vill ha i backend
-Songname i FLAC
 Recording
+Do not resample if 44100
 
 Wberg:
 
@@ -12,4 +12,3 @@ DTMF lödning
 DTMF parsing
 Parts
 Current Meny
-Fröken baren stänger om
