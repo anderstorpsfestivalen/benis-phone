@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -26,13 +27,18 @@ func main() {
 	}
 	fsx.Start("files/")
 
-	//gpioDisabled := flag.Bool("gpio", true, "blah")
-	//flag.Parse()
+	enablePhone := flag.Bool("phone", false, "blah")
+	flag.Parse()
 
-	phone := phone.New(5, 6, 13, 19, 26, 18)
-	virtual := virtual.New()
+	var ctrlPhone phone.FlowPhone
 
-	muxed := muxer.New(phone, virtual)
+	if *enablePhone {
+		phone := phone.New(5, 6, 13, 19, 26, 18)
+		virtual := virtual.New()
+		ctrlPhone = muxer.New(phone, virtual)
+	} else {
+		ctrlPhone = virtual.New()
+	}
 
 	ad := audio.New(44100)
 	err = ad.Init()
@@ -44,12 +50,12 @@ func main() {
 
 	log.Info("Starting Controller")
 	log.SetLevel(log.DebugLevel)
-	ctrl := controller.New(muxed, ad, polly)
+	ctrl := controller.New(ctrlPhone, ad, polly)
 
 	var waitgroup sync.WaitGroup
 	waitgroup.Add(1)
 
-	err = muxed.Init()
+	err = ctrlPhone.Init()
 	if err != nil {
 		panic(err)
 	}
