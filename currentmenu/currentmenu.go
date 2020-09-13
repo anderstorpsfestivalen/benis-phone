@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 
 	"github.com/jmoiron/sqlx/types"
 )
@@ -64,12 +65,12 @@ type MenuAPIResopnse struct {
 	Recipes     map[string]Recipe
 }
 
-func ListItems() string {
+func ListItems() (string, error) {
 
 	s := MenuAPIResopnse{}
 	res, err := http.Get("https://anderstorpsfestivalen.se/api/menu")
 	if err != nil {
-		panic(err)
+		return "", fmt.Errorf("Could not craft request from ATP API")
 	}
 	defer res.Body.Close()
 
@@ -79,25 +80,33 @@ func ListItems() string {
 	}
 	json.Unmarshal(body, &s)
 
+	if len(s.Ingredients) == 0 {
+		return "", fmt.Errorf("Empty response")
+	}
+
+	message := "Förtillfället på menyn, "
+
 	for _, ingredient := range s.Ingredients {
 		if ingredient.Enabled.Bool {
-			fmt.Println(ingredient.Name, ingredient.Price)
+			//fmt.Println(ingredient.Name, ingredient.Price)
+			message = message + ingredient.Name + ", pris, " + strconv.FormatFloat(ingredient.Price, 'f', -1, 64) + " riksdaler. "
 		}
 	}
 	for _, recipe := range s.Recipes {
 		if recipe.Enabled.Bool {
-			fmt.Println(recipe.Name)
+			//fmt.Println(recipe.Name)
 
 			if len(recipe.Variations) > 0 {
 
 				if variation, ok := recipe.UnpackedVariations[recipe.Variations[0]]; ok {
-					fmt.Println(variation.Price)
+					//fmt.Println(variation.Price)
+					message = message + recipe.Name + ", pris, " + strconv.FormatFloat(variation.Price, 'f', -1, 64) + " riksdaler. "
 				}
 			}
 		}
 	}
 
-	message := "hej"
-	return message
+	fmt.Println(message)
+	return message, nil
 
 }

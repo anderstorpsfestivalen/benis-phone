@@ -38,3 +38,18 @@ func (p *Polly) TTS(message string, voice string) ([]byte, error) {
 
 	return bytes, nil
 }
+
+func (p *Polly) TTSLang(message string, language string, voice string) ([]byte, error) {
+
+	polly := golang_tts.New(p.credentials.aws_key, p.credentials.aws_secret)
+	polly.Language(language)
+	polly.Format(golang_tts.MP3)
+	polly.Voice(voice)
+
+	bytes, err := polly.Speech(message)
+	if err != nil {
+		return nil, err
+	}
+
+	return bytes, nil
+}

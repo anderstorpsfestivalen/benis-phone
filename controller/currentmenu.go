@@ -1,12 +1,19 @@
 package controller
 
-import "gitlab.com/anderstorpsfestivalen/benis-phone/currentmenu"
+import (
+	"fmt"
+
+	"gitlab.com/anderstorpsfestivalen/benis-phone/currentmenu"
+)
 
 type CurrentMenu struct {
 }
 
 func (m *CurrentMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
-	message := currentmenu.ListItems()
+	message, err := currentmenu.ListItems()
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	ttsData, err := c.Polly.TTS(message, "Astrid")
 	if err != nil {

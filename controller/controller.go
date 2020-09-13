@@ -18,6 +18,7 @@ var MenuOptions = map[string]MenuOption{
 	"barclosingmenu": &BarClosingMenu{},
 	"syralotto":      &SyraLotto{},
 	"currentmenu":    &CurrentMenu{},
+	"flacornot":      &FlacOrNotMenu{},
 }
 
 type Controller struct {

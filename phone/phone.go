@@ -68,7 +68,6 @@ func (d *Phone) Init() error {
 }
 
 func (d *Phone) startRead() {
-
 	for {
 		//Check hook state
 		hookRead := d.pinHook.Read()
