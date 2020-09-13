@@ -60,6 +60,10 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		return MenuReturn{
 			NextFunction: "flacornot",
 		}
+	case "9":
+		return MenuReturn{
+			NextFunction: "idiom",
+		}
 	case "R":
 		return MenuReturn{
 			NextFunction: "announce",
