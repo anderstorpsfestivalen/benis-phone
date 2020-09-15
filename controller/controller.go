@@ -55,7 +55,7 @@ func (c *Controller) Start(wg *sync.WaitGroup) {
 				if hook {
 					hookstate = true
 					log.Info("Hook is lifted")
-					c.Audio.PlayFromFile("files/etype.ogg")
+					c.Audio.PlayFromFile("files/flocc.ogg")
 				} else {
 					hookstate = false
 					c.Audio.Clear()
