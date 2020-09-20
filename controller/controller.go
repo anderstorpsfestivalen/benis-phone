@@ -94,8 +94,6 @@ func (c *Controller) Start(wg *sync.WaitGroup) {
 						}
 					}
 				}
-			default:
-				time.Sleep(time.Millisecond * 2)
 			}
 		}
 	}()
