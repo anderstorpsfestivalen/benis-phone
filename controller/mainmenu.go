@@ -25,7 +25,7 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		c.Audio.PlayMP3FromStream(ttsData)
 
 	case "2":
-		message := "penis lasse"
+		message := "Fyll i ditt telefonnummer, avsluta med fyrkant."
 		ttsData, err := c.Polly.TTS(message, "Astrid")
 		if err != nil {
 			log.Error(err)
@@ -35,6 +35,9 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		}
 
 		c.Audio.PlayMP3FromStream(ttsData)
+		return MenuReturn{
+			NextFunction: "balance",
+		}
 
 	case "3":
 		return MenuReturn{

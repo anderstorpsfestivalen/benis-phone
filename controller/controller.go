@@ -5,9 +5,9 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/audio"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/phone"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/polly"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/audio"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/phone"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/polly"
 )
 
 var MenuOptions = map[string]MenuOption{
@@ -20,6 +20,7 @@ var MenuOptions = map[string]MenuOption{
 	"currentmenu":    &CurrentMenu{},
 	"flacornot":      &FlacOrNotMenu{},
 	"idiom":          &Idiom{},
+	"balance":        &Balance{},
 }
 
 type Controller struct {

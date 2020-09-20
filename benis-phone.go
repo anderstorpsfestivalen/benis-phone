@@ -6,14 +6,14 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"gitlab.com/anderstorpsfestivalen/benis-phone/audio"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/controller"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/filesync"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/muxer"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/phone"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/polly"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/secrets"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/virtual"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/audio"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/filesync"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/muxer"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/phone"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/polly"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/secrets"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/virtual"
 )
 
 func main() {
