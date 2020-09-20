@@ -3,7 +3,7 @@ package controller
 import (
 	"fmt"
 
-	"gitlab.com/anderstorpsfestivalen/benis-phone/flacornot"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/services/flacornot"
 )
 
 type FlacOrNotMenu struct {

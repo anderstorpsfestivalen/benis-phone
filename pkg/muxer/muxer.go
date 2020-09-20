@@ -1,7 +1,7 @@
 package muxer
 
 import (
-	"gitlab.com/anderstorpsfestivalen/benis-phone/phone"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/phone"
 )
 
 type Muxer struct {

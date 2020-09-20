@@ -3,7 +3,7 @@ package controller
 import (
 	"strings"
 
-	"gitlab.com/anderstorpsfestivalen/benis-phone/systemet"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/services/systemet"
 )
 
 type Systemet struct {

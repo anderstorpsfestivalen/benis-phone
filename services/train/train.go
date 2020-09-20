@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/coral/trafikverket"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/secrets"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/secrets"
 )
 
 func Get() string {
