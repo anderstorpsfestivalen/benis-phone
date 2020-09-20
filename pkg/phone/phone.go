@@ -23,6 +23,7 @@ type Phone struct {
 	pinQ4       rpio.Pin
 	pinHook     rpio.Pin
 	pinStQ      rpio.Pin
+	inputState  bool
 
 	hookState bool
 }
@@ -83,8 +84,10 @@ func (d *Phone) startRead() {
 		//Check key press
 		if d.hookState {
 			resStQ := d.pinStQ.Read()
-			if resStQ == 1 {
-				time.Sleep(150 * time.Millisecond)
+
+			if resStQ == 1 && !d.inputState {
+				d.inputState = true
+				time.Sleep(10 * time.Millisecond)
 				var bs byte = (0x00 | (byte(d.pinQ1.Read()) << 0) | (byte(d.pinQ2.Read()) << 1) | (byte(d.pinQ3.Read()) << 2) | (byte(d.pinQ4.Read()) << 3))
 
 				var pressed string
@@ -124,8 +127,13 @@ func (d *Phone) startRead() {
 					log.Debug("Wrote key: " + pressed + " to keychannel")
 				default:
 				}
-				time.Sleep(150 * time.Millisecond)
+				time.Sleep(5 * time.Millisecond)
 			}
+
+			if resStQ == 0 && d.inputState {
+				d.inputState = false
+			}
+
 		}
 
 	}
