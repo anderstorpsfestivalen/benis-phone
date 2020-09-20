@@ -36,3 +36,6 @@ func (m *CurrentMenu) InputLength() int {
 func (m *CurrentMenu) Name() string {
 	return "currentmenu"
 }
+
+func (m *CurrentMenu) Prefix(c *Controller) {
+}

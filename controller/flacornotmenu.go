@@ -36,3 +36,6 @@ func (m *FlacOrNotMenu) InputLength() int {
 func (m *FlacOrNotMenu) Name() string {
 	return "flacornotmenu"
 }
+
+func (m *FlacOrNotMenu) Prefix(c *Controller) {
+}

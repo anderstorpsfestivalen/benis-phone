@@ -34,3 +34,6 @@ func (m *TrainMenu) InputLength() int {
 func (m *TrainMenu) Name() string {
 	return "trainmenu"
 }
+
+func (m *TrainMenu) Prefix(c *Controller) {
+}

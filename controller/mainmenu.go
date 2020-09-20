@@ -25,24 +25,11 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		c.Audio.PlayMP3FromStream(ttsData)
 
 	case "2":
-		message := "Fyll i ditt telefonnummer, avsluta med fyrkant."
-		ttsData, err := c.Polly.TTS(message, "Astrid")
-		if err != nil {
-			log.Error(err)
-			return MenuReturn{
-				NextFunction: "mainmenu",
-			}
-		}
-
-		go c.Audio.PlayMP3FromStream(ttsData)
 		return MenuReturn{
-			NextFunction: "balance",
+			NextFunction: "barindex",
 		}
-
 	case "3":
-		return MenuReturn{
-			NextFunction: "barclosingmenu",
-		}
+		//NO
 	case "4":
 		return MenuReturn{
 			NextFunction: "trainmenu",
@@ -50,10 +37,6 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 	case "5":
 		return MenuReturn{
 			NextFunction: "systemet",
-		}
-	case "6":
-		return MenuReturn{
-			NextFunction: "currentmenu",
 		}
 	case "7":
 		return MenuReturn{
@@ -83,4 +66,8 @@ func (m *MainMenu) InputLength() int {
 
 func (m *MainMenu) Name() string {
 	return "mainmenu"
+}
+
+func (m *MainMenu) Prefix(c *Controller) {
+	c.Audio.PlayFromFile("files/flocc.ogg")
 }

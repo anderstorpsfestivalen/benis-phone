@@ -23,3 +23,6 @@ func (m *Announce) InputLength() int {
 func (m *Announce) Name() string {
 	return "announce"
 }
+
+func (m *Announce) Prefix(c *Controller) {
+}

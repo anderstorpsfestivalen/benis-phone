@@ -21,6 +21,7 @@ var MenuOptions = map[string]MenuOption{
 	"flacornot":      &FlacOrNotMenu{},
 	"idiom":          &Idiom{},
 	"balance":        &Balance{},
+	"barindex":       &BarIndex{},
 }
 
 type Controller struct {
@@ -56,7 +57,7 @@ func (c *Controller) Start(wg *sync.WaitGroup) {
 				if hook {
 					hookstate = true
 					log.Info("Hook is lifted")
-					c.Audio.PlayFromFile("files/flocc.ogg")
+					go MenuOptions[c.Where].Prefix(c)
 				} else {
 					hookstate = false
 					c.Audio.Clear()
@@ -106,6 +107,7 @@ func (c *Controller) TriggerFunction(keys string) {
 	res.Caller = MenuOptions[c.Where].Name()
 	c.Menu = res
 	c.Where = res.NextFunction
+	go MenuOptions[c.Where].Prefix(c)
 
 	if MenuOptions[c.Where].InputLength() == 0 {
 		c.TriggerFunction("")

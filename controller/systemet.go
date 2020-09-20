@@ -39,3 +39,6 @@ func (m *Systemet) InputLength() int {
 func (m *Systemet) Name() string {
 	return "systemet"
 }
+
+func (m *Systemet) Prefix(c *Controller) {
+}

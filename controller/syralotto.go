@@ -1,6 +1,10 @@
 package controller
 
-import "fmt"
+import (
+	"fmt"
+
+	log "github.com/sirupsen/logrus"
+)
 
 type SyraLotto struct{}
 
@@ -57,4 +61,13 @@ func (m *SyraLotto) InputLength() int {
 
 func (m *SyraLotto) Name() string {
 	return "syralotto"
+}
+
+func (m *SyraLotto) Prefix(c *Controller) {
+	message := "TRYCK 1 till FYRKANT"
+	ttsData, err := c.Polly.TTS(message, "Astrid")
+	if err != nil {
+		log.Error(err)
+	}
+	c.Audio.PlayMP3FromStream(ttsData)
 }

@@ -49,3 +49,6 @@ func (m *Idiom) InputLength() int {
 func (m *Idiom) Name() string {
 	return "idiom"
 }
+
+func (m *Idiom) Prefix(c *Controller) {
+}

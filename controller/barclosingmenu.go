@@ -31,3 +31,6 @@ func (m *BarClosingMenu) InputLength() int {
 func (m *BarClosingMenu) Name() string {
 	return "barclosingmenu"
 }
+
+func (m *BarClosingMenu) Prefix(c *Controller) {
+}
