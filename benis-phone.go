@@ -18,7 +18,11 @@ import (
 
 func main() {
 
-	credentials := secrets.LoadSecrets()
+	credentials, err := secrets.LoadSecrets()
+	if err != nil {
+		log.Error(err)
+		panic("COULD NOT LOAD CREDENTIALS")
+	}
 
 	//Synchronize files from S3
 	fsx, err := filesync.Create(credentials.S3.Key, credentials.S3.Secret, "anderstorpsfestivalen", "eu-north-1")

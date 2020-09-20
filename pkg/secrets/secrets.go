@@ -10,21 +10,31 @@ type AWSCred struct {
 	Secret string
 }
 
+type Backend struct {
+	Username string
+	Password string
+}
+
 type Credentials struct {
 	S3        AWSCred
 	Polly     AWSCred
+	Backend   Backend
 	Trafiklab string
 }
 
-func LoadSecrets() Credentials {
+var Loaded Credentials
+
+func LoadSecrets() (Credentials, error) {
 
 	var c Credentials
 	data, err := ioutil.ReadFile("./creds/creds.json")
 	if err != nil {
-		panic("Could not load credentials")
+		return Credentials{}, err
 	}
 
 	json.Unmarshal(data, &c)
 
-	return c
+	Loaded = c
+
+	return c, nil
 }

@@ -8,6 +8,7 @@ type Balance struct {
 }
 
 func (m *Balance) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
+	balance.GetBalanceForPhoneNumber(k)
 	fmt.Println(k)
 	return MenuReturn{
 		NextFunction: menu.Caller,
