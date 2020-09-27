@@ -242,6 +242,4 @@ func RequestProductAnalytics() {
 
 	json.Unmarshal(body, &s)
 
-	fmt.Println(s.Products)
-
 }

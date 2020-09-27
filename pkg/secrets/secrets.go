@@ -20,6 +20,7 @@ type Credentials struct {
 	Polly     AWSCred
 	Backend   Backend
 	Trafiklab string
+	Systemet  string
 }
 
 var Loaded Credentials
