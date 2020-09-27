@@ -1,6 +1,7 @@
 package systemet
 
 import (
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"os"
@@ -20,58 +21,55 @@ type Artiklar struct {
 }
 
 type Artikel struct {
-	Text               string `xml:",chardata"`
-	Nr                 int    `xml:"nr"`
-	Artikelid          int    `xml:"Artikelid"`
-	Varnummer          int    `xml:"Varnummer"`
-	Namn               string `xml:"Namn"`
-	Namn2              string `xml:"Namn2"`
-	Prisinklmoms       string `xml:"Prisinklmoms"`
-	Volymiml           string `xml:"Volymiml"`
-	PrisPerLiter       string `xml:"PrisPerLiter"`
-	Saljstart          string `xml:"Saljstart"`
-	Utgått             string `xml:"Utgått"`
-	Varugrupp          string `xml:"Varugrupp"`
-	Typ                string `xml:"Typ"`
-	Stil               string `xml:"Stil"`
-	Forpackning        string `xml:"Forpackning"`
-	Forslutning        string `xml:"Forslutning"`
-	Ursprung           string `xml:"Ursprung"`
-	Ursprunglandnamn   string `xml:"Ursprunglandnamn"`
-	Producent          string `xml:"Producent"`
-	Leverantor         string `xml:"Leverantor"`
-	Argang             string `xml:"Argang"`
-	Provadargang       string `xml:"Provadargang"`
-	Alkoholhalt        string `xml:"Alkoholhalt"`
-	Sortiment          string `xml:"Sortiment"`
-	SortimentText      string `xml:"SortimentText"`
-	Ekologisk          string `xml:"Ekologisk"`
-	Etiskt             string `xml:"Etiskt"`
-	Koscher            string `xml:"Koscher"`
-	RavarorBeskrivning string `xml:"RavarorBeskrivning"`
+	Text               string `xml:",chardata" json:"-"`
+	Nr                 int    `xml:"nr" json:"nr"`
+	Artikelid          int    `xml:"Artikelid" json:"Artikelid"`
+	Varnummer          int    `xml:"Varnummer" json:"Varunummer"`
+	Namn               string `xml:"Namn" json:"-"`
+	Namn2              string `xml:"Namn2" json:"-"`
+	Prisinklmoms       string `xml:"Prisinklmoms" json:"-"`
+	Volymiml           string `xml:"Volymiml" json:"-"`
+	PrisPerLiter       string `xml:"PrisPerLiter" json:"-"`
+	Saljstart          string `xml:"Saljstart" json:"-"`
+	Utgått             string `xml:"Utgått" json:"-"`
+	Varugrupp          string `xml:"Varugrupp" json:"-"`
+	Typ                string `xml:"Typ" json:"-"`
+	Stil               string `xml:"Stil" json:"-"`
+	Forpackning        string `xml:"Forpackning" json:"-"`
+	Forslutning        string `xml:"Forslutning" json:"-"`
+	Ursprung           string `xml:"Ursprung" json:"-"`
+	Ursprunglandnamn   string `xml:"Ursprunglandnamn" json:"-"`
+	Producent          string `xml:"Producent" json:"-"`
+	Leverantor         string `xml:"Leverantor" json:"-"`
+	Argang             string `xml:"Argang" json:"-"`
+	Provadargang       string `xml:"Provadargang" json:"-"`
+	Alkoholhalt        string `xml:"Alkoholhalt" json:"-"`
+	Sortiment          string `xml:"Sortiment" json:"-"`
+	SortimentText      string `xml:"SortimentText" json:"-"`
+	Ekologisk          string `xml:"Ekologisk" json:"-"`
+	Etiskt             string `xml:"Etiskt" json:"-"`
+	Koscher            string `xml:"Koscher" json:"-"`
+	RavarorBeskrivning string `xml:"RavarorBeskrivning" json:"-"`
 }
 
 var artMap map[int]Artikel
 
-func Init() {
+func Init() error {
 
 	artMap = make(map[int]Artikel)
 
-	atk := Artiklar{}
-
-	xfile, err := os.Open("files/bolaget-index.xml")
+	f, err := os.Open("files/bolaget-index.json")
 	if err != nil {
-		panic(err)
+		return err
 	}
 
-	dec := xml.NewDecoder(xfile)
-
-	dec.Decode(&atk)
-
-	for _, v := range atk.Artikel {
-		artMap[v.Varnummer] = v
+	dec := json.NewDecoder(f)
+	err = dec.Decode(&artMap)
+	if err != nil {
+		return err
 	}
 
+	return nil
 }
 
 func QueryProductNumberShort(shortNumber int) (Artikel, error) {

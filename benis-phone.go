@@ -31,7 +31,11 @@ func main() {
 		log.Fatal("Could not initialize sync")
 	}
 	fsx.Start("files/")
-	systemet.Init()
+	err = systemet.Init()
+	if err != nil {
+		log.Error(err)
+		log.Fatal("Could not init systembolaget lookup")
+	}
 
 	enablePhone := flag.Bool("phone", false, "blah")
 	flag.Parse()
