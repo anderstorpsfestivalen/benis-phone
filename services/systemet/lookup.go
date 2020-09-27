@@ -22,9 +22,9 @@ type Artiklar struct {
 
 type Artikel struct {
 	Text               string `xml:",chardata" json:"-"`
-	Nr                 int    `xml:"nr" json:"nr"`
-	Artikelid          int    `xml:"Artikelid" json:"Artikelid"`
-	Varnummer          int    `xml:"Varnummer" json:"Varunummer"`
+	Nr                 int    `xml:"nr" json:"N"`
+	Artikelid          int    `xml:"Artikelid" json:"A"`
+	Varnummer          int    `xml:"Varnummer" json:"V"`
 	Namn               string `xml:"Namn" json:"-"`
 	Namn2              string `xml:"Namn2" json:"-"`
 	Prisinklmoms       string `xml:"Prisinklmoms" json:"-"`
