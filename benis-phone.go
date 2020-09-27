@@ -14,6 +14,7 @@ import (
 	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/polly"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/secrets"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/virtual"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/services/systemet"
 )
 
 func main() {
@@ -30,6 +31,7 @@ func main() {
 		log.Fatal("Could not initialize sync")
 	}
 	fsx.Start("files/")
+	systemet.Init()
 
 	enablePhone := flag.Bool("phone", false, "blah")
 	flag.Parse()
@@ -58,6 +60,12 @@ func main() {
 
 	var waitgroup sync.WaitGroup
 	waitgroup.Add(1)
+
+	// resp, err := systemet.QueryProductNumberShort(11392)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// fmt.Println(resp.Artikelid)
 
 	err = ctrlPhone.Init()
 	if err != nil {
