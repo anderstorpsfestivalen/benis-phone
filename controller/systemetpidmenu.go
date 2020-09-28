@@ -34,7 +34,7 @@ func (m *SystemetPidMenu) Run(c *Controller, k string, menu MenuReturn) MenuRetu
 		"Kateogri: " + s.Category + ", " +
 		"Förpackning: " + s.BottleTextShort + ", " +
 		"Volym: " + strconv.FormatFloat(s.Volume, 'f', 0, 64) + " milliliter, " +
-		"Alkohol procent: " + strconv.FormatFloat(s.AlcoholPercentage, 'f', 2, 64) + ", " +
+		"Alkohol procent: " + strconv.FormatFloat(s.AlcoholPercentage, 'f', 1, 64) + ", " +
 		"Pris: " + strconv.FormatFloat(s.Price, 'f', 0, 64) + " kronor, " +
 		"Pant: " + strconv.FormatFloat(s.RecycleFee, 'f', 0, 64) + " krona, " +
 		"Typ: " + s.Type + ", " +
