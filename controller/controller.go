@@ -11,17 +11,18 @@ import (
 )
 
 var MenuOptions = map[string]MenuOption{
-	"mainmenu":       &MainMenu{},
-	"announce":       &Announce{},
-	"systemet":       &Systemet{},
-	"trainmenu":      &TrainMenu{},
-	"barclosingmenu": &BarClosingMenu{},
-	"syralotto":      &SyraLotto{},
-	"currentmenu":    &CurrentMenu{},
-	"flacornot":      &FlacOrNotMenu{},
-	"idiom":          &Idiom{},
-	"balance":        &Balance{},
-	"barindex":       &BarIndex{},
+	"mainmenu":        &MainMenu{},
+	"announce":        &Announce{},
+	"systemet":        &Systemet{},
+	"trainmenu":       &TrainMenu{},
+	"barclosingmenu":  &BarClosingMenu{},
+	"syralotto":       &SyraLotto{},
+	"currentmenu":     &CurrentMenu{},
+	"flacornot":       &FlacOrNotMenu{},
+	"idiom":           &Idiom{},
+	"balance":         &Balance{},
+	"barindex":        &BarIndex{},
+	"systemetpidmenu": &SystemetPidMenu{},
 }
 
 type Controller struct {

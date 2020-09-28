@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -65,18 +64,6 @@ func main() {
 
 	var waitgroup sync.WaitGroup
 	waitgroup.Add(1)
-
-	s, err := systemet.RequestNewProduct(11392)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(s.ProductID)
-	// resp, err := systemet.QueryProductNumberShort(11392)
-	// if err != nil {
-	// 	panic(err)
-
-	// }
-	// fmt.Println(resp.Artikelid)
 
 	err = ctrlPhone.Init()
 	if err != nil {

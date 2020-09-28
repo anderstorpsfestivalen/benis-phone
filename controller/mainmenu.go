@@ -29,7 +29,9 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 			NextFunction: "barindex",
 		}
 	case "3":
-		//NO
+		return MenuReturn{
+			NextFunction: "systemetpidmenu",
+		}
 	case "4":
 		return MenuReturn{
 			NextFunction: "trainmenu",
