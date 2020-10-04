@@ -12,19 +12,20 @@ type SystemetPidMenu struct {
 }
 
 func (m *SystemetPidMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
-	fmt.Println(k)
 
 	k2, err := strconv.Atoi(k)
 	if err != nil {
 		return MenuReturn{
-			NextFunction: menu.Caller,
+			Error:        err,
+			NextFunction: "error",
 		}
 	}
 	s, err := systemet.RequestNewProduct(k2)
 
 	if err != nil {
 		return MenuReturn{
-			NextFunction: menu.Caller,
+			Error:        err,
+			NextFunction: "error",
 		}
 	}
 
@@ -49,7 +50,7 @@ func (m *SystemetPidMenu) Run(c *Controller, k string, menu MenuReturn) MenuRetu
 		log.Error(err)
 	}
 
-	go c.Audio.PlayMP3FromStream(ttsData)
+	c.Audio.PlayMP3FromStream(ttsData)
 
 	return MenuReturn{
 		NextFunction: menu.Caller,
@@ -58,7 +59,7 @@ func (m *SystemetPidMenu) Run(c *Controller, k string, menu MenuReturn) MenuRetu
 }
 
 func (m *SystemetPidMenu) InputLength() int {
-	return 4
+	return 8
 }
 
 func (m *SystemetPidMenu) Name() string {

@@ -16,7 +16,8 @@ func (m *TrainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 	ttsData, err := c.Polly.TTS(message, "Astrid")
 	if err != nil {
 		return MenuReturn{
-			NextFunction: "mainmenu",
+			Error:        err,
+			NextFunction: "error",
 		}
 	}
 	c.Audio.PlayMP3FromStream(ttsData)

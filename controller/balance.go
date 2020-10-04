@@ -1,8 +1,6 @@
 package controller
 
 import (
-	"fmt"
-
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/services/backend"
 )
@@ -11,15 +9,15 @@ type Balance struct {
 }
 
 func (m *Balance) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
-	fmt.Println(k)
 	balance, err := backend.GetBalanceForPhoneNumber(k)
+	_ = balance
 	if err != nil {
 		return MenuReturn{
-			NextFunction: menu.Caller,
+			Error:        err,
+			NextFunction: "error",
 		}
 	}
 
-	fmt.Println(balance, err)
 	return MenuReturn{
 		NextFunction: menu.Caller,
 	}

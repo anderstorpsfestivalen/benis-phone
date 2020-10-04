@@ -1,8 +1,6 @@
 package controller
 
 import (
-	"fmt"
-
 	"gitlab.com/anderstorpsfestivalen/benis-phone/services/currentmenu"
 )
 
@@ -12,13 +10,17 @@ type CurrentMenu struct {
 func (m *CurrentMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 	message, err := currentmenu.ListItems()
 	if err != nil {
-		fmt.Println(err)
+		return MenuReturn{
+			Error:        err,
+			NextFunction: "error",
+		}
 	}
 
 	ttsData, err := c.Polly.TTS(message, "Astrid")
 	if err != nil {
 		return MenuReturn{
-			NextFunction: "mainmenu",
+			Error:        err,
+			NextFunction: "error",
 		}
 	}
 	c.Audio.PlayMP3FromStream(ttsData)

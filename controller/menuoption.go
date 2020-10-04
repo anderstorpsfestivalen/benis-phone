@@ -8,6 +8,7 @@ type MenuOption interface {
 }
 
 type MenuReturn struct {
+	Error        error
 	Caller       string
 	NextFunction string
 }

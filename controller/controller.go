@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"strings"
 	"sync"
 	"time"
 
@@ -23,6 +24,7 @@ var MenuOptions = map[string]MenuOption{
 	"balance":         &Balance{},
 	"barindex":        &BarIndex{},
 	"systemetpidmenu": &SystemetPidMenu{},
+	"error":           &Err{},
 }
 
 type Controller struct {
@@ -86,7 +88,9 @@ func (c *Controller) Start(wg *sync.WaitGroup) {
 						c.TriggerFunction(keys)
 						keys = ""
 					} else {
-						if len(keys) == il {
+						if len(keys) == il || key == "#" {
+
+							keys = strings.Replace(keys, "#", "", -1)
 							log.WithFields(log.Fields{
 								"Function":     c.Where,
 								"Input Length": il,

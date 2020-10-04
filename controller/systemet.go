@@ -14,14 +14,16 @@ func (m *Systemet) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 	stock, err := systemet.RequestStockData("508393")
 	if err != nil {
 		return MenuReturn{
-			NextFunction: "mainmenu",
+			Error:        err,
+			NextFunction: "error",
 		}
 	}
 	message := "Antalet Arboga 10.2 i lager på Systembolaget Gislaved är just nu " + strings.Replace(stock.StockTextShort, "st", "stycken     .", -1)
 	ttsData, err := c.Polly.TTS(message, "Astrid")
 	if err != nil {
 		return MenuReturn{
-			NextFunction: "mainmenu",
+			Error:        err,
+			NextFunction: "error",
 		}
 	}
 	c.Audio.PlayMP3FromStream(ttsData)

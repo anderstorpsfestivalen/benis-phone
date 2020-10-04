@@ -56,6 +56,7 @@ func RequestNewProduct(pn int) (NewProduct, error) {
 	if err != nil {
 		return NewProduct{}, err
 	}
+
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", "https://api-extern.systembolaget.se/product/v1/product/"+strconv.Itoa(rpn.Artikelid), nil)
 	req.Header.Add("Ocp-Apim-Subscription-Key", secrets.Loaded.Systemet)
@@ -64,6 +65,10 @@ func RequestNewProduct(pn int) (NewProduct, error) {
 		return NewProduct{}, err
 	}
 	defer res.Body.Close()
+
+	if res.StatusCode == 404 {
+		return NewProduct{}, fmt.Errorf("Could not find product")
+	}
 
 	if res.StatusCode != 200 {
 		return NewProduct{}, fmt.Errorf("Rate limited")
