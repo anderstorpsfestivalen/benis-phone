@@ -13,6 +13,7 @@ import (
 
 type BalanceResp struct {
 	Balance float64 `json:"Balance"`
+	Name    string  `json:"Name"`
 	Message string  `json:"Message"`
 }
 
