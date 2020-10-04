@@ -20,7 +20,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err := dm.Start()
+	err = dm.Start()
 	if err != nil {
 		panic(err)
 	}
