@@ -67,7 +67,7 @@ func main() {
 
 	err = ctrlPhone.Init()
 	if err != nil {
-		panic(err)
+		log.Panic(err)
 	}
 
 	go ctrl.Start(&waitgroup)
