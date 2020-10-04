@@ -47,4 +47,5 @@ func (f *Recorder) Record(filename string) error {
 func (f *Recorder) Stop() {
 
 	f.instance.Process.Signal(os.Interrupt)
+	f.isRecording = false
 }
