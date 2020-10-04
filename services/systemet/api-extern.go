@@ -66,6 +66,10 @@ func RequestNewProduct(pn int) (NewProduct, error) {
 	}
 	defer res.Body.Close()
 
+	if res.StatusCode == 401 {
+		return NewProduct{}, fmt.Errorf("Systembolaget credentials are not valid")
+	}
+
 	if res.StatusCode == 404 {
 		return NewProduct{}, fmt.Errorf("Could not find product")
 	}

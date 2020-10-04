@@ -221,7 +221,7 @@ func RequestProductAnalytics() {
 	})
 
 	if err != nil {
-		panic(err)
+		//panic(err)
 	}
 
 	res, err := http.Post("https://www.systembolaget.se/api/product/GetProductsForAnalytics",
