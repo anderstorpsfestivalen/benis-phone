@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -12,7 +15,20 @@ func main() {
 
 	dm := exec.Command("ffmpeg", c...)
 
+	stderr, err := dm.StderrPipe()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err := dm.Start()
+	if err != nil {
+		panic(err)
+	}
+
 	time.Sleep(10 * time.Second)
+
+	slurp, _ := ioutil.ReadAll(stderr)
+	fmt.Printf("%s\n", slurp)
 
 	dm.Process.Signal(os.Interrupt)
 }
