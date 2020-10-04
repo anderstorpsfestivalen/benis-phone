@@ -3,6 +3,9 @@ creds/*
 creds/
 files/
 files/*
+temp/
+temp/*
+temp
 
 .DS_Store
 

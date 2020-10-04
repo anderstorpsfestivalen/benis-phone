@@ -28,20 +28,22 @@ var MenuOptions = map[string]MenuOption{
 }
 
 type Controller struct {
-	Phone phone.FlowPhone
-	Audio *audio.Audio
-	Polly polly.Polly
-	Where string
-	Menu  MenuReturn
+	Phone    phone.FlowPhone
+	Audio    *audio.Audio
+	Recorder audio.Recorder
+	Polly    polly.Polly
+	Where    string
+	Menu     MenuReturn
 }
 
-func New(ph phone.FlowPhone, audio *audio.Audio, polly polly.Polly) Controller {
+func New(ph phone.FlowPhone, audio *audio.Audio, rec audio.Recorder, polly polly.Polly) Controller {
 	return Controller{
-		Phone: ph,
-		Audio: audio,
-		Polly: polly,
-		Where: "mainmenu",
-		Menu:  MenuReturn{},
+		Phone:    ph,
+		Audio:    audio,
+		Recorder: rec,
+		Polly:    polly,
+		Where:    "mainmenu",
+		Menu:     MenuReturn{},
 	}
 }
 
@@ -60,10 +62,14 @@ func (c *Controller) Start(wg *sync.WaitGroup) {
 				if hook {
 					hookstate = true
 					log.Info("Hook is lifted")
+					tm := time.Now()
+					recTime := tm.Format("2006-01-02_15:04:05")
+					c.Recorder.Record(recTime)
 					go MenuOptions[c.Where].Prefix(c)
 				} else {
 					hookstate = false
 					c.Audio.Clear()
+					c.Recorder.Stop()
 					c.Where = "mainmenu"
 					log.Info("Hook is slammed")
 				}
@@ -78,6 +84,7 @@ func (c *Controller) Start(wg *sync.WaitGroup) {
 			select {
 			case key := <-keychan:
 				if hookstate {
+
 					il := MenuOptions[c.Where].InputLength()
 					keys += key
 					if il == 0 {

@@ -56,11 +56,13 @@ func main() {
 		log.Fatal(err)
 	}
 
+	rec := audio.NewRecorder("hw:2,0", "temp")
+
 	polly := polly.New(credentials.Polly.Key, credentials.Polly.Secret)
 
 	log.Info("Starting Controller")
 	log.SetLevel(log.DebugLevel)
-	ctrl := controller.New(ctrlPhone, ad, polly)
+	ctrl := controller.New(ctrlPhone, ad, rec, polly)
 
 	var waitgroup sync.WaitGroup
 	waitgroup.Add(1)
