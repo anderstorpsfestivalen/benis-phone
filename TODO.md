@@ -11,3 +11,4 @@ Current Meny
 Mata in telenr för promille
 Saldo på telefon
 Announce clear
+hash cache för polly
