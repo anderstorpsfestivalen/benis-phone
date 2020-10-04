@@ -9,13 +9,13 @@ func (m *Err) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 
 	log.Error(menu.Error)
 
-	c.Audio.PlayFromFile("files/xperror.wav")
+	c.Audio.PlayFromFile("files/xperror2.wav")
 
 	errPrefix := "Wogberg is drunk: "
 
 	ttsData, err := c.Polly.TTSLang(errPrefix+menu.Error.Error(), "en-US", "Joanna")
 	if err != nil {
-		c.Audio.PlayFromFile("files/xperror.wav")
+		c.Audio.PlayFromFile("files/xperror2.wav")
 		log.Error(err)
 	}
 
