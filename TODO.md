@@ -1,14 +1,12 @@
 Coral:
 
 Väder
-Bygga funktioner som wberg vill ha i backend
-Recording
-Do not resample if 44100
+Bygga funktioner som wberg vill ha i backend (promille)
+3d print
 
 Wberg:
 
 DTMF lödning
-Parts
 Current Meny
 Mata in telenr för promille
 Saldo på telefon
