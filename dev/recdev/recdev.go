@@ -11,7 +11,9 @@ import (
 )
 
 func main() {
-	c := []string{"-f", "alsa", "-i", "hw:2,0", "-af", "\"pan=mono|c0=c1\"", path.Join("temp", "2016-04_11:21"+".flac")}
+	c := []string{"-f", "alsa", "-i", "hw:2,0", "-af", "'pan=mono|c0=c0'", path.Join("temp", "2016-04_11:21"+".flac")}
+
+	fmt.Println(c)
 
 	dm := exec.Command("ffmpeg", c...)
 
