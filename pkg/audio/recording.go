@@ -1,58 +1,83 @@
 package audio
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
 	"runtime"
+	"syscall"
+
+	"github.com/sirupsen/logrus"
 )
 
 type Recorder struct {
 	isRecording bool
 	recordpath  string
 	instance    *exec.Cmd
+	logger      *logrus.Logger
 	alsaDevice  string
 }
 
-func NewRecorder(alsaDevice string, recordpath string) Recorder {
+func NewRecorder(alsaDevice string, recordpath string, logger *logrus.Logger) Recorder {
 	return Recorder{
 		recordpath: recordpath,
+		logger:     logger,
 		alsaDevice: alsaDevice,
 	}
 }
 
-func (f *Recorder) Record(filename string) error {
+func (f *Recorder) Record(filename string) {
 
-	if f.isRecording {
-		f.Stop()
-	}
+	go func() {
 
-	c := []string{"-y", "-f", "alsa", "-i", "hw:2,0", "-af", "pan=mono|c0=c0", path.Join(f.recordpath, filename+".flac")}
+		if f.isRecording {
+			f.Stop()
+		}
 
-	if runtime.GOOS == "darwin" {
-		c = []string{"-y", "-f", "avfoundation", "-i", ":1", "-af", "pan=mono|c0=c0", path.Join(f.recordpath, filename+".flac")}
-	}
+		c := []string{"-y", "-f", "alsa", "-i", "hw:2,0", "-af", "pan=mono|c0=c0", path.Join(f.recordpath, filename+".flac")}
 
-	f.instance = exec.Command("ffmpeg", c...)
-	stderr, err := f.instance.StderrPipe()
-	if err != nil {
-		f.isRecording = false
-		return err
-	}
+		if runtime.GOOS == "darwin" {
+			c = []string{"-y", "-f", "avfoundation", "-i", ":1", "-af", "pan=mono|c0=c0", path.Join(f.recordpath, filename+".flac")}
+		}
 
-	err = f.instance.Start()
-	if err != nil {
-		f.isRecording = false
-		return err
-	}
-	slurp, _ := ioutil.ReadAll(stderr)
-	fmt.Printf("%s\n", slurp)
-	f.instance.Process.Signal(os.Interrupt)
+		f.instance = exec.Command("ffmpeg", c...)
+		stderr, err := f.instance.StderrPipe()
+		if err != nil {
+			f.isRecording = false
+			f.logger.Error(err)
+		}
 
-	f.isRecording = true
-	return nil
+		err = f.instance.Start()
+		if err != nil {
+			f.isRecording = false
+			f.logger.Error(err)
+		}
+
+		slurp, err := ioutil.ReadAll(stderr)
+		if err != nil {
+			f.isRecording = false
+			f.logger.Error(err)
+		}
+
+		if err := f.instance.Wait(); err != nil {
+			if exiterr, ok := err.(*exec.ExitError); ok {
+
+				if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+					ex := status.ExitStatus()
+					if ex == -1 || ex == 255 {
+					} else {
+						f.logger.Error("FFMPEG DID NOT EXIT CLEANLY")
+						f.logger.Errorf("%s\n", slurp)
+					}
+				}
+			} else {
+				f.logger.Error("cmd.Wait: %v", err)
+			}
+		}
+
+		f.isRecording = true
+	}()
 }
 
 func (f *Recorder) Stop() {

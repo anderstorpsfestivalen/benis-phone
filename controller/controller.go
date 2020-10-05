@@ -64,10 +64,7 @@ func (c *Controller) Start(wg *sync.WaitGroup) {
 					log.Info("Hook is lifted")
 					tm := time.Now()
 					recTime := tm.Format("2006-01-02_15:04:05")
-					err := c.Recorder.Record("random/" + recTime)
-					if err != nil {
-						log.Error(err)
-					}
+					c.Recorder.Record("random/" + recTime)
 					go MenuOptions[c.Where].Prefix(c)
 				} else {
 					hookstate = false

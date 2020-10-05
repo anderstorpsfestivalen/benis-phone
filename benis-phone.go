@@ -4,7 +4,7 @@ import (
 	"flag"
 	"sync"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	"gitlab.com/anderstorpsfestivalen/benis-phone/controller"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/audio"
@@ -18,6 +18,8 @@ import (
 )
 
 func main() {
+
+	log := logrus.New()
 
 	credentials, err := secrets.LoadSecrets()
 	if err != nil {
@@ -56,12 +58,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	rec := audio.NewRecorder("hw:2,0", "temp")
+	rec := audio.NewRecorder("hw:2,0", "temp", log)
 
 	polly := polly.New(credentials.Polly.Key, credentials.Polly.Secret)
 
 	log.Info("Starting Controller")
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(logrus.DebugLevel)
 	ctrl := controller.New(ctrlPhone, ad, rec, polly)
 
 	var waitgroup sync.WaitGroup
