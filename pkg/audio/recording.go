@@ -1,6 +1,8 @@
 package audio
 
 import (
+	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -34,11 +36,20 @@ func (f *Recorder) Record(filename string) error {
 	}
 
 	f.instance = exec.Command("ffmpeg", c...)
-	err := f.instance.Start()
+	stderr, err := f.instance.StderrPipe()
 	if err != nil {
 		f.isRecording = false
 		return err
 	}
+
+	err = f.instance.Start()
+	if err != nil {
+		f.isRecording = false
+		return err
+	}
+	slurp, _ := ioutil.ReadAll(stderr)
+	fmt.Printf("%s\n", slurp)
+	f.instance.Process.Signal(os.Interrupt)
 
 	f.isRecording = true
 	return nil
