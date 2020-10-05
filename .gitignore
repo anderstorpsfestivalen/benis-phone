@@ -6,6 +6,9 @@ files/*
 temp/
 temp/*
 temp
+haschcache
+haschcache/
+haschcache/*
 
 .DS_Store
 

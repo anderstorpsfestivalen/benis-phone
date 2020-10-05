@@ -60,7 +60,7 @@ func main() {
 
 	rec := audio.NewRecorder("hw:2,0", "temp", log)
 
-	polly := polly.New(credentials.Polly.Key, credentials.Polly.Secret)
+	polly := polly.New(credentials.Polly.Key, credentials.Polly.Secret, "haschcache")
 
 	log.Info("Starting Controller")
 	log.SetLevel(logrus.DebugLevel)
