@@ -1,6 +1,9 @@
 package controller
 
 import (
+	"fmt"
+	"strconv"
+
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/services/backend"
 )
@@ -17,6 +20,21 @@ func (m *Balance) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 			NextFunction: "error",
 		}
 	}
+
+	message := balance.Name + ". Ditt saldo är: " +
+		strconv.FormatFloat(balance.Balance, 'f', 0, 64) +
+		". Kronor."
+
+	fmt.Println(message)
+
+	ttsData, err := c.Polly.TTS(message, "Astrid")
+	if err != nil {
+		return MenuReturn{
+			Error:        err,
+			NextFunction: "error",
+		}
+	}
+	c.Audio.PlayMP3FromStream(ttsData)
 
 	return MenuReturn{
 		NextFunction: menu.Caller,
