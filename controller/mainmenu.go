@@ -2,6 +2,8 @@ package controller
 
 import (
 	"fmt"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type MainMenu struct {
@@ -44,7 +46,14 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		return MenuReturn{
 			NextFunction: "idiom",
 		}
-	case "R":
+	case "#":
+		ttsData, err := c.Polly.TTS("PENIS LASSE", "Astrid")
+		if err != nil {
+			log.Error(err)
+
+			c.Audio.PlayMP3FromStream(ttsData)
+		}
+	case "*":
 		return MenuReturn{
 			NextFunction: "announce",
 		}
