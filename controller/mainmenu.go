@@ -2,8 +2,6 @@ package controller
 
 import (
 	"fmt"
-
-	log "github.com/sirupsen/logrus"
 )
 
 type MainMenu struct {
@@ -15,45 +13,46 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 	switch k {
 	case "1":
 		return MenuReturn{
-			NextFunction: "balance",
+			NextFunction: "flacornot",
 		}
 
 	case "2":
 		return MenuReturn{
-			NextFunction: "barindex",
+			NextFunction: "", // to be weather
 		}
 	case "3":
 		return MenuReturn{
-			NextFunction: "systemetpidmenu",
+			NextFunction: "", // to be barmenu
 		}
 	case "4":
 		return MenuReturn{
-			NextFunction: "trainmenu",
+			NextFunction: "", // to be personal services menu
 		}
 	case "5":
 		return MenuReturn{
-			NextFunction: "systemet",
+			NextFunction: "", // to be systemet menu
 		}
-	case "7":
-		return MenuReturn{
-			NextFunction: "syralotto",
-		}
-	case "8":
-		return MenuReturn{
-			NextFunction: "flacornot",
-		}
-	case "9":
+	case "6":
 		return MenuReturn{
 			NextFunction: "idiom",
 		}
-	case "#":
-		ttsData, err := c.Polly.TTS("PENIS LASSE", "Astrid")
-		if err != nil {
-			log.Error(err)
-
-			c.Audio.PlayMP3FromStream(ttsData)
+	case "7":
+		return MenuReturn{
+			NextFunction: "trainmenu",
+		}
+	case "8":
+		return MenuReturn{
+			NextFunction: "syralotto",
+		}
+	case "9":
+		return MenuReturn{
+			NextFunction: "recordmessage",
 		}
 	case "*":
+		return MenuReturn{
+			NextFunction: "", // free unassigned
+		}
+	case "0":
 		return MenuReturn{
 			NextFunction: "announce",
 		}

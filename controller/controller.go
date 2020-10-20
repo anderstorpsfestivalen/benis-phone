@@ -24,6 +24,7 @@ var MenuOptions = map[string]MenuOption{
 	"balance":         &Balance{},
 	"barindex":        &BarIndex{},
 	"systemetpidmenu": &SystemetPidMenu{},
+	"recordmessage":   &RecordMessage{},
 	"error":           &Err{},
 }
 
