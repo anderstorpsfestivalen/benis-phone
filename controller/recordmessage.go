@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -34,10 +35,12 @@ func (m *RecordMessage) Run(c *Controller, k string, menu MenuReturn) MenuReturn
 		select {
 		case hook := <-hookchan:
 			if hook {
+				fmt.Println("in hook, it's lifted")
 				tm := time.Now()
 				recTime := tm.Format("2006-01-02_15:04:05")
 				c.Recorder.Record("message/" + recTime)
 			} else {
+				fmt.Println("in hook, it's slammed")
 				c.Audio.Clear()
 				c.Recorder.Stop()
 			}
