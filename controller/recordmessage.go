@@ -26,7 +26,7 @@ func (m *RecordMessage) Run(c *Controller, k string, menu MenuReturn) MenuReturn
 	c.Audio.PlayMP3FromStream(ttsData)
 
 	tm := time.Now()
-	recTime := tm.Format("2010-11-21_15:04:05")
+	recTime := tm.Format("2006-01-02_15:04:05")
 	c.Recorder.Record("message/" + recTime)
 
 	return MenuReturn{
