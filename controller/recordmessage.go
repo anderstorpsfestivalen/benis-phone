@@ -23,7 +23,7 @@ func (m *RecordMessage) Run(c *Controller, k string, menu MenuReturn) MenuReturn
 			NextFunction: "error",
 		}
 	}
-	c.Audio.PlayMP3FromStream(ttsData)
+	go c.Audio.PlayMP3FromStream(ttsData)
 
 	tm := time.Now()
 	recTime := tm.Format("2006-01-02_15:04:05")
