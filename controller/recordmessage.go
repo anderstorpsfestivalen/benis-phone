@@ -29,6 +29,9 @@ func (m *RecordMessage) Run(c *Controller, k string, menu MenuReturn) MenuReturn
 	recTime := tm.Format("2006-01-02_15:04:05")
 	c.Recorder.Record("message/" + recTime)
 
+	return MenuReturn{
+		NextFunction: menu.Caller,
+	}
 }
 
 func (m *RecordMessage) InputLength() int {
