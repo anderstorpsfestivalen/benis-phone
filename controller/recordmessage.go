@@ -36,9 +36,7 @@ func (m *RecordMessage) Run(c *Controller, k string, menu MenuReturn) MenuReturn
 	for {
 		select {
 		case hook := <-hookchan:
-			if hook {
-				fmt.Println("in hook, it's lifted")
-			} else {
+			if hook == false {
 				fmt.Println("in hook, it's slammed")
 				c.Audio.Clear()
 				c.Recorder.Stop()
