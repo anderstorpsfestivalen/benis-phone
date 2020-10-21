@@ -143,7 +143,7 @@ func (d *Phone) Close() {
 }
 
 func (d *Phone) State() bool {
-	return true
+	return d.hookState
 }
 
 func (d *Phone) GetKeyChannel() chan string {

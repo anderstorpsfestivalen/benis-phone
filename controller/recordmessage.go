@@ -13,8 +13,9 @@ func (m *RecordMessage) Run(c *Controller, k string, menu MenuReturn) MenuReturn
 	c.Audio.Clear()
 	c.Recorder.Stop()
 
+	time.Sleep(30 * time.Millisecond)
+
 	message := "Spela in ett meddelande efter pipet. För att avsluta, lägg på luren. PIIIIIP" //fix later
-	//fmt.Println(message)
 
 	ttsData, err := c.Polly.TTS(message, "Astrid")
 	if err != nil {
@@ -30,7 +31,7 @@ func (m *RecordMessage) Run(c *Controller, k string, menu MenuReturn) MenuReturn
 	c.Recorder.Record("message/" + recTime)
 
 	return MenuReturn{
-		NextFunction: menu.Caller,
+		NextFunction: "nil",
 	}
 }
 

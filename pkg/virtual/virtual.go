@@ -10,6 +10,8 @@ import (
 type Virtual struct {
 	KeyChannel  chan string
 	HookChannel chan bool
+
+	hookState bool
 }
 
 func New() *Virtual {
@@ -39,7 +41,13 @@ func (d *Virtual) startRead() {
 				var dem bool = false
 				if s == "o" {
 					dem = true
+					d.hookState = true
 				}
+
+				if s == "k" {
+					d.hookState = false
+				}
+
 				select {
 				case d.HookChannel <- dem:
 					log.Debug("Wrote to hookchannel")
@@ -64,7 +72,7 @@ func (d *Virtual) Close() {
 }
 
 func (d *Virtual) State() bool {
-	return true
+	return d.hookState
 }
 
 func (d *Virtual) GetKeyChannel() chan string {

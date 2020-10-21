@@ -117,6 +117,9 @@ func (c *Controller) Start(wg *sync.WaitGroup) {
 func (c *Controller) TriggerFunction(keys string) {
 	c.Audio.Clear()
 	res := MenuOptions[c.Where].Run(c, keys, c.Menu)
+	if res.NextFunction == "nil" {
+		return
+	}
 	res.Caller = MenuOptions[c.Where].Name()
 	c.Menu = res
 	c.Where = res.NextFunction
