@@ -4,6 +4,8 @@ Väder
 Bygga funktioner som wberg vill ha i backend (promille)
 3d print
 
+Debounce hook för att undvika electronic noise
+
 Wberg:
 
 DTMF lödning
