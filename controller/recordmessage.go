@@ -34,18 +34,16 @@ func (m *RecordMessage) Run(c *Controller, k string, menu MenuReturn) MenuReturn
 	hookchan := c.Phone.GetHookChannel()
 
 	for {
-		for {
-			select {
-			case hook := <-hookchan:
-				if hook {
-					fmt.Println("in hook, it's lifted")
-				} else {
-					fmt.Println("in hook, it's slammed")
-					c.Audio.Clear()
-					c.Recorder.Stop()
-					return MenuReturn{
-						NextFunction: menu.Caller,
-					}
+		select {
+		case hook := <-hookchan:
+			if hook {
+				fmt.Println("in hook, it's lifted")
+			} else {
+				fmt.Println("in hook, it's slammed")
+				c.Audio.Clear()
+				c.Recorder.Stop()
+				return MenuReturn{
+					NextFunction: menu.Caller,
 				}
 			}
 		}
