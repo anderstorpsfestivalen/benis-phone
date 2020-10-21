@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -30,22 +29,6 @@ func (m *RecordMessage) Run(c *Controller, k string, menu MenuReturn) MenuReturn
 	recTime := tm.Format("2006-01-02_15:04:05")
 	c.Recorder.Record("message/" + recTime)
 
-	//hookstate := c.Phone.State()
-	hookchan := c.Phone.GetHookChannel()
-
-	for {
-		select {
-		case hook := <-hookchan:
-			if hook == false {
-				fmt.Println("in hook, it's slammed")
-				c.Audio.Clear()
-				c.Recorder.Stop()
-				return MenuReturn{
-					NextFunction: menu.Caller,
-				}
-			}
-		}
-	}
 }
 
 func (m *RecordMessage) InputLength() int {
