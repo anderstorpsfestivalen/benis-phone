@@ -25,6 +25,7 @@ var MenuOptions = map[string]MenuOption{
 	"barindex":        &BarIndex{},
 	"systemetpidmenu": &SystemetPidMenu{},
 	"recordmessage":   &RecordMessage{},
+	"playlastmessage": &PlayLastMessage{},
 	"error":           &Err{},
 }
 

@@ -46,7 +46,7 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		}
 	case "9":
 		return MenuReturn{
-			NextFunction: "recordmessage",
+			NextFunction: "playlastmessage",
 		}
 	case "*":
 		return MenuReturn{
