@@ -60,7 +60,7 @@ func GetKey() (string, error) {
 
 func getAppSettingsPath() (string, error) {
 
-	resp, err := http.Get("http://systembolaget.se")
+	resp, err := http.Get("https://systembolaget.se")
 	if err != nil {
 		return "", err
 	}
