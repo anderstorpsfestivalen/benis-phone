@@ -136,7 +136,7 @@ func (s *SystemetV2) GetStock(productID string, storeID string) (StockResponse, 
 
 	req, err := http.NewRequest("GET", "https://api-extern.systembolaget.se/sb-api-ecommerce/v1/stockbalance/store?ProductId="+productID+"&StoreId="+storeID, nil)
 	if err != nil {
-		// handle err
+		return nil, err
 	}
 	req.Header.Set("Authority", "api-extern.systembolaget.se")
 	req.Header.Set("Pragma", "no-cache")
