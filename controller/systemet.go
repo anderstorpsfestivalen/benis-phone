@@ -1,24 +1,21 @@
 package controller
 
-import (
-	"strings"
-
-	"gitlab.com/anderstorpsfestivalen/benis-phone/services/systemet"
-)
+import "strconv"
 
 type Systemet struct {
 }
 
 func (m *Systemet) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 
-	stock, err := systemet.RequestStockData("508393")
+	stock, err := c.SystemetAPI.GetStock("508393", "0611")
 	if err != nil {
 		return MenuReturn{
 			Error:        err,
 			NextFunction: "error",
 		}
 	}
-	message := "Antalet Arboga 10.2 i lager på Systembolaget Gislaved är just nu " + strings.Replace(stock.StockTextShort, "st", "stycken     .", -1)
+
+	message := "Antalet Arboga 10.2 i lager på Systembolaget Gislaved är just nu " + strconv.Itoa(stock[0].Stock) + "stycken      ."
 	ttsData, err := c.Polly.TTS(message, "Astrid")
 	if err != nil {
 		return MenuReturn{

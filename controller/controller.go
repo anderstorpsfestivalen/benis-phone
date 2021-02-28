@@ -9,6 +9,7 @@ import (
 	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/audio"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/phone"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/polly"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/services/systemet"
 )
 
 var MenuOptions = map[string]MenuOption{
@@ -31,22 +32,24 @@ var MenuOptions = map[string]MenuOption{
 }
 
 type Controller struct {
-	Phone    phone.FlowPhone
-	Audio    *audio.Audio
-	Recorder audio.Recorder
-	Polly    polly.Polly
-	Where    string
-	Menu     MenuReturn
+	Phone       phone.FlowPhone
+	Audio       *audio.Audio
+	Recorder    audio.Recorder
+	Polly       polly.Polly
+	SystemetAPI systemet.SystemetV2
+	Where       string
+	Menu        MenuReturn
 }
 
-func New(ph phone.FlowPhone, audio *audio.Audio, rec audio.Recorder, polly polly.Polly) Controller {
+func New(ph phone.FlowPhone, audio *audio.Audio, rec audio.Recorder, polly polly.Polly, sapi systemet.SystemetV2) Controller {
 	return Controller{
-		Phone:    ph,
-		Audio:    audio,
-		Recorder: rec,
-		Polly:    polly,
-		Where:    "mainmenu",
-		Menu:     MenuReturn{},
+		Phone:       ph,
+		Audio:       audio,
+		Recorder:    rec,
+		Polly:       polly,
+		SystemetAPI: sapi,
+		Where:       "mainmenu",
+		Menu:        MenuReturn{},
 	}
 }
 

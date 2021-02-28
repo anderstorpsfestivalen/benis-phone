@@ -62,9 +62,17 @@ func main() {
 
 	polly := polly.New(credentials.Polly.Key, credentials.Polly.Secret, "haschcache")
 
+	key, err := systemet.GetKey()
+	if err != nil {
+		log.Error(err)
+		log.Panic("Could not get systembolaget key")
+	}
+
+	systemetAPI := systemet.New(key)
+
 	log.Info("Starting Controller")
 	log.SetLevel(logrus.DebugLevel)
-	ctrl := controller.New(ctrlPhone, ad, rec, polly)
+	ctrl := controller.New(ctrlPhone, ad, rec, polly, *systemetAPI)
 
 	var waitgroup sync.WaitGroup
 	waitgroup.Add(1)
