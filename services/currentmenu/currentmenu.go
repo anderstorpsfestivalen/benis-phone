@@ -101,7 +101,7 @@ func ListItems() (string, error) {
 
 				if variation, ok := recipe.UnpackedVariations[recipe.Variations[0]]; ok {
 					//fmt.Println(variation.Price)
-					message = message + recipe.Name + ", pris, " + strconv.FormatFloat(variation.Price, 'f', -1, 64) + " riksdaler. "
+					message = message + recipe.Name + ", " + strconv.FormatFloat(variation.Price, 'f', -1, 64) + " riksdaler. "
 				}
 			}
 		}
