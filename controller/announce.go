@@ -7,12 +7,24 @@ func (m *Announce) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 	// Clear all ongoing audio preparing for incoming announcement
 	c.Audio.Clear()
 
-	return MenuReturn{
-		NextFunction: "mainmenu",
+	keychan := c.Phone.GetKeyChannel()
+	for {
+		select {
+		case key := <-keychan:
+			if key == "1" {
+				return MenuReturn{
+					NextFunction: "mainmenu",
+				}
+			} else {
+				return MenuReturn{
+					NextFunction: "mainmenu",
+				}
+			}
+		}
 	}
 }
 func (m *Announce) InputLength() int {
-	return 6
+	return 0
 }
 
 func (m *Announce) Name() string {

@@ -10,9 +10,9 @@ Wberg:
 
 DTMF lödning
 Molex på RCA+Telefon
-Skriva undermenyer för systemet, personal och systemet
+Skriva undermenyer för systemet, personal och bar
 Mata in telenr för promille+saldo
-Announce clear
+Announce clear (tror detta är löst? kolla)
 Lyssna på inspelade meddelanden
 Säkerhetsställa meddelanden
 Debug output
