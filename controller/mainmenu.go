@@ -15,22 +15,24 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		return MenuReturn{
 			NextFunction: "flacornot",
 		}
-
 	case "2":
 		return MenuReturn{
 			NextFunction: "systemet", // to be weather
 		}
 	case "3":
 		return MenuReturn{
-			NextFunction: "", // to be barmenu
+			NextFunction: "barmenu", // to be barmenu
+			// menu with functions: barclosing, menu
 		}
 	case "4":
 		return MenuReturn{
 			NextFunction: "", // to be personal services menu
+			// saldo, promillekoll
 		}
 	case "5":
 		return MenuReturn{
 			NextFunction: "", // to be systemet menu
+			// menu with functions arboga i lager gislaved, slå upp produkt id,
 		}
 	case "6":
 		return MenuReturn{
@@ -50,7 +52,7 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		}
 	case "*":
 		return MenuReturn{
-			NextFunction: "", // free unassigned
+			NextFunction: "", // to be leave a message function
 		}
 	case "0":
 		return MenuReturn{

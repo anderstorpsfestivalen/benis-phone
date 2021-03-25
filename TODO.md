@@ -9,7 +9,12 @@ Debounce hook för att undvika electronic noise
 Wberg:
 
 DTMF lödning
-Current Meny
-Mata in telenr för promille
-Saldo på telefon
+Molex på RCA+Telefon
+Skriva undermenyer för systemet, personal och systemet
+Mata in telenr för promille+saldo
 Announce clear
+Lyssna på inspelade meddelanden
+Säkerhetsställa meddelanden
+Debug output
+Skriva readme för att få igång skiten
+Systemet pid rewrite efter nytt API

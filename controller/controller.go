@@ -29,6 +29,7 @@ var MenuOptions = map[string]MenuOption{
 	"playlastmessage":   &PlayLastMessage{},
 	"playrandommessage": &PlayRandomMessage{},
 	"error":             &Err{},
+	"barmenu":           &BarMenu{},
 }
 
 type Controller struct {
