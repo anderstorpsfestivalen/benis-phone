@@ -18,3 +18,4 @@ Säkerhetsställa meddelanden
 Debug output
 Skriva readme för att få igång skiten
 Systemet pid rewrite efter nytt API
+Testning: Verifiera på riktiga telefonen alla funktioner

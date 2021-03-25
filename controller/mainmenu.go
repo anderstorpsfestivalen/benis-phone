@@ -21,8 +21,7 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		}
 	case "3":
 		return MenuReturn{
-			NextFunction: "barmenu", // to be barmenu
-			// menu with functions: barclosing, menu
+			NextFunction: "barmenu",
 		}
 	case "4":
 		return MenuReturn{
