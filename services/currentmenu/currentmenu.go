@@ -84,12 +84,13 @@ func ListItems() (string, error) {
 		return "", fmt.Errorf("Empty response")
 	}
 
-	message := "Förtillfället på menyn, "
+	// Ja, det är särskrivet för polly ska säga rätt...
+	message := "För tillfället på menyn, "
 
 	for _, ingredient := range s.Ingredients {
 		if ingredient.Enabled.Bool {
 			//fmt.Println(ingredient.Name, ingredient.Price)
-			message = message + ingredient.Name + ", pris, " + strconv.FormatFloat(ingredient.Price, 'f', -1, 64) + " riksdaler. "
+			message = message + ingredient.Name + ", " + strconv.FormatFloat(ingredient.Price, 'f', -1, 64) + " riksdaler. "
 		}
 	}
 	for _, recipe := range s.Recipes {
