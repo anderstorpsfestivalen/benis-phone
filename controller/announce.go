@@ -13,17 +13,11 @@ func (m *Announce) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 	keychan := c.Phone.GetKeyChannel()
 	for {
 		select {
-		case key := <-keychan:
-			if key == "1" {
-				fmt.Println("Returning to main menu")
-				return MenuReturn{
-					NextFunction: "mainmenu",
-				}
-			} else {
-				fmt.Println("Returning to main menu")
-				return MenuReturn{
-					NextFunction: "mainmenu",
-				}
+		case _ = <-keychan:
+
+			fmt.Println("Returning to main menu")
+			return MenuReturn{
+				NextFunction: "mainmenu",
 			}
 		}
 	}
