@@ -11,7 +11,7 @@ func (m *Err) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 
 	c.Audio.PlayFromFile("files/xperror2.wav")
 
-	errPrefix := "Wogberg is drunk: "
+	errPrefix := "ERROR: "
 
 	ttsData, err := c.Polly.TTSLang(errPrefix+menu.Error.Error(), "en-US", "Joanna")
 	if err != nil {

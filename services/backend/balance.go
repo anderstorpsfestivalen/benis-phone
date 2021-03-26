@@ -24,6 +24,7 @@ func GetBalanceForPhoneNumber(number string) (BalanceResp, error) {
 	client := &http.Client{}
 	form := url.Values{}
 	form.Set("number", number)
+	fmt.Println(number)
 
 	req, err := http.NewRequest("POST", "https://anderstorpsfestivalen.se/api/phone/balance", strings.NewReader(form.Encode()))
 	if err != nil {
