@@ -1,33 +1,27 @@
 package controller
 
 import (
+	"fmt"
+
 	log "github.com/sirupsen/logrus"
 )
 
-type SystemetPidMenu struct {
+type SystemetPid struct {
 }
 
-func (m *SystemetPidMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
+func (m *SystemetPid) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 
-	// k2, err := strconv.Atoi(k)
-	// if err != nil {
-	// 	return MenuReturn{
-	// 		Error:        err,
-	// 		NextFunction: "error",
-	// 	}
-	// }
-	// s, err := systemet.RequestNewProduct(k2)
+	res, err := c.SystemetAPI.SearchForItem(k)
+	if err != nil {
+		return MenuReturn{
+			Error:        err,
+			NextFunction: "error",
+		}
+	}
 
-	// if err != nil {
-	// 	return MenuReturn{
-	// 		Error:        err,
-	// 		NextFunction: "error",
-	// 	}
-	// }
-
-	// message := ""
-	// message = message +
-	// 	"Artikelnummer: " + s.ProductNumberShort + ", " + s.ProductNameBold + ", " +
+	message := ""
+	message = message + "Artikelnummer: " + res.Products[0].ProducerName
+	//ProductNumberShort + ", " + s.ProductNameBold + ", " +
 	// 	"Kateogri: " + s.Category + ", " +
 	// 	"Förpackning: " + s.BottleTextShort + ", " +
 	// 	"Volym: " + strconv.FormatFloat(s.Volume, 'f', 0, 64) + " milliliter, " +
@@ -39,14 +33,14 @@ func (m *SystemetPidMenu) Run(c *Controller, k string, menu MenuReturn) MenuRetu
 	// 	"Användnignsområden: " + s.Usage +
 	// 	"Smak: " + s.Taste
 
-	// fmt.Println(message)
+	fmt.Println(message)
 
-	// ttsData, err := c.Polly.TTS(message, "Astrid")
-	// if err != nil {
-	// 	log.Error(err)
-	// }
+	ttsData, err := c.Polly.TTS(message, "Astrid")
+	if err != nil {
+		log.Error(err)
+	}
 
-	// c.Audio.PlayMP3FromStream(ttsData)
+	c.Audio.PlayMP3FromStream(ttsData)
 
 	return MenuReturn{
 		NextFunction: menu.Caller,
@@ -54,15 +48,15 @@ func (m *SystemetPidMenu) Run(c *Controller, k string, menu MenuReturn) MenuRetu
 
 }
 
-func (m *SystemetPidMenu) InputLength() int {
-	return 8
+func (m *SystemetPid) InputLength() int {
+	return 5
 }
 
-func (m *SystemetPidMenu) Name() string {
+func (m *SystemetPid) Name() string {
 	return "balance"
 }
 
-func (m *SystemetPidMenu) Prefix(c *Controller) {
+func (m *SystemetPid) Prefix(c *Controller) {
 	message := "Mata in Systembolagets artikelnummer, 5 siffror."
 	ttsData, err := c.Polly.TTS(message, "Astrid")
 	if err != nil {

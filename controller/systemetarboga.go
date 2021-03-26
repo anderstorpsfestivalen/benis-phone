@@ -2,10 +2,10 @@ package controller
 
 import "strconv"
 
-type Systemet struct {
+type SystemetArboga struct {
 }
 
-func (m *Systemet) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
+func (m *SystemetArboga) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 
 	stock, err := c.SystemetAPI.GetStock("508393", "0611")
 	if err != nil {
@@ -31,13 +31,13 @@ func (m *Systemet) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 
 }
 
-func (m *Systemet) InputLength() int {
+func (m *SystemetArboga) InputLength() int {
 	return 0
 }
 
-func (m *Systemet) Name() string {
+func (m *SystemetArboga) Name() string {
 	return "systemet"
 }
 
-func (m *Systemet) Prefix(c *Controller) {
+func (m *SystemetArboga) Prefix(c *Controller) {
 }

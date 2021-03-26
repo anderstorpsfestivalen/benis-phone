@@ -30,7 +30,7 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		}
 	case "5":
 		return MenuReturn{
-			NextFunction: "", // to be systemet menu
+			NextFunction: "systemetmenu",
 			// menu with functions arboga i lager gislaved, slå upp produkt id,
 		}
 	case "6":

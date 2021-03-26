@@ -15,7 +15,7 @@ import (
 var MenuOptions = map[string]MenuOption{
 	"mainmenu":          &MainMenu{},
 	"announce":          &Announce{},
-	"systemet":          &Systemet{},
+	"systemetarboga":    &SystemetArboga{},
 	"trainmenu":         &TrainMenu{},
 	"barclosingmenu":    &BarClosingMenu{},
 	"syralotto":         &SyraLotto{},
@@ -24,13 +24,14 @@ var MenuOptions = map[string]MenuOption{
 	"idiom":             &Idiom{},
 	"balance":           &Balance{},
 	"barindex":          &BarIndex{},
-	"systemetpidmenu":   &SystemetPidMenu{},
+	"systemetpid":       &SystemetPid{},
 	"recordmessage":     &RecordMessage{},
 	"playlastmessage":   &PlayLastMessage{},
 	"playrandommessage": &PlayRandomMessage{},
 	"error":             &Err{},
 	"barmenu":           &BarMenu{},
 	"personalmenu":      &PersonalMenu{},
+	"systemetmenu":      &SystemetMenu{},
 }
 
 type Controller struct {
