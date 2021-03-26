@@ -16,15 +16,6 @@ func (m *PersonalMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn 
 		case key := <-keychan:
 			if key == "1" {
 				fmt.Println("DEBUG: personal menu, 1 pressed")
-				message := "Mata in ditt telefonnummer, avsluta med #"
-				ttsData, err := c.Polly.TTS(message, "Astrid")
-				if err != nil {
-					log.Error(err)
-				}
-				c.Audio.PlayMP3FromStream(ttsData)
-
-				// röv
-
 				return MenuReturn{
 					NextFunction: "balance",
 				}
