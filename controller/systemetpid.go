@@ -2,6 +2,7 @@ package controller
 
 import (
 	"fmt"
+	"strconv"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -20,18 +21,24 @@ func (m *SystemetPid) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 	}
 
 	message := ""
-	message = message + "Artikelnummer: " + res.Products[0].ProducerName
-	//ProductNumberShort + ", " + s.ProductNameBold + ", " +
-	// 	"Kateogri: " + s.Category + ", " +
-	// 	"Förpackning: " + s.BottleTextShort + ", " +
-	// 	"Volym: " + strconv.FormatFloat(s.Volume, 'f', 0, 64) + " milliliter, " +
-	// 	"Alkohol procent: " + strconv.FormatFloat(s.AlcoholPercentage, 'f', 1, 64) + ", " +
-	// 	"Pris: " + strconv.FormatFloat(s.Price, 'f', 0, 64) + " kronor, " +
-	// 	"Pant: " + strconv.FormatFloat(s.RecycleFee, 'f', 0, 64) + " krona, " +
-	// 	"Typ: " + s.Type + ", " +
-	// 	"Stil: " + s.Style + ", " +
-	// 	"Användnignsområden: " + s.Usage +
-	// 	"Smak: " + s.Taste
+	message = message +
+		"Artikelnummer: " + res.Products[0].ProductNumberShort +
+		", " + res.Products[0].ProductNameBold + ", " +
+		"Producent: " + res.Products[0].ProducerName + ", " +
+		"Kategori: " + res.Products[0].CategoryLevel1 + ", " +
+		"Förpackning: " + res.Products[0].BottleTextShort + ", " +
+		"Volym: " + strconv.FormatFloat(res.Products[0].Volume, 'f', 0, 64) + " milliliter, " +
+		"Alkohol procent: " + strconv.FormatFloat(res.Products[0].AlcoholPercentage, 'f', 1, 64) + ", " +
+		"Pris: " + strconv.FormatFloat(res.Products[0].Price, 'f', 0, 64) + " kronor, " +
+		"Pant: " + strconv.FormatFloat(res.Products[0].RecycleFee, 'f', 0, 64) + " krona, " +
+		"Användnignsområden: " + res.Products[0].Usage +
+		"Smak: " + res.Products[0].Taste + ", " +
+		"Färg: " + res.Products[0].Color + ", " +
+		// test of taste clocks
+		"Passar bra till: "
+	for i := range res.Products[0].TasteSymbols {
+		message = message + res.Products[0].TasteSymbols[i] + ", "
+	}
 
 	fmt.Println(message)
 

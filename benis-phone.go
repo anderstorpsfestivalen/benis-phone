@@ -39,7 +39,7 @@ func main() {
 		log.Fatal("Could not init systembolaget lookup")
 	}
 
-	enablePhone := flag.Bool("phone", false, "blah")
+	enablePhone := flag.Bool("phone", false, "Enable GPIO for physical phone")
 	flag.Parse()
 
 	var ctrlPhone phone.FlowPhone

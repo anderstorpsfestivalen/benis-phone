@@ -24,7 +24,7 @@ func GetBalanceForPhoneNumber(number string) (BalanceResp, error) {
 	client := &http.Client{}
 	form := url.Values{}
 	form.Set("number", number)
-	fmt.Println(number)
+	fmt.Println("Inputted number is: " + number)
 
 	req, err := http.NewRequest("POST", "https://anderstorpsfestivalen.se/api/phone/balance", strings.NewReader(form.Encode()))
 	if err != nil {
@@ -32,6 +32,8 @@ func GetBalanceForPhoneNumber(number string) (BalanceResp, error) {
 	}
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Content-Length", strconv.Itoa(len(form.Encode())))
+
+	// TODO: add error check if credentials exist
 	req.SetBasicAuth(secrets.Loaded.Backend.Username, secrets.Loaded.Backend.Password)
 
 	resp, err := client.Do(req)
