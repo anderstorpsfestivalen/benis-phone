@@ -51,7 +51,7 @@ func (m *Balance) Name() string {
 }
 
 func (m *Balance) Prefix(c *Controller) {
-	message := "Fyll i ditt telefonnummer, avsluta med fyrkant."
+	message := "Fyll i ditt telefonnummer, tio siffror."
 	ttsData, err := c.Polly.TTS(message, "Astrid")
 	if err != nil {
 		log.Error(err)

@@ -33,8 +33,17 @@ func GetBalanceForPhoneNumber(number string) (BalanceResp, error) {
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Content-Length", strconv.Itoa(len(form.Encode())))
 
-	// TODO: add error check if credentials exist
-	req.SetBasicAuth(secrets.Loaded.Backend.Username, secrets.Loaded.Backend.Password)
+	username := secrets.Loaded.Backend.Username
+	password := secrets.Loaded.Backend.Password
+
+	// Error check for missing credentials in creds.json
+	if username == "" {
+		fmt.Println("No username for Backend defined in creds.json")
+	}
+	if username == "" {
+		fmt.Println("No password for Backend defined in creds.json")
+	}
+	req.SetBasicAuth(username, password)
 
 	resp, err := client.Do(req)
 	if err != nil {

@@ -10,12 +10,11 @@ Wberg:
 
 DTMF lödning
 Molex på RCA+Telefon
-Skriva undermenyer för systemet, personal och bar
-Mata in telenr för promille+saldo
-Announce clear (tror detta är löst? kolla)
+Mata in telenr för promille(placeholder)
 Lyssna på inspelade meddelanden
 Säkerhetsställa meddelanden
 Debug output
 Skriva readme för att få igång skiten
-Systemet pid rewrite efter nytt API
+Error-handling på phone-number input
+Error-handling på missing api keys
 Testning: Verifiera på riktiga telefonen alla funktioner
