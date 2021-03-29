@@ -13,10 +13,25 @@ type SystemetPid struct {
 func (m *SystemetPid) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 
 	res, err := c.SystemetAPI.SearchForItem(k)
+
 	if err != nil {
-		return MenuReturn{
-			Error:        err,
-			NextFunction: "error",
+		// Den här triggar om produkten inte hittas i systembolagets API
+		if err.Error() == "No products found" {
+			ttsData, err := c.Polly.TTS("Produkten kunde inte hittas.", "Astrid")
+			if err != nil {
+				log.Error(err)
+			}
+
+			c.Audio.PlayMP3FromStream(ttsData)
+			return MenuReturn{
+				NextFunction: menu.Caller,
+			}
+		} else {
+			//Alla andra fel triggar riktigt error
+			return MenuReturn{
+				Error:        err,
+				NextFunction: "error",
+			}
 		}
 	}
 

@@ -2,6 +2,7 @@ package systemet
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -210,6 +211,10 @@ func (s *SystemetV2) SearchForItem(artikelnr string) (SearchResponse, error) {
 
 	if err != nil {
 		return SearchResponse{}, err
+	}
+
+	if len(sresp.Products) <= 0 {
+		return SearchResponse{}, fmt.Errorf("No products found")
 	}
 
 	return sresp, nil
