@@ -15,9 +15,14 @@ func (m *Balance) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 	balance, err := backend.GetBalanceForPhoneNumber(k)
 	_ = balance
 	if err != nil {
+		ttsData, err := c.Polly.TTS("Telefonnummret kan inte hittas, var god försök igen.", "Astrid")
+		if err != nil {
+			log.Error(err)
+		}
+		c.Audio.PlayMP3FromStream(ttsData)
+
 		return MenuReturn{
-			Error:        err,
-			NextFunction: "error",
+			NextFunction: menu.Caller,
 		}
 	}
 
