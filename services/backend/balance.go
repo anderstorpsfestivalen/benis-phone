@@ -37,12 +37,10 @@ func GetBalanceForPhoneNumber(number string) (BalanceResp, error) {
 	password := secrets.Loaded.Backend.Password
 
 	// Error check for missing credentials in creds.json
-	if username == "" {
-		fmt.Println("No username for Backend defined in creds.json")
+	if secrets.Loaded.Backend.Username == "" || secrets.Loaded.Backend.Password == "" {
+		return BalanceResp{}, fmt.Errorf("No credentials for admin loaded.")
 	}
-	if username == "" {
-		fmt.Println("No password for Backend defined in creds.json")
-	}
+
 	req.SetBasicAuth(username, password)
 
 	resp, err := client.Do(req)
