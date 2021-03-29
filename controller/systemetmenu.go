@@ -13,10 +13,12 @@ func (m *SystemetMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn 
 		select {
 		case key := <-keychan:
 			if key == "1" {
+				c.Audio.Clear()
 				return MenuReturn{
 					NextFunction: "systemetarboga",
 				}
 			} else if key == "2" {
+				c.Audio.Clear()
 				return MenuReturn{
 					NextFunction: "systemetpid",
 				}
@@ -37,7 +39,7 @@ func (m *SystemetMenu) Name() string {
 }
 
 func (m *SystemetMenu) Prefix(c *Controller) {
-	message := "Tryck ett, för antalet arboga 10 komma 2 i lager på systembolaget gislaved, tryck två, systembolaget produkt sök, för att återgå, tryck #"
+	message := "Tryck ett, för antalet arboga 10 komma 2 i lager på systembolaget i gislaved, tryck två, för systembolaget produkt sök, för att återgå, tryck #"
 	ttsData, err := c.Polly.TTS(message, "Astrid")
 	if err != nil {
 		log.Error(err)

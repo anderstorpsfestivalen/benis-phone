@@ -1,6 +1,9 @@
 package controller
 
-import "strconv"
+import (
+	"fmt"
+	"strconv"
+)
 
 type SystemetArboga struct {
 }
@@ -15,7 +18,8 @@ func (m *SystemetArboga) Run(c *Controller, k string, menu MenuReturn) MenuRetur
 		}
 	}
 
-	message := "Antalet Arboga 10.2 i lager på Systembolaget Gislaved är just nu " + strconv.Itoa(stock[0].Stock) + "stycken      ."
+	message := "Antalet Arboga 10.2 i lager på Systembolaget Gislaved är just nu " + strconv.Itoa(stock[0].Stock) + " stycken."
+	fmt.Println(message)
 	ttsData, err := c.Polly.TTS(message, "Astrid")
 	if err != nil {
 		return MenuReturn{
