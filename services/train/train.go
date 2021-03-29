@@ -10,6 +10,7 @@ import (
 
 func Get() string {
 	credentials := secrets.Loaded
+
 	var searchstation = "Reftele"
 	flag.Parse()
 
