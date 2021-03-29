@@ -40,7 +40,7 @@ func GetBalanceForPhoneNumber(number string) (BalanceResp, error) {
 	if username == "" {
 		fmt.Println("No username for Backend defined in creds.json")
 	}
-	if username == "" {
+	if password == "" {
 		fmt.Println("No password for Backend defined in creds.json")
 	}
 	req.SetBasicAuth(username, password)
