@@ -22,9 +22,14 @@ type Polly struct {
 	fp          string
 }
 
-func New(key string, secret string, haschcache string) Polly {
+func New(key string, secret string, haschcache string) (Polly, error) {
 
 	os.MkdirAll(haschcache, os.ModePerm)
+
+	// Error check for missing credentials in creds.json
+	if key == "" || secret == "" {
+		return Polly{}, fmt.Errorf("No credentials for Polly found.")
+	}
 
 	return Polly{
 		credentials: AWS{
@@ -32,7 +37,7 @@ func New(key string, secret string, haschcache string) Polly {
 			aws_secret: secret,
 		},
 		haschcache: haschcache,
-	}
+	}, nil
 }
 
 //TTS generates a message in Swedish

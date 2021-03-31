@@ -60,7 +60,10 @@ func main() {
 
 	rec := audio.NewRecorder("hw:2,0", "temp", log)
 
-	polly := polly.New(credentials.Polly.Key, credentials.Polly.Secret, "haschcache")
+	polly, err := polly.New(credentials.Polly.Key, credentials.Polly.Secret, "haschcache")
+	if err != nil {
+		log.Error(err)
+	}
 
 	key, err := systemet.GetKey()
 	if err != nil {
