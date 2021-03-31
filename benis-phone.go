@@ -39,6 +39,7 @@ func main() {
 		log.Fatal("Could not init systembolaget lookup")
 	}
 
+	// Setup GPIO if -phone is used
 	enablePhone := flag.Bool("phone", false, "Enable GPIO for physical phone")
 	flag.Parse()
 
@@ -52,19 +53,23 @@ func main() {
 		ctrlPhone = virtual.New()
 	}
 
+	// Some audio shit
 	ad := audio.New(44100)
 	err = ad.Init()
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	// Set recording device, usually a second sound card if using a RPI
 	rec := audio.NewRecorder("hw:2,0", "temp", log)
 
+	// Setup Polly
 	polly, err := polly.New(credentials.Polly.Key, credentials.Polly.Secret, "haschcache")
 	if err != nil {
 		log.Error(err)
 	}
 
+	// Setup Systemet
 	key, err := systemet.GetKey()
 	if err != nil {
 		log.Error(err)
@@ -73,6 +78,7 @@ func main() {
 
 	systemetAPI := systemet.New(key)
 
+	// Start controller
 	log.Info("Starting Controller")
 	log.SetLevel(logrus.DebugLevel)
 	ctrl := controller.New(ctrlPhone, ad, rec, polly, *systemetAPI)

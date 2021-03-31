@@ -26,12 +26,10 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 	case "4":
 		return MenuReturn{
 			NextFunction: "personalmenu", // to be personal services menu
-			// saldo, promillekoll
 		}
 	case "5":
 		return MenuReturn{
 			NextFunction: "systemetmenu",
-			// menu with functions arboga i lager gislaved, slå upp produkt id,
 		}
 	case "6":
 		return MenuReturn{
@@ -48,10 +46,12 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 	case "9":
 		return MenuReturn{
 			NextFunction: "playrandommessage",
+			// test this function
 		}
 	case "*":
 		return MenuReturn{
-			NextFunction: "", // to be leave a message function
+			NextFunction: "recordmessage",
+			// to be leave a message function - test this
 		}
 	case "0":
 		return MenuReturn{

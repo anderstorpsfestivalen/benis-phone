@@ -1,8 +1,6 @@
 package controller
 
 import (
-	"fmt"
-
 	log "github.com/sirupsen/logrus"
 )
 
@@ -15,7 +13,6 @@ func (m *PersonalMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn 
 		select {
 		case key := <-keychan:
 			if key == "1" {
-				fmt.Println("DEBUG: personal menu, 1 pressed")
 				return MenuReturn{
 					NextFunction: "balance",
 				}
