@@ -25,7 +25,7 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		}
 	case "4":
 		return MenuReturn{
-			NextFunction: "personalmenu", // to be personal services menu
+			NextFunction: "personalmenu",
 		}
 	case "5":
 		return MenuReturn{

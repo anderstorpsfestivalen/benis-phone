@@ -18,7 +18,7 @@ func (m *PersonalMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn 
 				}
 			} else if key == "2" {
 				return MenuReturn{
-					NextFunction: "", //to be promille koll
+					NextFunction: "promille",
 				}
 			} else {
 				return MenuReturn{

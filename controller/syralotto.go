@@ -64,7 +64,7 @@ func (m *SyraLotto) Name() string {
 }
 
 func (m *SyraLotto) Prefix(c *Controller) {
-	message := "TRYCK 1 till FYRKANT"
+	message := "TRYCK 1 till FYRKANT, NOLL FÖR ATT GÅ TILLBAKA"
 	ttsData, err := c.Polly.TTS(message, "Astrid")
 	if err != nil {
 		log.Error(err)
