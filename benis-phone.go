@@ -81,7 +81,9 @@ func main() {
 	// Start controller
 	log.Info("Starting Controller")
 	log.SetLevel(logrus.DebugLevel)
-	ctrl := controller.New(ctrlPhone, ad, rec, polly, *systemetAPI)
+	ctrl := controller.New(ctrlPhone, ad, rec, polly, *systemetAPI, controller.ControllerSettings{
+		HiddenPlayback: true,
+	})
 
 	var waitgroup sync.WaitGroup
 	waitgroup.Add(1)

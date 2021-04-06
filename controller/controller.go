@@ -43,9 +43,15 @@ type Controller struct {
 	SystemetAPI systemet.SystemetV2
 	Where       string
 	Menu        MenuReturn
+
+	Settings ControllerSettings
 }
 
-func New(ph phone.FlowPhone, audio *audio.Audio, rec audio.Recorder, polly polly.Polly, sapi systemet.SystemetV2) Controller {
+type ControllerSettings struct {
+	HiddenPlayback bool
+}
+
+func New(ph phone.FlowPhone, audio *audio.Audio, rec audio.Recorder, polly polly.Polly, sapi systemet.SystemetV2, settings ControllerSettings) Controller {
 	return Controller{
 		Phone:       ph,
 		Audio:       audio,
@@ -54,6 +60,8 @@ func New(ph phone.FlowPhone, audio *audio.Audio, rec audio.Recorder, polly polly
 		SystemetAPI: sapi,
 		Where:       "mainmenu",
 		Menu:        MenuReturn{},
+
+		Settings: settings,
 	}
 }
 
