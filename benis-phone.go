@@ -24,7 +24,7 @@ func main() {
 	credentials, err := secrets.LoadSecrets()
 	if err != nil {
 		log.Error(err)
-		panic("COULD NOT LOAD CREDENTIALS")
+		panic("Could not load credentials, check creds/creds.json")
 	}
 
 	//Synchronize files from S3

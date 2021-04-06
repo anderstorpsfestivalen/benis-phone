@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/services/backend"
@@ -26,8 +27,8 @@ func (m *Promille) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		}
 	}
 
-	message := promille.Name + ". Din uppskattade promille är: " +
-		strconv.FormatFloat(promille.Promille, 'f', 1, 64)
+	p := strconv.FormatFloat(promille.Promille, 'f', 2, 64)
+	message := promille.Name + ". Din uppskattade promille är: " + strings.ReplaceAll(p, ".", ",")
 
 	fmt.Println(message)
 
