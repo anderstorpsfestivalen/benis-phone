@@ -20,6 +20,10 @@ func (m *PersonalMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn 
 				return MenuReturn{
 					NextFunction: "promille",
 				}
+			} else if key == "3" {
+				return MenuReturn{
+					NextFunction: "fulolpoints",
+				}
 			} else {
 				return MenuReturn{
 					NextFunction: "mainmenu",

@@ -28,7 +28,7 @@ func (m *Promille) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 	}
 
 	p := strconv.FormatFloat(promille.Promille, 'f', 2, 64)
-	message := promille.Name + ". Din uppskattade promille är: " + strings.ReplaceAll(p, ".", ",")
+	message := promille.Name + ". Din uppskattade promille är: ." + strings.ReplaceAll(p, ".", ",")
 
 	fmt.Println(message)
 
