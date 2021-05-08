@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"fmt"
 	"math/rand"
 	"time"
 
@@ -21,12 +20,11 @@ func (m *DrogSlangLotto) Run(c *Controller, k string, menu MenuReturn) MenuRetur
 					NextFunction: "mainmenu",
 				}
 			} else {
-
 				rand.Seed(time.Now().UnixNano())
 				min := 1
 				max := 16
 				number := rand.Intn((max - min + 1) + min)
-				fmt.Printf("rand nr is %d\n", number)
+
 				message := ""
 
 				if number == 1 {
@@ -63,7 +61,7 @@ func (m *DrogSlangLotto) Run(c *Controller, k string, menu MenuReturn) MenuRetur
 					message = "Heroin. Häst. Horse. Jonk. Dop. Frukt. Dope. H. Black tar. Smack."
 				}
 				if number == 12 {
-					message = "Spliff. Joint. Blandning av cannabis och tokab."
+					message = "Spliff. Joint. Blandning av cannabis och tobak."
 				}
 				if number == 13 {
 					message = "Kasse. Ett Kilo."
