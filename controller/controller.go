@@ -34,6 +34,7 @@ var MenuOptions = map[string]MenuOption{
 	"systemetmenu":      &SystemetMenu{},
 	"promille":          &Promille{},
 	"fulolpoints":       &FulolPoints{},
+	"drogslanglotto":    &DrogSlangLotto{},
 }
 
 type Controller struct {
