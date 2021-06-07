@@ -17,7 +17,7 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		}
 	case "2":
 		return MenuReturn{
-			NextFunction: "", // to be weather
+			NextFunction: "boraaaaaas",
 		}
 	case "3":
 		return MenuReturn{
