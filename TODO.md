@@ -12,9 +12,11 @@ DTMF lödning
 Molex på RCA+Telefon
 
 Säkerhetsställa meddelanden (record+playback)
-Debug output argument
-Skriva readme för att få igång skiten + creds
-Testning: Verifiera på riktiga telefonen alla funktioner
+Skriva readme för att få igång skiten + creds + random-files dir
+Testning: Verifiera på riktiga telefonen alla funktioner - bara API delen kvar
 Undersök om c.Audio.Clear() behövs på div funktioner (funkar ej i prefix?)
 Fix record a message message
 Spela in nytt welcome message
+
+Nice to have / future fixes:
+Debug output argument

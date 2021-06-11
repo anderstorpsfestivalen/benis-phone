@@ -1,3 +1,36 @@
-To run on Linux package pkg-config is required. 
+# Requirements
+To run on Linux (tested with Debian / Ubuntu / Raspbian) the following packets are required: 
 
-On Debian / Ubuntu / Raspbian package libasound2-dev and build-essential are also required.
+* pkg-config 
+* libasound2-dev 
+* build-essential 
+
+Install with: apt install pkg-config libasound2-dev build-essential 
+
+# Credentials
+Create a dir called "creds" in the root, then create a file called creds.json, the file should look like this:
+
+```
+{
+  "S3": {
+    "Key": "xxx",
+    "Secret": "xxx"
+  },
+  "Polly": {
+    "Key": "xxx",
+    "Secret": "xxx"
+  },
+  "Backend": {
+    "Username": "xxx",
+    "Password": "xxx"
+  },
+  "Trafiklab": "xxx",
+  "Systemet": "xxx"
+}
+```
+
+# Recoding
+To get recording to work, create in the root a directory called "temp" and a directory called "random" in the "temp" directory.
+
+# Running
+Just start without any arguments!
