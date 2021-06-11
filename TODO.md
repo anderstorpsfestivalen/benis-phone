@@ -15,6 +15,6 @@ Säkerhetsställa meddelanden (record+playback)
 Debug output argument
 Skriva readme för att få igång skiten + creds
 Testning: Verifiera på riktiga telefonen alla funktioner
-Undersök om c.Audio.Clear() behövs på div funktioner
+Undersök om c.Audio.Clear() behövs på div funktioner (funkar ej i prefix?)
 Fix record a message message
 Spela in nytt welcome message

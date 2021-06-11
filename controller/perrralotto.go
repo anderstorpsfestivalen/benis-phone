@@ -72,7 +72,7 @@ func (m *PerraLotto) Name() string {
 }
 
 func (m *PerraLotto) Prefix(c *Controller) {
-	message := "TRYCK ETT FÖR RANDOM, TVÅ till FYRKANT FÖR FAST, NOLL FÖR ATT GÅ TILLBAKA"
+	message := "TRYCK ETT FÖR RANDOM, TVÅ till FYRKANT FÖR FASTA ALTERNATIV, NOLL FÖR ATT GÅ TILLBAKA"
 	ttsData, err := c.Polly.TTS(message, "Astrid")
 	if err != nil {
 		log.Error(err)

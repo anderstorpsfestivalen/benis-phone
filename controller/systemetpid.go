@@ -13,6 +13,7 @@ type SystemetPid struct {
 
 func (m *SystemetPid) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 
+	c.Audio.Clear()
 	res, err := c.SystemetAPI.SearchForItem(k)
 
 	if err != nil {
@@ -83,6 +84,7 @@ func (m *SystemetPid) Name() string {
 }
 
 func (m *SystemetPid) Prefix(c *Controller) {
+	c.Audio.Clear()
 	message := "Mata in Systembolagets artikelnummer, 4 siffror, avsluta med fyrkant."
 	ttsData, err := c.Polly.TTS(message, "Astrid")
 	if err != nil {
