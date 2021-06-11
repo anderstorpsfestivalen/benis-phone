@@ -13,23 +13,23 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 	switch k {
 	case "1":
 		return MenuReturn{
-			NextFunction: "flacornot",
+			NextFunction: "personalmenu",
 		}
 	case "2":
 		return MenuReturn{
-			NextFunction: "boraaaaaas",
+			NextFunction: "barmenu",
 		}
 	case "3":
 		return MenuReturn{
-			NextFunction: "barmenu",
+			NextFunction: "trainmenu",
 		}
 	case "4":
 		return MenuReturn{
-			NextFunction: "personalmenu",
+			NextFunction: "systemetmenu",
 		}
 	case "5":
 		return MenuReturn{
-			NextFunction: "systemetmenu",
+			NextFunction: "flacornot",
 		}
 	case "6":
 		return MenuReturn{
@@ -37,7 +37,7 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		}
 	case "7":
 		return MenuReturn{
-			NextFunction: "trainmenu",
+			NextFunction: "boraaaaaas",
 		}
 	case "8":
 		return MenuReturn{
@@ -45,7 +45,7 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		}
 	case "9":
 		return MenuReturn{
-			NextFunction: "drogslanglotto",
+			NextFunction: "extramenu",
 		}
 	case "*":
 		return MenuReturn{
