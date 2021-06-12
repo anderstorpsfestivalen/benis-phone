@@ -1,3 +1,8 @@
+![benis-phone Logo](/logo.jpeg)
+
+# benis-phone
+Best Enterprise Network Integrated Soft-phone, aka benis-phone!
+
 # Requirements
 To run on Linux (tested with Debian / Ubuntu / Raspbian) the following packets are required: 
 
