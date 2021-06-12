@@ -15,16 +15,7 @@ func (m *RecordMessage) Run(c *Controller, k string, menu MenuReturn) MenuReturn
 
 	time.Sleep(30 * time.Millisecond)
 
-	message := "Spela in ett meddelande efter pipet. För att avsluta, lägg på luren. PIIIIIP" //fix later
-
-	ttsData, err := c.Polly.TTS(message, "Astrid")
-	if err != nil {
-		return MenuReturn{
-			Error:        err,
-			NextFunction: "error",
-		}
-	}
-	go c.Audio.PlayMP3FromStream(ttsData)
+	c.Audio.PlayFromFile("files/record-message.ogg")
 
 	tm := time.Now()
 	recTime := tm.Format("2006-01-02_15:04:05")
