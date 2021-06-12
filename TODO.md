@@ -1,22 +1,22 @@
-Coral:
+## Coral:
 
-Väder
-Bygga funktioner som wberg vill ha i backend (promille)
-3d print
+* Väder
+* Bygga funktioner som wberg vill ha i backend (promille)
+* 3d print
+* Debounce hook för att undvika electronic noise
 
-Debounce hook för att undvika electronic noise
+## Wberg:
 
-Wberg:
+* DTMF lödning
+* Molex på RCA+Telefon
+* Shield lösning istället för breadboard
+* Säkerhetsställa meddelanden (record+playback)
+* Testning: Verifiera på riktiga telefonen alla funktioner - bara API delen kvar
+* Undersök om c.Audio.Clear() behövs på div funktioner (funkar ej i prefix?)
+* Fix record a message message
+* Spela in nytt welcome message
 
-DTMF lödning
-Molex på RCA+Telefon
+## Nice to have / future fixes:
 
-Säkerhetsställa meddelanden (record+playback)
-Skriva readme för att få igång skiten + creds + random-files dir
-Testning: Verifiera på riktiga telefonen alla funktioner - bara API delen kvar
-Undersök om c.Audio.Clear() behövs på div funktioner (funkar ej i prefix?)
-Fix record a message message
-Spela in nytt welcome message
-
-Nice to have / future fixes:
-Debug output argument
+* Debug output argument
+* Möjlighet starta utan att prefix användas
