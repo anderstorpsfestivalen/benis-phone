@@ -2,6 +2,9 @@ package controller
 
 import (
 	"fmt"
+	"math/rand"
+	"strconv"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -14,17 +17,53 @@ func (m *Boraaaaaas) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 	for {
 		select {
 		case key := <-keychan:
-			if key == "0" {
+			if key == "1" {
+				rand.Seed(time.Now().UnixNano())
+				min := 1
+				max := 41
+				number := rand.Intn((max - min + 1) + min)
+				filename := "files/chatten/numbers/" + strconv.Itoa(number) + ".ogg"
+				fmt.Println(filename)
+				go c.Audio.PlayFromFile(filename)
+			} else if key == "2" {
+				fmt.Println("pressed 2")
+				go c.Audio.PlayFromFile("files/boraaaaaas.ogg")
+			} else if key == "3" {
+				fmt.Println("pressed 3")
+				go c.Audio.PlayFromFile("files/chatten/booooooooooooras.ogg")
+			} else if key == "4" {
+				fmt.Println("pressed 4")
+				go c.Audio.PlayFromFile("files/chatten/festen-ar-imorgon.ogg")
+			} else if key == "5" {
+				fmt.Println("pressed 5")
+				go c.Audio.PlayFromFile("files/chatten/rom-of-rolf.ogg")
+			} else if key == "6" {
+				fmt.Println("pressed 6")
+				go c.Audio.PlayFromFile("files/chatten/pastiiiiissss.ogg")
+			} else if key == "7" {
+				fmt.Println("pressed 7")
+				go c.Audio.PlayFromFile("files/chatten/luktar-te-qila.ogg")
+			} else if key == "8" {
+				fmt.Println("pressed 8")
+				go c.Audio.PlayFromFile("files/chatten/if-its-up-its-up.ogg")
+			} else if key == "9" {
+				fmt.Println("pressed 9")
+				go c.Audio.PlayFromFile("files/chatten/jaja-sager-vi.ogg")
+			} else if key == "*" {
+				fmt.Println("pressed *")
+				go c.Audio.PlayFromFile("files/chatten/johanna-toalett.ogg")
+			} else if key == "#" {
+				fmt.Println("pressed #")
+				go c.Audio.PlayFromFile("files/chatten/halla-klockan-8.ogg")
+			} else {
 				return MenuReturn{
 					NextFunction: "mainmenu",
 				}
-			} else {
-				fmt.Println("pressed " + key)
-				go c.Audio.PlayFromFile("files/boraaaaaas.ogg")
 			}
 		}
 	}
 }
+
 func (m *Boraaaaaas) InputLength() int {
 	return 0
 }
