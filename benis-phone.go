@@ -46,7 +46,7 @@ func main() {
 	var ctrlPhone phone.FlowPhone
 
 	if *enablePhone {
-		phone := phone.New(5, 6, 13, 19, 26, 18)
+		phone := phone.New(5, 6, 12, 13, 16, 23)
 		virtual := virtual.New()
 		ctrlPhone = muxer.New(phone, virtual)
 	} else {
