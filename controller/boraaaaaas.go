@@ -27,6 +27,7 @@ func (m *Boraaaaaas) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 				max := 41
 				number := rand.Intn((max - min + 1) + min)
 				filename := "files/chatten/" + files[number].Name()
+				fmt.Println(filename)
 				go c.Audio.PlayFromFile(filename)
 			} else if key == "2" {
 				fmt.Println("pressed 2")
