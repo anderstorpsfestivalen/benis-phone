@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	c := []string{"-y", "-f", "alsa", "-i", "hw:2,0", "-af", "pan=mono|c0=c0", path.Join("temp", "2016-04_11:21"+".flac")}
+	c := []string{"-y", "-f", "alsa", "-i", "hw:2,0", "-af", "pan=mono|c0=c0", path.Join("recording", "2016-04_11:21"+".flac")}
 
 	if runtime.GOOS == "darwin" {
 		c = []string{"-y", "-f", "avfoundation", "-i", ":1", "-af", `pan=mono|c0=c0`, path.Join("temp", "2016-04_11:21"+".flac")}

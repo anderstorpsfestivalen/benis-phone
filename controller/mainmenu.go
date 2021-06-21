@@ -56,6 +56,11 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		return MenuReturn{
 			NextFunction: "announce",
 		}
+	case "#":
+		// currently unnused
+		return MenuReturn{
+			NextFunction: "announce",
+		}
 	}
 	return MenuReturn{
 		NextFunction: "mainmenu",
