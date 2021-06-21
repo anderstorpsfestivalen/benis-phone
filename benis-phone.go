@@ -61,7 +61,7 @@ func main() {
 	}
 
 	// Set recording device, usually a second sound card if using a RPI
-	rec := audio.NewRecorder("hw:2,0", "temp", log)
+	rec := audio.NewRecorder("hw:0,0", "recording", log)
 
 	// Setup Polly
 	polly, err := polly.New(credentials.Polly.Key, credentials.Polly.Secret, "haschcache")
