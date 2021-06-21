@@ -25,7 +25,7 @@ func (m *Boraaaaaas) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 				rand.Seed(time.Now().UnixNano())
 				min := 1
 				max := 41
-				number := rand.Intn((max - min + 1) + min)
+				number := rand.Intn(max - min + 1)
 				filename := "files/chatten/" + files[number].Name()
 				fmt.Println(filename)
 				go c.Audio.PlayFromFile(filename)
