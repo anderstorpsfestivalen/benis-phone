@@ -26,7 +26,7 @@ func (m *PerraLotto) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 				min := 1
 				max := 29
 				number := rand.Intn((max - min + 1) + min)
-				filename := "files/chatten/" + files[number].Name()
+				filename := "files/perrra/" + files[number].Name()
 				fmt.Println(filename)
 				go c.Audio.PlayFromFile(filename)
 			} else if key == "2" {
