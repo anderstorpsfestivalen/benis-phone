@@ -19,7 +19,7 @@ func (m *RecordMessage) Run(c *Controller, k string, menu MenuReturn) MenuReturn
 
 	tm := time.Now()
 	recTime := tm.Format("2006-01-02_15:04:05")
-	c.Recorder.Record("files/recording/message/" + recTime)
+	c.Recorder.Record("message/" + recTime)
 
 	return MenuReturn{
 		NextFunction: "nil",
