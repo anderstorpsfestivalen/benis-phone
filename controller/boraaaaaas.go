@@ -2,8 +2,8 @@ package controller
 
 import (
 	"fmt"
+	"io/ioutil"
 	"math/rand"
-	"strconv"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -18,12 +18,15 @@ func (m *Boraaaaaas) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		select {
 		case key := <-keychan:
 			if key == "1" {
+				files, err := ioutil.ReadDir("./files/chatten/")
+				if err != nil {
+					log.Fatal(err)
+				}
 				rand.Seed(time.Now().UnixNano())
 				min := 1
 				max := 41
 				number := rand.Intn((max - min + 1) + min)
-				filename := "files/chatten/numbers/" + strconv.Itoa(number) + ".ogg"
-				fmt.Println(filename)
+				filename := "files/chatten/" + files[number].Name()
 				go c.Audio.PlayFromFile(filename)
 			} else if key == "2" {
 				fmt.Println("pressed 2")
