@@ -57,7 +57,7 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 			NextFunction: "announce",
 		}
 	case "#":
-		// currently unnused
+		// currently unnused - to be queue
 		return MenuReturn{
 			NextFunction: "announce",
 		}
