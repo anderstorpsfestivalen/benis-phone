@@ -37,7 +37,7 @@ func (m *BarMenu) Name() string {
 }
 
 func (m *BarMenu) Prefix(c *Controller) {
-	message := "Tryck ett, för nuvarande meny, tryck två, för att få veta när baren stänger, för att återgå, tryck #"
+	message := "Tryck ett, för nuvarande meny, tryck två, för att få veta när baren stänger, för att återgå, tryck 0"
 	ttsData, err := c.Polly.TTS(message, "Astrid")
 	if err != nil {
 		log.Error(err)

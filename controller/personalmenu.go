@@ -41,7 +41,7 @@ func (m *PersonalMenu) Name() string {
 }
 
 func (m *PersonalMenu) Prefix(c *Controller) {
-	message := "Välkommen till din personliga service meny, för saldo, tryck ett, för promille, tryck två, för fulöls poäng, tryck tre, för att gå tillbaka, tryck #"
+	message := "Välkommen till din personliga service meny, för saldo, tryck ett, för promille, tryck två, för fulöls poäng, tryck tre, för att gå tillbaka, tryck 0"
 	ttsData, err := c.Polly.TTS(message, "Astrid")
 	if err != nil {
 		log.Error(err)

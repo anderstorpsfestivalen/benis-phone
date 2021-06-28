@@ -97,7 +97,7 @@ func (m *DrogSlangLotto) Name() string {
 }
 
 func (m *DrogSlangLotto) Prefix(c *Controller) {
-	message := "Har du koll på drogslangen? TRYCK ETT till FYRKANT, NOLL FÖR ATT GÅ TILLBAKA"
+	message := "Har du koll på drogslangen? TRYCK ETT, till FYRKANT, NOLL FÖR ATT GÅ TILLBAKA"
 	ttsData, err := c.Polly.TTS(message, "Astrid")
 	if err != nil {
 		log.Error(err)
