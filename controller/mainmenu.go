@@ -57,9 +57,13 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 			NextFunction: "announce",
 		}
 	case "#":
-		// currently unnused - to be queue
 		return MenuReturn{
-			NextFunction: "announce",
+			NextFunction: "queue",
+		}
+	// # does not work with virtual keyboard, adding temp function to fault trace
+	case "a":
+		return MenuReturn{
+			NextFunction: "queue",
 		}
 	}
 	return MenuReturn{
