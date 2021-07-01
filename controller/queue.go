@@ -13,9 +13,9 @@ type Queue struct{}
 func (m *Queue) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 
 	//keychan := c.Phone.GetKeyChannel()
-	queueSpot := 100
-	changeQueue := time.NewTimer(time.Second * time.Duration(rand.Intn(30)))
-	readQueue := time.NewTicker(time.Second * time.Duration(rand.Intn(30)))
+	queueSpot := rand.Intn(200)
+	changeQueue := time.NewTimer(time.Second * time.Duration(rand.Intn(60)))
+	readQueue := time.NewTicker(time.Second * time.Duration(rand.Intn(60)))
 	sanity := time.NewTicker(time.Millisecond * 20)
 
 	for {
@@ -23,10 +23,10 @@ func (m *Queue) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		// change queue timer
 		case _ = <-changeQueue.C:
 			queueSpot = queueSpot - 1
-			changeQueue = time.NewTimer(time.Second * time.Duration(rand.Intn(30)))
+			changeQueue = time.NewTimer(time.Second * time.Duration(rand.Intn(60)))
 		// read queue timer
 		case _ = <-readQueue.C:
-			readQueue = time.NewTicker(time.Second * time.Duration(rand.Intn(30)))
+			readQueue = time.NewTicker(time.Second * time.Duration(rand.Intn(60)))
 		}
 
 		// Random messages for customer in queue

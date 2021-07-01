@@ -40,7 +40,7 @@ func (m *SystemetMenu) Name() string {
 
 func (m *SystemetMenu) Prefix(c *Controller) {
 	c.Audio.Clear()
-	message := "Tryck ett, för antalet arboga 10 komma 2 i lager på systembolaget i gislaved, tryck två, för systembolaget produkt sök, för att återgå, tryck #"
+	message := "Tryck ett, för antalet arboga 10 komma 2 i lager på systembolaget i gislaved, tryck två, för systembolaget produkt sök, för att återgå, tryck 0"
 	ttsData, err := c.Polly.TTS(message, "Astrid")
 	if err != nil {
 		log.Error(err)
