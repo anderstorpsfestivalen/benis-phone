@@ -72,10 +72,12 @@ func (d *Phone) startRead() {
 	for {
 		//Check hook state
 		hookRead := d.pinHook.Read()
-		if d.hookState != (hookRead != 0) {
-			d.hookState = (hookRead != 0)
+		hookBool := (hookRead != 0)
+		if d.hookState != hookBool {
+			time.Sleep(5 * time.Millisecond)
+			d.hookState = hookBool
 			select {
-			case d.HookChannel <- (hookRead != 0):
+			case d.HookChannel <- hookBool:
 				log.Debug("Wrote to hookchannel")
 			default:
 			}

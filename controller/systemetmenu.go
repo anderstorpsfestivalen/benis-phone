@@ -8,28 +8,25 @@ type SystemetMenu struct{}
 
 func (m *SystemetMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 
-	keychan := c.Phone.GetKeyChannel()
-	for {
-		select {
-		case key := <-keychan:
-			if key == "1" {
-				c.Audio.Clear()
-				return MenuReturn{
-					NextFunction: "systemetarboga",
-				}
-			} else if key == "2" {
-				c.Audio.Clear()
-				return MenuReturn{
-					NextFunction: "systemetpid",
-				}
-			} else {
-				return MenuReturn{
-					NextFunction: "mainmenu",
-				}
-			}
+	switch k {
+	case "1":
+		c.Audio.Clear()
+		return MenuReturn{
+			NextFunction: "systemetarboga",
+		}
+	case "2":
+		c.Audio.Clear()
+		return MenuReturn{
+			NextFunction: "systemetpid",
+		}
+	default:
+		return MenuReturn{
+			NextFunction: "mainmenu",
 		}
 	}
+
 }
+
 func (m *SystemetMenu) InputLength() int {
 	return 0
 }

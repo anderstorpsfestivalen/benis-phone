@@ -8,27 +8,22 @@ type PersonalMenu struct{}
 
 func (m *PersonalMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 
-	keychan := c.Phone.GetKeyChannel()
-	for {
-		select {
-		case key := <-keychan:
-			if key == "1" {
-				return MenuReturn{
-					NextFunction: "balance",
-				}
-			} else if key == "2" {
-				return MenuReturn{
-					NextFunction: "promille",
-				}
-			} else if key == "3" {
-				return MenuReturn{
-					NextFunction: "fulolpoints",
-				}
-			} else {
-				return MenuReturn{
-					NextFunction: "mainmenu",
-				}
-			}
+	switch k {
+	case "1":
+		return MenuReturn{
+			NextFunction: "balance",
+		}
+	case "2":
+		return MenuReturn{
+			NextFunction: "promille",
+		}
+	case "3":
+		return MenuReturn{
+			NextFunction: "fulolpoints",
+		}
+	default:
+		return MenuReturn{
+			NextFunction: "mainmenu",
 		}
 	}
 }

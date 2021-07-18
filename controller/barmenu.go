@@ -8,25 +8,25 @@ type BarMenu struct{}
 
 func (m *BarMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 
-	keychan := c.Phone.GetKeyChannel()
-	for {
-		select {
-		case key := <-keychan:
-			if key == "1" {
-				return MenuReturn{
-					NextFunction: "currentmenu",
-				}
-			} else if key == "2" {
-				return MenuReturn{
-					NextFunction: "barclosingmenu",
-				}
-			} else {
-				return MenuReturn{
-					NextFunction: "mainmenu",
-				}
-			}
+	switch k {
+	case "1":
+		return MenuReturn{
+			NextFunction: "currentmenu",
+		}
+	case "2":
+		return MenuReturn{
+			NextFunction: "barclosingmenu",
+		}
+	case "3":
+		return MenuReturn{
+			NextFunction: "mainmenu",
+		}
+	default:
+		return MenuReturn{
+			NextFunction: "mainmenu",
 		}
 	}
+
 }
 func (m *BarMenu) InputLength() int {
 	return 0
