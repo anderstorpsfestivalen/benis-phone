@@ -17,7 +17,7 @@ func (m *SyraLotto) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		case <-sub.Cancel:
 			c.Unsubscribe(m.Name())
 			return MenuReturn{
-				NextFunction: "mainmenu",
+				NextFunction: menu.Caller,
 			}
 		case key := <-keychan:
 			switch key {

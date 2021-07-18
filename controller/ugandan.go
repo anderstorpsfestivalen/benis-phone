@@ -13,11 +13,18 @@ type Ugandan struct{}
 
 func (m *Ugandan) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 
+	sub := c.Subscribe(m.Name())
 	keychan := c.Phone.GetKeyChannel()
 	for {
 		select {
+		case <-sub.Cancel:
+			c.Unsubscribe(m.Name())
+			return MenuReturn{
+				NextFunction: menu.Caller,
+			}
 		case key := <-keychan:
-			if key == "1" {
+			switch key {
+			case "1":
 				files, err := ioutil.ReadDir("./files/ugandan/")
 				if err != nil {
 					log.Fatal(err)
@@ -27,39 +34,39 @@ func (m *Ugandan) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 				filename := "files/ugandan/" + files[number].Name()
 				fmt.Println(filename)
 				go c.Audio.PlayFromFile(filename)
-			} else if key == "2" {
+			case "2":
 				fmt.Println("pressed 2")
 				go c.Audio.PlayFromFile("files/ugandan/COMMANDO-COMMANDO.ogg")
-			} else if key == "3" {
+			case "3":
 				fmt.Println("pressed 3")
 				go c.Audio.PlayFromFile("files/ugandan/Commando-1.ogg")
-			} else if key == "4" {
+			case "4":
 				fmt.Println("pressed 4")
 				go c.Audio.PlayFromFile("files/ugandan/Gwe-Gwe-Gwe.ogg")
-			} else if key == "5" {
+			case "5":
 				fmt.Println("pressed 5")
 				go c.Audio.PlayFromFile("files/ugandan/One-hell-of-a-movie.ogg")
-			} else if key == "6" {
+			case "6":
 				fmt.Println("pressed 6")
 				go c.Audio.PlayFromFile("files/ugandan/WHAT-THE-FU.ogg")
-			} else if key == "7" {
+			case "7":
 				fmt.Println("pressed 7")
 				go c.Audio.PlayFromFile("files/ugandan/Tough-Commando-on-da-Mission.ogg")
-			} else if key == "8" {
+			case "8":
 				fmt.Println("pressed 8")
 				go c.Audio.PlayFromFile("files/ugandan/UGAANDA.ogg")
-			} else if key == "9" {
+			case "9":
 				fmt.Println("pressed 9")
 				go c.Audio.PlayFromFile("files/ugandan/HELLO-2.ogg")
-			} else if key == "*" {
+			case "*":
 				fmt.Println("pressed *")
 				go c.Audio.PlayFromFile("files/ugandan/SUPA-MAFIA-ON-THE-RUN.ogg")
-			} else if key == "#" {
+			case "#":
 				fmt.Println("pressed #")
 				go c.Audio.PlayFromFile("files/ugandan/Warrior.ogg")
-			} else {
+			default:
 				return MenuReturn{
-					NextFunction: "mainmenu",
+					NextFunction: menu.Caller,
 				}
 			}
 		}

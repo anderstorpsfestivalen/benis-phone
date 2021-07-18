@@ -16,6 +16,7 @@ func (m *Promille) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 	promille, err := backend.GetPromilleForPhoneNumber(k)
 	_ = promille
 	if err != nil {
+		fmt.Println(promille, err)
 		ttsData, err := c.Polly.TTS("Telefonnummret kan inte hittas, var god försök igen.", "Astrid")
 		if err != nil {
 			log.Error(err)

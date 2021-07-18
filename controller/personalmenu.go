@@ -23,12 +23,12 @@ func (m *PersonalMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn 
 		}
 	default:
 		return MenuReturn{
-			NextFunction: "mainmenu",
+			NextFunction: menu.Caller,
 		}
 	}
 }
 func (m *PersonalMenu) InputLength() int {
-	return 0
+	return 1
 }
 
 func (m *PersonalMenu) Name() string {
