@@ -22,7 +22,7 @@ func (m *Err) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 	c.Audio.PlayMP3FromStream(ttsData)
 
 	return MenuReturn{
-		NextFunction: "mainmenu",
+		NextFunction: menu.Caller,
 	}
 
 }

@@ -67,7 +67,7 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		}
 	}
 	return MenuReturn{
-		NextFunction: "mainmenu",
+		NextFunction: menu.Caller,
 	}
 }
 

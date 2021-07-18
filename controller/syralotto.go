@@ -56,7 +56,7 @@ func (m *SyraLotto) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 				go c.Audio.PlayFromFile("files/lasse-liten/josses-vad-det-gar-igang.ogg")
 			default:
 				return MenuReturn{
-					NextFunction: "mainmenu",
+					NextFunction: menu.Caller,
 				}
 
 			}

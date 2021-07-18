@@ -17,7 +17,7 @@ func (m *Announce) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 
 			fmt.Println("Returning to main menu")
 			return MenuReturn{
-				NextFunction: "mainmenu",
+				NextFunction: menu.Caller,
 			}
 		}
 	}

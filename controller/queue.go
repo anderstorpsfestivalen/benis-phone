@@ -32,7 +32,7 @@ func (m *Queue) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		case <-sub.Cancel:
 			c.Unsubscribe(m.Name())
 			return MenuReturn{
-				NextFunction: "mainmenu",
+				NextFunction: menu.Caller,
 			}
 		// change queue timer
 		case <-changeQueue.C:
@@ -45,7 +45,7 @@ func (m *Queue) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 				}
 				c.Audio.PlayMP3FromStream(ttsData)
 				return MenuReturn{
-					NextFunction: "mainmenu",
+					NextFunction: menu.Caller,
 				}
 			}
 			changeQueue = time.NewTimer(time.Second * time.Duration(rand.Intn(60)+1))

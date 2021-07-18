@@ -67,7 +67,7 @@ func (m *Boraaaaaas) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 				go c.Audio.PlayFromFile("files/chatten/halla-klockan-8.ogg")
 			default:
 				return MenuReturn{
-					NextFunction: "mainmenu",
+					NextFunction: menu.Caller,
 				}
 			}
 		}
