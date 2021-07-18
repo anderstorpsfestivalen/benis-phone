@@ -14,16 +14,23 @@ type Idiom struct {
 
 func (m *Idiom) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 
+	sub := c.Subscribe(m.Name())
 	keychan := c.Phone.GetKeyChannel()
 	for {
 		select {
+		case <-sub.Cancel:
+			c.Unsubscribe(m.Name())
+			return MenuReturn{
+				NextFunction: "mainmenu",
+			}
 		case key := <-keychan:
-			if key == "0" {
-				return MenuReturn{
-					NextFunction: "mainmenu",
-				}
-			} else {
+			switch key {
 
+			case "0":
+				return MenuReturn{
+					NextFunction: menu.Caller,
+				}
+			default:
 				data, err := ioutil.ReadFile("files/idiom.txt")
 				if err != nil {
 					return MenuReturn{
@@ -73,4 +80,5 @@ func (m *Idiom) Prefix(c *Controller) {
 		log.Error(err)
 	}
 	c.Audio.PlayMP3FromStream(ttsData)
+
 }

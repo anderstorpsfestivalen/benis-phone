@@ -13,11 +13,18 @@ type PerraLotto struct{}
 
 func (m *PerraLotto) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 
+	sub := c.Subscribe(m.Name())
 	keychan := c.Phone.GetKeyChannel()
 	for {
 		select {
+		case <-sub.Cancel:
+			c.Unsubscribe(m.Name())
+			return MenuReturn{
+				NextFunction: "mainmenu",
+			}
 		case key := <-keychan:
-			if key == "1" {
+			switch key {
+			case "1":
 				files, err := ioutil.ReadDir("./files/perrra/")
 				if err != nil {
 					log.Fatal(err)
@@ -27,39 +34,39 @@ func (m *PerraLotto) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 				filename := "files/perrra/" + files[number].Name()
 				fmt.Println(filename)
 				go c.Audio.PlayFromFile(filename)
-			} else if key == "2" {
+			case "2":
 				fmt.Println("pressed 2")
 				go c.Audio.PlayFromFile("files/perrra/are-bengt.ogg")
-			} else if key == "3" {
+			case "3":
 				fmt.Println("pressed 3")
 				go c.Audio.PlayFromFile("files/perrra/avinstallera-win95.ogg")
-			} else if key == "4" {
+			case "4":
 				fmt.Println("pressed 4")
 				go c.Audio.PlayFromFile("files/perrra/det-var-inte-bra.ogg")
-			} else if key == "5" {
+			case "5":
 				fmt.Println("pressed 5")
 				go c.Audio.PlayFromFile("files/perrra/en-warez-dator.ogg")
-			} else if key == "6" {
+			case "6":
 				fmt.Println("pressed 6")
 				go c.Audio.PlayFromFile("files/perrra/fixa-lite-skit.ogg")
-			} else if key == "7" {
+			case "7":
 				fmt.Println("pressed 7")
 				go c.Audio.PlayFromFile("files/perrra/fixa-lite-warez.ogg")
-			} else if key == "8" {
+			case "8":
 				fmt.Println("pressed 8")
 				go c.Audio.PlayFromFile("files/perrra/hackare-va.ogg")
-			} else if key == "9" {
+			case "9":
 				fmt.Println("pressed 9")
 				go c.Audio.PlayFromFile("files/perrra/hur-ar-det-med-mircwaret.ogg")
-			} else if key == "*" {
+			case "*":
 				fmt.Println("pressed *")
 				go c.Audio.PlayFromFile("files/perrra/knarket.ogg")
-			} else if key == "#" {
+			case "#":
 				fmt.Println("pressed #")
 				go c.Audio.PlayFromFile("files/perrra/pirat-version.ogg")
-			} else {
+			default:
 				return MenuReturn{
-					NextFunction: "mainmenu",
+					NextFunction: menu.Caller,
 				}
 			}
 		}
