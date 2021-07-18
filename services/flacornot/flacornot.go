@@ -27,7 +27,11 @@ type APIResopnse struct {
 func FlacOrNot() (string, error) {
 
 	s := APIResopnse{}
-	res, err := http.Get("https://files.anderstorpsfestivalen.se/dump/playing.json")
+	// temp for testing
+	//res, err := http.Get("https://files.anderstorpsfestivalen.se/dump/playing.json")
+	// ATP prod IP
+	res, err := http.Get("http://45.154.31.63:8080")
+
 	if err != nil {
 		return "", fmt.Errorf("Could not craft request from S3")
 	}
