@@ -11,6 +11,7 @@ require (
 	github.com/coral/trafikverket v0.0.0-20200418185822-83fba4d00fdf
 	github.com/faiface/beep v1.0.2
 	github.com/fhs/gompd v2.0.0+incompatible
+	github.com/gin-gonic/gin v1.7.2 // indirect
 	github.com/go-redis/redis v6.15.7+incompatible
 	github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
@@ -28,6 +29,8 @@ require (
 	github.com/magefile/mage v1.11.0 // indirect
 	github.com/mewkiz/flac v1.0.7 // indirect
 	github.com/mewkiz/pkg v0.0.0-20210112042322-0b163ae15d52 // indirect
+	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
+	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/onsi/ginkgo v1.12.0 // indirect
 	github.com/onsi/gomega v1.9.0 // indirect
 	github.com/saintfish/chardet v0.0.0-20120816061221-3af4cd4741ca // indirect
@@ -44,6 +47,8 @@ require (
 	golang.org/x/mobile v0.0.0-20210220033013-bdb1ca9a1e08 // indirect
 	golang.org/x/sys v0.0.0-20210227040730-b0d1d43c014d // indirect
 	google.golang.org/appengine v1.6.7 // indirect
+	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
+	gopkg.in/go-playground/validator.v8 v8.18.2 // indirect
 )
 
 replace github.com/hajimehoshi/go-mp3 => github.com/hajimehoshi/go-mp3 v0.3.1

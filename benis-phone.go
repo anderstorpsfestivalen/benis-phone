@@ -2,8 +2,10 @@ package main
 
 import (
 	"flag"
+	"net/http"
 	"sync"
 
+	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 
 	"gitlab.com/anderstorpsfestivalen/benis-phone/controller"
@@ -77,6 +79,15 @@ func main() {
 	}
 
 	systemetAPI := systemet.New(key)
+
+	// Setup http server
+	r := gin.Default()
+	authorized := r.Group("/", gin.BasicAuth(gin.Accounts{
+		"recording": "penis",
+	}))
+
+	authorized.StaticFS("files/recording", http.Dir("recordings"))
+	r.Run()
 
 	// Start controller
 	log.Info("Starting Controller")
