@@ -114,3 +114,11 @@ func (m *Queue) Name() string {
 
 func (m *Queue) Prefix(c *Controller) {
 }
+
+func (m *Queue) pauseBackground() {
+
+}
+
+func (m *Queue) startBackground() {
+
+}
