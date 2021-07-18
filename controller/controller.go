@@ -23,7 +23,6 @@ var MenuOptions = map[string]MenuOption{
 	"flacornot":         &FlacOrNotMenu{},
 	"idiom":             &Idiom{},
 	"balance":           &Balance{},
-	"barindex":          &BarIndex{},
 	"systemetpid":       &SystemetPid{},
 	"recordmessage":     &RecordMessage{},
 	"playlastmessage":   &PlayLastMessage{},

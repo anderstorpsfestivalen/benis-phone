@@ -1,35 +1,37 @@
 package controller
 
-import (
-	log "github.com/sirupsen/logrus"
-)
+import log "github.com/sirupsen/logrus"
 
-type BarMenu struct{}
+type BarMenu struct {
+}
 
 func (m *BarMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 
 	switch k {
 	case "1":
-		return MenuReturn{
-			NextFunction: "currentmenu",
-		}
-	case "2":
+		//BAR CLOSING
 		return MenuReturn{
 			NextFunction: "barclosingmenu",
 		}
-	case "3":
+	case "2":
+		//CURRENT MENU
 		return MenuReturn{
-			NextFunction: "mainmenu",
+			NextFunction: "currentmenu",
+		}
+	case "3":
+		//BALANCE LOOKUP
+		return MenuReturn{
+			NextFunction: "balance",
 		}
 	default:
 		return MenuReturn{
 			NextFunction: "mainmenu",
 		}
 	}
-
 }
+
 func (m *BarMenu) InputLength() int {
-	return 0
+	return 1
 }
 
 func (m *BarMenu) Name() string {
@@ -37,10 +39,11 @@ func (m *BarMenu) Name() string {
 }
 
 func (m *BarMenu) Prefix(c *Controller) {
-	message := "Tryck ett, för nuvarande meny, tryck två, för att få veta när baren stänger, för att återgå, tryck 0"
+	message := "Tryck 1 för barstängning. 2 för nuvarande meny. 3 för nuvarande saldo. 0 för att gå tillbaka."
 	ttsData, err := c.Polly.TTS(message, "Astrid")
 	if err != nil {
 		log.Error(err)
 	}
 	c.Audio.PlayMP3FromStream(ttsData)
+
 }

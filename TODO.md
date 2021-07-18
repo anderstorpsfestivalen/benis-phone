@@ -4,15 +4,12 @@
 
 ## Wberg:
 
-* DTMF lödning
 * Dokumentera DTFM -> README
-* JST på RCA+Telefon+El
-* Shield lösning istället för breadboard
 * Säkerhetsställa meddelanden (record+playback)
-* Testning: Verifiera på riktiga telefonen alla funktioner - bara API delen kvar
 * Undersök om c.Audio.Clear() behövs på div funktioner (funkar ej i prefix?)
 * Fix record a message message
 * Spela in nytt welcome message
+* Inte läsa upp hidden från meny
 
 ## Nice to have / future fixes:
 
