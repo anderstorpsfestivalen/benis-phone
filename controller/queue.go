@@ -11,57 +11,90 @@ import (
 type Queue struct{}
 
 func (m *Queue) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
+	rand.Seed(time.Now().UTC().UnixNano())
+	message := "Just nu är det många som ringer till oss. Ditt samtal är placerat i kö. Vi besvarar ditt samtal så fort vi kan."
+	ttsData, err := c.Polly.TTS(message, "Astrid")
+	if err != nil {
+		log.Error(err)
+	}
+	c.Audio.PlayMP3FromStream(ttsData)
 
 	//keychan := c.Phone.GetKeyChannel()
+	sub := c.Subscribe(m.Name())
 	queueSpot := rand.Intn(200)
 	changeQueue := time.NewTimer(time.Second * time.Duration(rand.Intn(60)))
-	readQueue := time.NewTicker(time.Second * time.Duration(rand.Intn(60)))
+	readQueue := time.NewTicker(4)
 	sanity := time.NewTicker(time.Millisecond * 20)
 
 	for {
 		select {
+		//hang up
+		case <-sub.Cancel:
+			c.Unsubscribe(m.Name())
+			return MenuReturn{
+				NextFunction: "mainmenu",
+			}
 		// change queue timer
-		case _ = <-changeQueue.C:
+		case <-changeQueue.C:
 			queueSpot = queueSpot - 1
-			changeQueue = time.NewTimer(time.Second * time.Duration(rand.Intn(60)))
+			if queueSpot < 1 {
+				message := "Tekniskt fel, vi kan tyvärr inte ta emot ditt samtal. Var god försök igen."
+				ttsData, err := c.Polly.TTS(message, "Astrid")
+				if err != nil {
+					log.Error(err)
+				}
+				c.Audio.PlayMP3FromStream(ttsData)
+				return MenuReturn{
+					NextFunction: "mainmenu",
+				}
+			}
+			changeQueue = time.NewTimer(time.Second * time.Duration(rand.Intn(60)+1))
 		// read queue timer
-		case _ = <-readQueue.C:
-			readQueue = time.NewTicker(time.Second * time.Duration(rand.Intn(60)))
-		}
+		case <-readQueue.C:
+			readQueue = time.NewTicker(time.Second * time.Duration(rand.Intn(120-35)+35))
 
-		// Random messages for customer in queue
-		switch behv := rand.Intn(100); {
-		case behv > 80:
-			message := "Ditt samtal är mycket viktigt för oss. Vi behandlar ditt samtal så fort vi kan."
+			// Report current position in queue
+			message := "Din plats i cön är: " + strconv.Itoa(queueSpot)
 			ttsData, err := c.Polly.TTS(message, "Astrid")
 			if err != nil {
 				log.Error(err)
 			}
 			c.Audio.PlayMP3FromStream(ttsData)
-		case behv < 20:
-			message := "Du vet väl om att du även kan hitta oss på webben? w w w. PUNKT anderstorps festivalen. PUNKT . s e."
-			ttsData, err := c.Polly.TTS(message, "Astrid")
-			if err != nil {
-				log.Error(err)
-			}
-			c.Audio.PlayMP3FromStream(ttsData)
-		case behv > 30 && behv < 60:
-			message := "Vi utför en kvalitetsundersökning. Efter att samtalet är slut ber vi dig att inte inte lägga på luren, undersökningen består av 5 frågor och tar mindre än 1 minut."
-			ttsData, err := c.Polly.TTS(message, "Astrid")
-			if err != nil {
-				log.Error(err)
-			}
-			c.Audio.PlayMP3FromStream(ttsData)
-		}
 
-		// Report current position in queue
-		message := "Din plats i kön är. " + strconv.Itoa(queueSpot)
-		ttsData, err := c.Polly.TTS(message, "Astrid")
-		if err != nil {
-			log.Error(err)
-		}
-		c.Audio.PlayMP3FromStream(ttsData)
+			// Random messages for customer in queue
+			switch behv := rand.Intn(100); {
+			case behv > 80:
+				message := "Ditt samtal är mycket viktigt för oss. Vi behandlar ditt samtal så fort vi kan."
+				ttsData, err := c.Polly.TTS(message, "Astrid")
+				if err != nil {
+					log.Error(err)
+				}
+				c.Audio.PlayMP3FromStream(ttsData)
+			case behv < 10:
+				message := "Du vet väl om att du även kan hitta oss på webben? w w w. PUNKT anderstorps festivalen. PUNKT . s e."
+				ttsData, err := c.Polly.TTS(message, "Astrid")
+				if err != nil {
+					log.Error(err)
+				}
+				c.Audio.PlayMP3FromStream(ttsData)
+			case behv > 10 && behv < 20:
+				message := "Visste du att du kan få svar på många frågor genom att besöka vår hemsida? w w w. PUNKT anderstorps festivalen. PUNKT . s e."
+				ttsData, err := c.Polly.TTS(message, "Astrid")
+				if err != nil {
+					log.Error(err)
+				}
+				c.Audio.PlayMP3FromStream(ttsData)
+			case behv > 30 && behv < 60:
+				message := "Vi utför en kvalitetsundersökning. Efter att samtalet är slut ber vi dig att inte lägga på luren, undersökningen består av 5 frågor och tar mindre än en minut."
+				ttsData, err := c.Polly.TTS(message, "Astrid")
+				if err != nil {
+					log.Error(err)
+				}
+				c.Audio.PlayMP3FromStream(ttsData)
+			}
 
+			go c.Audio.PlayFromFile("files/hold.mp3")
+		}
 		// Sanity check
 		_ = <-sanity.C
 
@@ -69,9 +102,6 @@ func (m *Queue) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 			readQueue.Stop()
 			changeQueue.Stop()
 		}
-	}
-	return MenuReturn{
-		NextFunction: "mainmenu",
 	}
 }
 func (m *Queue) InputLength() int {
@@ -83,10 +113,4 @@ func (m *Queue) Name() string {
 }
 
 func (m *Queue) Prefix(c *Controller) {
-	message := "Just nu är det många som ringer till oss. Ditt samtal är placerat i kö. Vi besvarar ditt samtal så fort vi kan."
-	ttsData, err := c.Polly.TTS(message, "Astrid")
-	if err != nil {
-		log.Error(err)
-	}
-	c.Audio.PlayMP3FromStream(ttsData)
 }
