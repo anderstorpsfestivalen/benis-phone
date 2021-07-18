@@ -9,15 +9,23 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type Boraaaaaas struct{}
+type Boraaaaaas struct {
+}
 
 func (m *Boraaaaaas) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 
+	sub := c.Subscribe(m.Name())
 	keychan := c.Phone.GetKeyChannel()
 	for {
 		select {
+		case <-sub.Cancel:
+			c.Unsubscribe(m.Name())
+			return MenuReturn{
+				NextFunction: "mainmenu",
+			}
 		case key := <-keychan:
-			if key == "1" {
+			switch key {
+			case "1":
 				files, err := ioutil.ReadDir("./files/chatten/")
 				if err != nil {
 					log.Fatal(err)
@@ -27,37 +35,37 @@ func (m *Boraaaaaas) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 				filename := "files/chatten/" + files[number].Name()
 				fmt.Println(filename)
 				go c.Audio.PlayFromFile(filename)
-			} else if key == "2" {
+			case "2":
 				fmt.Println("pressed 2")
 				go c.Audio.PlayFromFile("files/boraaaaaas.ogg")
-			} else if key == "3" {
+			case "3":
 				fmt.Println("pressed 3")
 				go c.Audio.PlayFromFile("files/chatten/booooooooooooras.ogg")
-			} else if key == "4" {
+			case "4":
 				fmt.Println("pressed 4")
 				go c.Audio.PlayFromFile("files/chatten/festen-ar-imorgon.ogg")
-			} else if key == "5" {
+			case "5":
 				fmt.Println("pressed 5")
 				go c.Audio.PlayFromFile("files/chatten/rom-of-rolf.ogg")
-			} else if key == "6" {
+			case "6":
 				fmt.Println("pressed 6")
 				go c.Audio.PlayFromFile("files/chatten/pastiiiiissss.ogg")
-			} else if key == "7" {
+			case "7":
 				fmt.Println("pressed 7")
 				go c.Audio.PlayFromFile("files/chatten/luktar-te-qila.ogg")
-			} else if key == "8" {
+			case "8":
 				fmt.Println("pressed 8")
 				go c.Audio.PlayFromFile("files/chatten/if-its-up-its-up.ogg")
-			} else if key == "9" {
+			case "9":
 				fmt.Println("pressed 9")
 				go c.Audio.PlayFromFile("files/chatten/jaja-sager-vi.ogg")
-			} else if key == "*" {
+			case "*":
 				fmt.Println("pressed *")
 				go c.Audio.PlayFromFile("files/chatten/johanna-toalett.ogg")
-			} else if key == "#" {
+			case "#":
 				fmt.Println("pressed #")
 				go c.Audio.PlayFromFile("files/chatten/halla-klockan-8.ogg")
-			} else {
+			default:
 				return MenuReturn{
 					NextFunction: "mainmenu",
 				}

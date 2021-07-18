@@ -43,19 +43,25 @@ var MenuOptions = map[string]MenuOption{
 }
 
 type Controller struct {
-	Phone       phone.FlowPhone
-	Audio       *audio.Audio
-	Recorder    audio.Recorder
-	Polly       polly.Polly
-	SystemetAPI systemet.SystemetV2
-	Where       string
-	Menu        MenuReturn
+	Phone         phone.FlowPhone
+	Audio         *audio.Audio
+	Recorder      audio.Recorder
+	Polly         polly.Polly
+	SystemetAPI   systemet.SystemetV2
+	Where         string
+	Menu          MenuReturn
+	subscriptions []Subscriber
 
 	Settings ControllerSettings
 }
 
 type ControllerSettings struct {
 	HiddenPlayback bool
+}
+
+type Subscriber struct {
+	subname string
+	Cancel  chan bool
 }
 
 func New(ph phone.FlowPhone, audio *audio.Audio, rec audio.Recorder, polly polly.Polly, sapi systemet.SystemetV2, settings ControllerSettings) Controller {
@@ -95,6 +101,10 @@ func (c *Controller) Start(wg *sync.WaitGroup) {
 					hookstate = false
 					c.Audio.Clear()
 					c.Recorder.Stop()
+					for _, s := range c.subscriptions {
+						s.Cancel <- true
+					}
+					c.subscriptions = nil
 					c.Where = "mainmenu"
 					log.Info("Hook is slammed")
 				}
@@ -152,4 +162,29 @@ func (c *Controller) TriggerFunction(keys string) {
 	if MenuOptions[c.Where].InputLength() == 0 {
 		c.TriggerFunction("")
 	}
+}
+
+func (c *Controller) Subscribe(subname string) Subscriber {
+
+	newSub := Subscriber{
+		subname: subname,
+		Cancel:  make(chan bool),
+	}
+
+	c.subscriptions = append(c.subscriptions, newSub)
+
+	return newSub
+}
+
+func (c *Controller) Unsubscribe(subname string) {
+	for i, v := range c.subscriptions {
+		if v.subname == subname {
+			c.subscriptions = remove(c.subscriptions, i)
+		}
+	}
+}
+
+func remove(s []Subscriber, i int) []Subscriber {
+	s[i] = s[len(s)-1]
+	return s[:len(s)-1]
 }
