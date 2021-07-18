@@ -30,10 +30,10 @@ func FlacOrNot() (string, error) {
 	// temp for testing
 	//res, err := http.Get("https://files.anderstorpsfestivalen.se/dump/playing.json")
 	// ATP prod IP
-	res, err := http.Get("http://45.154.31.63:8080")
+	res, err := http.Get("http://45.154.31.62:8080")
 
 	if err != nil {
-		return "", fmt.Errorf("Could not craft request from S3")
+		return "", fmt.Errorf("Could not craft request from API")
 	}
 	defer res.Body.Close()
 
