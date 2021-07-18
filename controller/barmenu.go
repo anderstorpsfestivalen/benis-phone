@@ -6,37 +6,26 @@ type BarMenu struct {
 }
 
 func (m *BarMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
-	sub := c.Subscribe(m.Name())
-	keychan := c.Phone.GetKeyChannel()
-	for {
-		select {
-		case <-sub.Cancel:
-			c.Unsubscribe(m.Name())
-			return MenuReturn{
-				NextFunction: "mainmenu",
-			}
-		case key := <-keychan:
-			switch key {
-			case "1":
-				//BAR CLOSING
-				return MenuReturn{
-					NextFunction: "barclosingmenu",
-				}
-			case "2":
-				//CURRENT MENU
-				return MenuReturn{
-					NextFunction: "currentmenu",
-				}
-			case "3":
-				//BALANCE LOOKUP
-				return MenuReturn{
-					NextFunction: "balance",
-				}
-			default:
-				return MenuReturn{
-					NextFunction: "mainmenu",
-				}
-			}
+
+	switch k {
+	case "1":
+		//BAR CLOSING
+		return MenuReturn{
+			NextFunction: "barclosingmenu",
+		}
+	case "2":
+		//CURRENT MENU
+		return MenuReturn{
+			NextFunction: "currentmenu",
+		}
+	case "3":
+		//BALANCE LOOKUP
+		return MenuReturn{
+			NextFunction: "balance",
+		}
+	default:
+		return MenuReturn{
+			NextFunction: "mainmenu",
 		}
 	}
 }
