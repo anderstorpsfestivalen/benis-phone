@@ -71,14 +71,14 @@ func (m *Queue) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 				}
 				c.Audio.PlayMP3FromStream(ttsData)
 			case behv < 10:
-				message := "Du vet väl om att du även kan hitta oss på webben? w w w. PUNKT anderstorps festivalen. PUNKT . s e."
+				message := "Du vet väl om att du även kan hitta oss på webben? w w w. PUNKT anderstorps festivalen. PUNKT . s. e."
 				ttsData, err := c.Polly.TTS(message, "Astrid")
 				if err != nil {
 					log.Error(err)
 				}
 				c.Audio.PlayMP3FromStream(ttsData)
 			case behv > 10 && behv < 20:
-				message := "Visste du att du kan få svar på många frågor genom att besöka vår hemsida? w w w. PUNKT anderstorps festivalen. PUNKT . s e."
+				message := "Visste du att du kan få svar på många frågor genom att besöka vår hemsida? w w w. PUNKT anderstorps festivalen. PUNKT . s. e."
 				ttsData, err := c.Polly.TTS(message, "Astrid")
 				if err != nil {
 					log.Error(err)
