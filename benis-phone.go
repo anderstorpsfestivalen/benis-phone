@@ -80,14 +80,16 @@ func main() {
 
 	systemetAPI := systemet.New(key)
 
-	// Setup http server
-	r := gin.Default()
-	authorized := r.Group("/", gin.BasicAuth(gin.Accounts{
-		"recording": "penis",
-	}))
+	go func() {
+		// Setup http server
+		r := gin.Default()
+		authorized := r.Group("/", gin.BasicAuth(gin.Accounts{
+			"recording": "penis",
+		}))
 
-	authorized.StaticFS("files/recording", http.Dir("recordings"))
-	r.Run()
+		authorized.StaticFS("files/recording", http.Dir("recordings"))
+		r.Run()
+	}()
 
 	// Start controller
 	log.Info("Starting Controller")
