@@ -9,7 +9,7 @@ type MainMenu struct {
 
 func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 	c.Audio.Clear()
-	fmt.Println("RECEIVED: " + k)
+	fmt.Println("Main Menu Recieve: " + k)
 	switch k {
 	case "1":
 		return MenuReturn{
