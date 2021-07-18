@@ -16,7 +16,18 @@ func (m *Promille) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 	promille, err := backend.GetPromilleForPhoneNumber(k)
 	_ = promille
 	if err != nil {
-		fmt.Println(promille, err)
+		if err.Error() == "no transactions" {
+
+			ttsData, err := c.Polly.TTS("Inga transaktioner hittade, gå och köp något i baren.", "Astrid")
+			if err != nil {
+				log.Error(err)
+			}
+			c.Audio.PlayMP3FromStream(ttsData)
+
+			return MenuReturn{
+				NextFunction: menu.Caller,
+			}
+		}
 		ttsData, err := c.Polly.TTS("Telefonnummret kan inte hittas, var god försök igen.", "Astrid")
 		if err != nil {
 			log.Error(err)

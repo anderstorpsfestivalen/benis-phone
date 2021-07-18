@@ -54,6 +54,10 @@ func GetPromilleForPhoneNumber(number string) (PromilleResp, error) {
 		return PromilleResp{}, err
 	}
 
+	if resp.StatusCode == 400 {
+		return PromilleResp{}, fmt.Errorf("no transactions")
+	}
+
 	if pr.Message != "" {
 		return PromilleResp{}, fmt.Errorf(pr.Message)
 	}
