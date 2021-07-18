@@ -1,14 +1,21 @@
 package controller
 
 import (
+	"fmt"
 	"math/rand"
+	"os"
 	"strconv"
 	"time"
 
+	"github.com/faiface/beep"
+	"github.com/faiface/beep/mp3"
 	log "github.com/sirupsen/logrus"
 )
 
-type Queue struct{}
+type Queue struct {
+	lastPos  int
+	streamer beep.StreamSeekCloser
+}
 
 func (m *Queue) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 	rand.Seed(time.Now().UTC().UnixNano())
@@ -21,7 +28,7 @@ func (m *Queue) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 
 	//keychan := c.Phone.GetKeyChannel()
 	sub := c.Subscribe(m.Name())
-	queueSpot := rand.Intn(200)
+	queueSpot := rand.Intn(rand.Intn(60-20) + 20)
 	changeQueue := time.NewTimer(time.Second * time.Duration(rand.Intn(60)))
 	readQueue := time.NewTicker(4)
 	sanity := time.NewTicker(time.Millisecond * 20)
@@ -30,6 +37,9 @@ func (m *Queue) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		select {
 		//hang up
 		case <-sub.Cancel:
+			m.streamer = nil
+			readQueue.Stop()
+			changeQueue.Stop()
 			c.Unsubscribe(m.Name())
 			return MenuReturn{
 				NextFunction: menu.Caller,
@@ -51,6 +61,7 @@ func (m *Queue) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 			changeQueue = time.NewTimer(time.Second * time.Duration(rand.Intn(60)+1))
 		// read queue timer
 		case <-readQueue.C:
+			m.pauseBackground(c)
 			readQueue = time.NewTicker(time.Second * time.Duration(rand.Intn(120-35)+35))
 
 			// Report current position in queue
@@ -93,7 +104,7 @@ func (m *Queue) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 				c.Audio.PlayMP3FromStream(ttsData)
 			}
 
-			go c.Audio.PlayFromFile("files/hold.mp3")
+			m.startBackground(c)
 		}
 		// Sanity check
 		_ = <-sanity.C
@@ -115,10 +126,28 @@ func (m *Queue) Name() string {
 func (m *Queue) Prefix(c *Controller) {
 }
 
-func (m *Queue) pauseBackground() {
+func (m *Queue) pauseBackground(c *Controller) {
 
+	if m.streamer != nil {
+		if m.streamer.Position()-40 >= m.streamer.Len() {
+			m.lastPos = 0
+		} else {
+			m.lastPos = m.streamer.Position()
+		}
+		c.Audio.Clear()
+	}
 }
 
-func (m *Queue) startBackground() {
+func (m *Queue) startBackground(c *Controller) {
+	f, _ := os.Open("files/hold.mp3")
+
+	streamer, format, err := mp3.Decode(f)
+	if err != nil {
+		fmt.Println("penis")
+	}
+	m.streamer = streamer
+	m.streamer.Seek(m.lastPos)
+
+	go c.Audio.ExternalPlayback(m.streamer, format)
 
 }

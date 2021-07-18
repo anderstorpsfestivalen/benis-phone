@@ -123,3 +123,18 @@ func (a *Audio) playback(stream beep.StreamSeekCloser, format beep.Format) error
 
 	return nil
 }
+
+func (a *Audio) ExternalPlayback(stream beep.StreamSeekCloser, format beep.Format) error {
+	a.isPlaying = true
+	resampled := beep.Resample(4, format.SampleRate, a.sampleRate, stream)
+
+	done := make(chan bool)
+	speaker.Play(beep.Seq(resampled, beep.Callback(func() {
+		done <- true
+	})))
+
+	<-done
+	a.isPlaying = false
+
+	return nil
+}
