@@ -87,7 +87,8 @@ func main() {
 			"recording": "penis",
 		}))
 
-		authorized.StaticFS("files/recording", http.Dir("recordings"))
+		authorized.StaticFS("message", http.Dir("files/recording/message"))
+		authorized.StaticFS("random", http.Dir("files/recording/random"))
 		r.Run()
 	}()
 
