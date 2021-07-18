@@ -11,83 +11,69 @@ type DrogSlangLotto struct{}
 
 func (m *DrogSlangLotto) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 
-	keychan := c.Phone.GetKeyChannel()
-	for {
-		select {
-		case key := <-keychan:
-			if key == "0" {
-				return MenuReturn{
-					NextFunction: "mainmenu",
-				}
-			} else {
-				rand.Seed(time.Now().UnixNano())
-				min := 1
-				max := 16
-				number := rand.Intn((max - min + 1) + min)
+	drogsp := "Har du koll på drogslangen?"
+	ttsData, err := c.Polly.TTS(drogsp, "Astrid")
+	if err != nil {
+		log.Error(err)
+	}
+	c.Audio.PlayMP3FromStream(ttsData)
 
-				message := ""
+	rand.Seed(time.Now().UnixNano())
+	min := 1
+	max := 16
+	number := rand.Intn((max - min + 1) + min)
 
-				if number == 1 {
-					message = "Marijuana. Grönt. W. Weed. Gräs. Skunk. Dunder. Mary Jane. Marie och Ann. Indian. Blue Cheese. Pollen."
-				}
-				if number == 2 {
-					message = "Hasch. Brunt. Afghan. Zutt. Töjj. Blaze. Fett. Gås. B."
-				}
-				if number == 3 {
-					message = "Anfetamin. Speed. Tjack. Sho. Tjosan. Ful. Klet. Vaket. Affe. Skor. Billigt. Ice."
-				}
-				if number == 4 {
-					message = "Kokain. Ladd. Jayo. Kola. Pulver. Snö. Schnejjf. Stenar."
-				}
-				if number == 5 {
-					message = "LSD. Syra. Lucy. Sås. Lappar. Trippar."
-				}
-				if number == 6 {
-					message = "Extacy. M,D,M,A. X,T,C. Eva. E. Erik. Molly. Nappar. Glad."
-				}
-				if number == 7 {
-					message = "Subutex. Båt. Fjärdis. Sub. Åtta."
-				}
-				if number == 8 {
-					message = "Tramadol. Lean. Tram."
-				}
-				if number == 9 {
-					message = "Xanor. Stavar. Blåbär. Blå. Pix."
-				}
-				if number == 10 {
-					message = "Benzo. Habbar. Bitches. Flödder."
-				}
-				if number == 11 {
-					message = "Heroin. Häst. Horse. Jonk. Dop. Frukt. Dope. H. Black tar. Smack."
-				}
-				if number == 12 {
-					message = "Spliff. Joint. Blandning av cannabis och tobak."
-				}
-				if number == 13 {
-					message = "Kasse. Ett Kilo."
-				}
-				if number == 14 {
-					message = "Hegge. Ett Hekto."
-				}
-				if number == 15 {
-					message = "Hasch. Brunt. Afghan. Zutt. Töjj. Blaze. Fett. Gås. B."
-				}
-				if number == 16 {
-					message = "Anfetamin. Speed. Tjack. Sho. Tjosan. Ful. Klet. Vaket. Affe. Skor. Billigt. Ice."
-				}
+	message := ""
+	switch number {
 
-				ttsData, err := c.Polly.TTS(message, "Astrid")
-				if err != nil {
-					return MenuReturn{
-						Error:        err,
-						NextFunction: "error",
-					}
-				}
-				go c.Audio.PlayMP3FromStream(ttsData)
-			}
+	case 1:
+		message = "Marijuana. Grönt. W. Weed. Gräs. Skunk. Dunder. Mary Jane. Marie och Ann. Indian. Blue Cheese. Pollen."
+	case 2:
+		message = "Hasch. Brunt. Afghan. Zutt. Töjj. Blaze. Fett. Gås. B."
+	case 3:
+		message = "Anfetamin. Speed. Tjack. Sho. Tjosan. Ful. Klet. Vaket. Affe. Skor. Billigt. Ice."
+	case 4:
+		message = "Kokain. Ladd. Jayo. Kola. Pulver. Snö. Schnejjf. Stenar."
+	case 5:
+		message = "LSD. Syra. Lucy. Sås. Lappar. Trippar."
+	case 6:
+		message = "Extacy. M,D,M,A. X,T,C. Eva. E. Erik. Molly. Nappar. Glad."
+	case 7:
+		message = "Subutex. Båt. Fjärdis. Sub. Åtta."
+	case 8:
+		message = "Tramadol. Lean. Tram."
+	case 9:
+		message = "Xanor. Stavar. Blåbär. Blå. Pix."
+	case 10:
+		message = "Benzo. Habbar. Bitches. Flödder."
+	case 11:
+		message = "Heroin. Häst. Horse. Jonk. Dop. Frukt. Dope. H. Black tar. Smack."
+	case 12:
+		message = "Spliff. Joint. Blandning av cannabis och tobak."
+	case 13:
+		message = "Kasse. Ett Kilo."
+	case 14:
+		message = "Hegge. Ett Hekto."
+	case 15:
+		message = "Hasch. Brunt. Afghan. Zutt. Töjj. Blaze. Fett. Gås. B."
+	case 16:
+		message = "Anfetamin. Speed. Tjack. Sho. Tjosan. Ful. Klet. Vaket. Affe. Skor. Billigt. Ice."
+	}
+	ttsData2, err := c.Polly.TTS(message, "Astrid")
+	if err != nil {
+		return MenuReturn{
+			Error:        err,
+			NextFunction: "error",
 		}
 	}
+	c.Audio.PlayMP3FromStream(ttsData2)
+
+	return MenuReturn{
+		NextFunction: menu.Caller,
+	}
+
 }
+
 func (m *DrogSlangLotto) InputLength() int {
 	return 0
 }
@@ -97,10 +83,5 @@ func (m *DrogSlangLotto) Name() string {
 }
 
 func (m *DrogSlangLotto) Prefix(c *Controller) {
-	message := "Har du koll på drogslangen? TRYCK ETT, till FYRKANT, NOLL FÖR ATT GÅ TILLBAKA"
-	ttsData, err := c.Polly.TTS(message, "Astrid")
-	if err != nil {
-		log.Error(err)
-	}
-	c.Audio.PlayMP3FromStream(ttsData)
+
 }

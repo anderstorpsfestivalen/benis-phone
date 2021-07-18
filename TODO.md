@@ -3,7 +3,8 @@
 * Debounce hook för att undvika electronic noise
 
 ## Wberg:
-
+* Ändra alla mainmenu till menu.Caller
+* Kolla funktioner som har 0 input och flytta prefix
 * Dokumentera DTFM -> README
 * Säkerhetsställa meddelanden (record+playback)
 * Undersök om c.Audio.Clear() behövs på div funktioner (funkar ej i prefix?)
