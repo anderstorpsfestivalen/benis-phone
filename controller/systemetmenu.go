@@ -28,7 +28,7 @@ func (m *SystemetMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn 
 }
 
 func (m *SystemetMenu) InputLength() int {
-	return 0
+	return 1
 }
 
 func (m *SystemetMenu) Name() string {
