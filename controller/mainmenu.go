@@ -81,5 +81,5 @@ func (m *MainMenu) Name() string {
 
 func (m *MainMenu) Prefix(c *Controller) {
 	c.Audio.Clear()
-	c.Audio.PlayFromFile("files/flocc.ogg")
+	c.Audio.PlayFromFile("files/atp-intro.mp3")
 }
