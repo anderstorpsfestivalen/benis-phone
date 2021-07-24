@@ -31,7 +31,7 @@ func (m *PlayRandomMessage) Run(c *Controller, k string, menu MenuReturn) MenuRe
 	go c.Audio.PlayFromFile(files[randomIndex].Name())
 
 	return MenuReturn{
-		NextFunction: menu.Caller,
+		NextFunction: "mainmenu",
 	}
 }
 func (m *PlayRandomMessage) InputLength() int {

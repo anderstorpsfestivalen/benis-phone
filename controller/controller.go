@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -87,8 +88,10 @@ func (c *Controller) Start(wg *sync.WaitGroup) {
 
 	go func() {
 		for {
+
 			select {
 			case hook := <-hookchan:
+				fmt.Println("Controller got hookstate")
 				if hook {
 					hookstate = true
 					log.Info("Hook is lifted")
@@ -98,10 +101,14 @@ func (c *Controller) Start(wg *sync.WaitGroup) {
 					go MenuOptions[c.Where].Prefix(c)
 				} else {
 					hookstate = false
+					fmt.Println("controller cleared")
 					c.Audio.Clear()
 					c.Recorder.Stop()
-					for _, s := range c.subscriptions {
-						s.Cancel <- true
+					for i, s := range c.subscriptions {
+						fmt.Println("signal hook subscription ", i)
+						go func() {
+							s.Cancel <- true
+						}()
 					}
 					c.subscriptions = nil
 					c.Where = "mainmenu"
@@ -117,11 +124,14 @@ func (c *Controller) Start(wg *sync.WaitGroup) {
 		for {
 			select {
 			case key := <-keychan:
+				fmt.Println("Controller got key:", key)
 				if hookstate {
-
+					fmt.Println("Controller acts on key", key, ". Controller is at:", c.Where)
 					il := MenuOptions[c.Where].InputLength()
 					keys += key
-					if il == 0 {
+
+					if il == 0 || c.Where == "mainmenu" {
+						fmt.Println("controller trigger")
 						log.WithFields(log.Fields{
 							"Function":     c.Where,
 							"Input Length": il,
@@ -129,6 +139,7 @@ func (c *Controller) Start(wg *sync.WaitGroup) {
 						c.TriggerFunction(keys)
 						keys = ""
 					} else {
+						fmt.Println("controller waits")
 						if len(keys) == il || key == "#" {
 
 							keys = strings.Replace(keys, "#", "", -1)

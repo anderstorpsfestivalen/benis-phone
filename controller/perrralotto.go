@@ -66,7 +66,7 @@ func (m *PerraLotto) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 				go c.Audio.PlayFromFile("files/perrra/pirat-version.ogg")
 			default:
 				return MenuReturn{
-					NextFunction: menu.Caller,
+					NextFunction: "mainmenu",
 				}
 			}
 		}

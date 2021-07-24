@@ -35,7 +35,7 @@ func (m *Promille) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		c.Audio.PlayMP3FromStream(ttsData)
 
 		return MenuReturn{
-			NextFunction: menu.Caller,
+			NextFunction: "mainmenu",
 		}
 	}
 
@@ -54,7 +54,7 @@ func (m *Promille) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 	c.Audio.PlayMP3FromStream(ttsData)
 
 	return MenuReturn{
-		NextFunction: menu.Caller,
+		NextFunction: "mainmenu",
 	}
 
 }
@@ -68,7 +68,7 @@ func (m *Promille) Name() string {
 }
 
 func (m *Promille) Prefix(c *Controller) {
-	message := "Fyll i ditt telefonnummer, tio siffror."
+	message := "Fyll i ditt telefonnummer, tio siffror. Avsluta med fyrkant."
 	ttsData, err := c.Polly.TTS(message, "Astrid")
 	if err != nil {
 		log.Error(err)

@@ -21,7 +21,7 @@ func (m *SystemetMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn 
 		}
 	default:
 		return MenuReturn{
-			NextFunction: menu.Caller,
+			NextFunction: "mainmenu",
 		}
 	}
 

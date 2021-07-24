@@ -23,10 +23,10 @@ func (m *CurrentMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 			NextFunction: "error",
 		}
 	}
-	c.Audio.PlayMP3FromStream(ttsData)
 
+	c.Audio.PlayMP3FromStream(ttsData)
 	return MenuReturn{
-		NextFunction: menu.Caller,
+		NextFunction: "mainmenu",
 	}
 
 }

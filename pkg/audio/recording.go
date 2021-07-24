@@ -78,7 +78,8 @@ func (f *Recorder) Record(filename string) {
 }
 
 func (f *Recorder) Stop() {
-
-	f.instance.Process.Signal(os.Interrupt)
+	if f.instance != nil {
+		f.instance.Process.Signal(os.Interrupt)
+	}
 	f.isRecording = false
 }

@@ -122,11 +122,9 @@ func (d *Phone) startRead() {
 					pressed = "0"
 				}
 
-				fmt.Println(pressed)
-
 				select {
 				case d.KeyChannel <- pressed:
-					log.Debug("Wrote key: " + pressed + " to keychannel")
+					fmt.Println("Wrote key: " + pressed + " to keychannel")
 				default:
 				}
 			}

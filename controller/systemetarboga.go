@@ -30,7 +30,7 @@ func (m *SystemetArboga) Run(c *Controller, k string, menu MenuReturn) MenuRetur
 	c.Audio.PlayMP3FromStream(ttsData)
 
 	return MenuReturn{
-		NextFunction: menu.Caller,
+		NextFunction: "mainmenu",
 	}
 
 }

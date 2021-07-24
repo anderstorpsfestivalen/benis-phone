@@ -21,7 +21,7 @@ func (m *Boraaaaaas) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		case <-sub.Cancel:
 			c.Unsubscribe(m.Name())
 			return MenuReturn{
-				NextFunction: menu.Caller,
+				NextFunction: "mainmenu",
 			}
 		case key := <-keychan:
 			switch key {
@@ -67,7 +67,7 @@ func (m *Boraaaaaas) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 				go c.Audio.PlayFromFile("files/chatten/halla-klockan-8.ogg")
 			default:
 				return MenuReturn{
-					NextFunction: menu.Caller,
+					NextFunction: "mainmenu",
 				}
 			}
 		}

@@ -21,14 +21,14 @@ func (m *Idiom) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		case <-sub.Cancel:
 			c.Unsubscribe(m.Name())
 			return MenuReturn{
-				NextFunction: menu.Caller,
+				NextFunction: "mainmenu",
 			}
 		case key := <-keychan:
 			switch key {
 
 			case "0":
 				return MenuReturn{
-					NextFunction: menu.Caller,
+					NextFunction: "mainmenu",
 				}
 			default:
 				data, err := ioutil.ReadFile("files/idiom.txt")

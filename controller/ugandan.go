@@ -66,7 +66,7 @@ func (m *Ugandan) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 				go c.Audio.PlayFromFile("files/ugandan/Warrior.ogg")
 			default:
 				return MenuReturn{
-					NextFunction: menu.Caller,
+					NextFunction: "mainmenu",
 				}
 			}
 		}

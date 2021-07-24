@@ -25,7 +25,7 @@ func (m *BarMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		}
 	default:
 		return MenuReturn{
-			NextFunction: menu.Caller,
+			NextFunction: "mainmenu",
 		}
 	}
 }

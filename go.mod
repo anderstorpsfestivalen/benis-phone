@@ -19,6 +19,7 @@ require (
 	github.com/google/uuid v1.1.2
 	github.com/hajimehoshi/go-mp3 v0.3.1 // indirect
 	github.com/hajimehoshi/oto v0.7.1 // indirect
+	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/jfreymuth/oggvorbis v1.0.3 // indirect
 	github.com/jmoiron/sqlx v1.3.1
 	github.com/kennygrant/sanitize v1.2.4 // indirect
@@ -41,6 +42,7 @@ require (
 	github.com/stretchr/testify v1.5.1 // indirect
 	github.com/technoweenie/multipartstreamer v1.0.1 // indirect
 	github.com/temoto/robotstxt v1.1.1 // indirect
+	github.com/tjgq/broadcast v0.0.0-20140913210940-9d7fb01523c6 // indirect
 	github.com/wbergg/bordershop-bot v0.0.0-20200222220107-a6ff68a09176 // indirect
 	golang.org/x/exp v0.0.0-20210220032938-85be41e4509f // indirect
 	golang.org/x/image v0.0.0-20210220032944-ac19c3e999fb // indirect

@@ -1,6 +1,8 @@
 package muxer
 
 import (
+	"fmt"
+
 	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/phone"
 )
 
@@ -41,6 +43,7 @@ func (m *Muxer) Init() error {
 			case msg2 := <-bHook:
 				m.HookChannel <- msg2
 			}
+			fmt.Println("hook sent")
 		}
 	}()
 

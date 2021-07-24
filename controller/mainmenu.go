@@ -17,11 +17,11 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		}
 	case "2":
 		return MenuReturn{
-			NextFunction: "barmenu",
+			NextFunction: "recordmessage",
 		}
 	case "3":
 		return MenuReturn{
-			NextFunction: "trainmenu",
+			NextFunction: "queue",
 		}
 	case "4":
 		return MenuReturn{
@@ -41,7 +41,7 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		}
 	case "8":
 		return MenuReturn{
-			NextFunction: "syralotto",
+			NextFunction: "trainmenu",
 		}
 	case "9":
 		return MenuReturn{
@@ -49,8 +49,7 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		}
 	case "*":
 		return MenuReturn{
-			NextFunction: "recordmessage",
-			// to be leave a message function - test this
+			NextFunction: "barmenu",
 		}
 	case "0":
 		return MenuReturn{
@@ -60,14 +59,10 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		return MenuReturn{
 			NextFunction: "queue",
 		}
-	// # does not work with virtual keyboard, adding temp function to fault trace
-	case "a":
-		return MenuReturn{
-			NextFunction: "queue",
-		}
+		// # does not work with virtual keyboard, adding temp function to fault trace
 	}
 	return MenuReturn{
-		NextFunction: menu.Caller,
+		NextFunction: "mainmenu",
 	}
 }
 

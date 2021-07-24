@@ -2,6 +2,7 @@ package audio
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -13,16 +14,19 @@ import (
 	"github.com/faiface/beep/speaker"
 	"github.com/faiface/beep/vorbis"
 	"github.com/faiface/beep/wav"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/broadcast"
 )
 
 type Audio struct {
 	sampleRate beep.SampleRate
 	isPlaying  bool
+	cancel     *broadcast.Broadcaster
 }
 
 func New(samplerate int) *Audio {
 	return &Audio{
 		sampleRate: beep.SampleRate(samplerate),
+		cancel:     broadcast.NewBroadcaster(5),
 	}
 }
 
@@ -98,6 +102,10 @@ func (a *Audio) PlayFromFile(filename string) error {
 // Clear stops the currently playing audio
 func (a *Audio) Clear() {
 	speaker.Clear()
+	err := a.cancel.Send(true)
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
 // IsPlaying indicates if there is currently audio streaming
@@ -110,31 +118,45 @@ func (a *Audio) IsPlaying() bool {
 //////////////////////////////////////////////////
 
 func (a *Audio) playback(stream beep.StreamSeekCloser, format beep.Format) error {
+
 	a.isPlaying = true
 	resampled := beep.Resample(4, format.SampleRate, a.sampleRate, stream)
-
+	cancel := a.cancel.Listen()
 	done := make(chan bool)
+
 	speaker.Play(beep.Seq(resampled, beep.Callback(func() {
 		done <- true
 	})))
 
-	<-done
-	a.isPlaying = false
-
-	return nil
+	select {
+	case <-done:
+		a.isPlaying = false
+		cancel.Discard()
+		return nil
+	case <-cancel.Channel():
+		cancel.Discard()
+		fmt.Println("kill play")
+		return nil
+	}
 }
 
 func (a *Audio) ExternalPlayback(stream beep.StreamSeekCloser, format beep.Format) error {
 	a.isPlaying = true
 	resampled := beep.Resample(4, format.SampleRate, a.sampleRate, stream)
 
+	cancel := a.cancel.Listen()
 	done := make(chan bool)
 	speaker.Play(beep.Seq(resampled, beep.Callback(func() {
 		done <- true
 	})))
 
-	<-done
-	a.isPlaying = false
-
-	return nil
+	select {
+	case <-done:
+		a.isPlaying = false
+		cancel.Discard()
+		return nil
+	case <-cancel.Channel():
+		cancel.Discard()
+		return nil
+	}
 }
