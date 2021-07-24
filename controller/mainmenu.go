@@ -17,11 +17,11 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		}
 	case "2":
 		return MenuReturn{
-			NextFunction: "recordmessage",
+			NextFunction: "barmenu",
 		}
 	case "3":
 		return MenuReturn{
-			NextFunction: "queue",
+			NextFunction: "trainmenu",
 		}
 	case "4":
 		return MenuReturn{
@@ -49,7 +49,7 @@ func (m *MainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		}
 	case "*":
 		return MenuReturn{
-			NextFunction: "barmenu",
+			NextFunction: "recordmessage",
 		}
 	case "0":
 		return MenuReturn{
