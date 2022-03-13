@@ -1,16 +1,16 @@
-package main
+// package main
 
-import (
-	"fmt"
+// import (
+// 	"fmt"
 
-	"gitlab.com/anderstorpsfestivalen/benis-phone/phone"
-)
+// 	"gitlab.com/anderstorpsfestivalen/benis-phone/phone"
+// )
 
-func main() {
+// func main() {
 
-	ph := phone.Init(6)
+// 	ph := phone.Init(6)
 
-	s := <-ph.HookChannel
-	fmt.Println(s)
+// 	s := <-ph.HookChannel
+// 	fmt.Println(s)
 
-}
+// }

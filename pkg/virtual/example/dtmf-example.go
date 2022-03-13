@@ -1,15 +1,15 @@
-package main
+// package main
 
-import (
-	"fmt"
+// import (
+// 	"fmt"
 
-	"gitlab.com/anderstorpsfestivalen/benis-phone/dtmf"
-)
+// 	"gitlab.com/anderstorpsfestivalen/benis-phone/dtmf"
+// )
 
-func main() {
-	dtmf := dtmf.Init()
+// func main() {
+// 	dtmf := dtmf.Init()
 
-	s := <-dtmf.HookKey
-	fmt.Println(s)
+// 	s := <-dtmf.HookKey
+// 	fmt.Println(s)
 
-}
+// }

@@ -1,12 +1,12 @@
-package main
+// package main
 
-import (
-	"gitlab.com/anderstorpsfestivalen/benis-phone/polly"
-)
+// import (
+// 	"gitlab.com/anderstorpsfestivalen/benis-phone/polly"
+// )
 
-func main() {
+// func main() {
 
-	message := "hej hej, testing testing"
-	polly.TTS(message, "Astrid")
+// 	message := "hej hej, testing testing"
+// 	polly.TTS(message, "Astrid")
 
-}
+// }
