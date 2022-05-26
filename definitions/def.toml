@@ -1,4 +1,5 @@
 [main]
     prefix = { file = "files/atp-intro.mp3" }
-    [main.1]
-        
+
+    1 = "personalmenu"
+    2 = "barmenu"
