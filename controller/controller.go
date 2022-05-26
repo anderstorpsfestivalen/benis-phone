@@ -14,14 +14,14 @@ import (
 )
 
 var MenuOptions = map[string]MenuOption{
-	"mainmenu":          &MainMenu{},
-	"announce":          &Announce{},
-	"systemetarboga":    &SystemetArboga{},
-	"trainmenu":         &TrainMenu{},
-	"barclosingmenu":    &BarClosingMenu{},
-	"syralotto":         &SyraLotto{},
-	"currentmenu":       &CurrentMenu{},
-	"flacornot":         &FlacOrNotMenu{},
+	"mainmenu":       &MainMenu{},
+	"announce":       &Announce{},
+	"systemetarboga": &SystemetArboga{},
+	"trainmenu":      &TrainMenu{},
+	"barclosingmenu": &BarClosingMenu{},
+	"syralotto":      &SyraLotto{},
+	"currentmenu":    &CurrentMenu{},
+	//"flacornot":         &FlacOrNotMenu{},
 	"idiom":             &Idiom{},
 	"balance":           &Balance{},
 	"systemetpid":       &SystemetPid{},

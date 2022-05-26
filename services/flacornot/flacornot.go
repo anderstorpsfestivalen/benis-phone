@@ -24,7 +24,10 @@ type APIResopnse struct {
 	} `json:"swinsian"`
 }
 
-func FlacOrNot() (string, error) {
+type FlacOrNot struct {
+}
+
+func (f *FlacOrNot) Get(string) (string, error) {
 
 	s := APIResopnse{}
 	// temp for testing

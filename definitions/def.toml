@@ -1,5 +1,6 @@
 [general]
     entrypoint = "main"
+    default_tts = "Astrid"
 
 # main
 [[fn]]
@@ -9,10 +10,26 @@
     actions = [
         { num = 1, t = "fn", dst = "personalmenu"},
         { num = 2, t = "fn", dst = "barmenu"},
-        { num = 3, t = "fn", dst = "trainmenu"},
+        { num = 3, t = "service", dst = "trainmenu"},
         { num = 4, t = "fn", dst = "systemetmenu"},
         { num = 5, t = "def", dst = "uganda"},
     ]
+
+# personalmenu
+[[fn]]
+    name = "personalmenu"
+    prefix = { tts = "Astrid", msg = """Välkommen till din personliga service meny,
+    för saldo, tryck ett, för promille, tryck två,
+    för fulöls poäng, tryck tre, för att gå tillbaka, tryck 0""" }
+    exit = "main"
+
+    actions = [
+        { t = "service", dst= "balance"},
+        { t = "service", dst= "promille"},
+        { t = "service", dst= "fulolpoints"},
+    ]
+
+
 
 # uganda
 [[fn]]
@@ -34,8 +51,3 @@
         { t = "file", dst = "files/ugandan/SUPA-MAFIA-ON-THE-RUN.ogg", wait = true },
         { t = "file", dst = "files/ugandan/Warrior.ogg", wait = true },
     ]
-
-# trainmenu
-[[fn]]
-    name = "trainmenu"
-

@@ -1,43 +1,43 @@
-package controller
+// package controller
 
-import (
-	"gitlab.com/anderstorpsfestivalen/benis-phone/services/flacornot"
-)
+// import (
+// 	"gitlab.com/anderstorpsfestivalen/benis-phone/services/flacornot"
+// )
 
-type FlacOrNotMenu struct {
-}
+// type FlacOrNotMenu struct {
+// }
 
-func (m *FlacOrNotMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
-	message, err := flacornot.FlacOrNot()
-	if err != nil {
-		return MenuReturn{
-			Error:        err,
-			NextFunction: "error",
-		}
-	}
+// func (m *FlacOrNotMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
+// 	message, err := flacornot.FlacOrNot()
+// 	if err != nil {
+// 		return MenuReturn{
+// 			Error:        err,
+// 			NextFunction: "error",
+// 		}
+// 	}
 
-	ttsData, err := c.Polly.TTSLang(message, "en-US", "Joanna")
-	if err != nil {
-		return MenuReturn{
-			Error:        err,
-			NextFunction: "error",
-		}
-	}
-	c.Audio.PlayMP3FromStream(ttsData)
+// 	ttsData, err := c.Polly.TTSLang(message, "en-US", "Joanna")
+// 	if err != nil {
+// 		return MenuReturn{
+// 			Error:        err,
+// 			NextFunction: "error",
+// 		}
+// 	}
+// 	c.Audio.PlayMP3FromStream(ttsData)
 
-	return MenuReturn{
-		NextFunction: "mainmenu",
-	}
+// 	return MenuReturn{
+// 		NextFunction: "mainmenu",
+// 	}
 
-}
+// }
 
-func (m *FlacOrNotMenu) InputLength() int {
-	return 0
-}
+// func (m *FlacOrNotMenu) InputLength() int {
+// 	return 0
+// }
 
-func (m *FlacOrNotMenu) Name() string {
-	return "flacornotmenu"
-}
+// func (m *FlacOrNotMenu) Name() string {
+// 	return "flacornotmenu"
+// }
 
-func (m *FlacOrNotMenu) Prefix(c *Controller) {
-}
+// func (m *FlacOrNotMenu) Prefix(c *Controller) {
+// }

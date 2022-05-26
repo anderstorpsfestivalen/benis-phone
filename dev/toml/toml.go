@@ -20,6 +20,7 @@ func (d *Definition) Normalize() {
 
 type General struct {
 	Entrypoint string
+	DefaultTTS string `toml:"default_tts"`
 }
 
 type Fn struct {

@@ -1,8 +1,8 @@
 package barclosing
 
 import (
-  "fmt"
-  "time"
+	"fmt"
+	"time"
 )
 
 func ClosingTime() string {
@@ -39,4 +39,11 @@ func fmtDuration(d time.Duration) string {
 	d -= h * time.Hour
 	m := d / time.Minute
 	return fmt.Sprintf("Baren stänger om, %d, timmar, och, %d, minuter", h, m)
+}
+
+type BarClosing struct {
+}
+
+func (f *BarClosing) Get(string) (string, error) {
+	return ClosingTime(), nil
 }

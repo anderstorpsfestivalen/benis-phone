@@ -11,7 +11,11 @@ type TrainMenu struct {
 
 func (m *TrainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 
-	message := train.Get()
+	tr := train.Train{}
+	message, err := tr.Get("")
+	if err != nil {
+		panic(err)
+	}
 	fmt.Println(message)
 	ttsData, err := c.Polly.TTS(message, "Astrid")
 	if err != nil {

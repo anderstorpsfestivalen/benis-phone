@@ -8,7 +8,9 @@ import (
 	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/secrets"
 )
 
-func Get() string {
+type Train struct{}
+
+func (f *Train) Get(string) (string, error) {
 	credentials := secrets.Loaded
 
 	var searchstation = "Reftele"
@@ -18,12 +20,12 @@ func Get() string {
 
 	station, err := tf.LookupStation(searchstation)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
 	trann, err := tf.QueryTrainAnnouncementsAtLocationSignature(station.LocationSignature)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
 	var formatted string
@@ -33,12 +35,12 @@ func Get() string {
 
 			from, err := tf.LookupLocationSignature(k.FromLocation[0].LocationName)
 			if err != nil {
-				panic(err)
+				return "", err
 			}
 
 			to, err := tf.LookupLocationSignature(k.ToLocation[0].LocationName)
 			if err != nil {
-				panic(err)
+				return "", err
 			}
 
 			formatted_hour := fmt.Sprintf("%02d", k.AdvertisedTimeAtLocation.Hour())
@@ -59,5 +61,5 @@ func Get() string {
 				", och, " + formatted_minute
 		}
 	}
-	return formatted
+	return formatted, nil
 }
