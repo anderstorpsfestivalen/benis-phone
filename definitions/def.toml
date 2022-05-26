@@ -1,5 +1,41 @@
-[main]
+[general]
+    entrypoint = "main"
+
+# main
+[[fn]]
+    name = "main"
     prefix = { file = "files/atp-intro.mp3" }
 
-    1 = "personalmenu"
-    2 = "barmenu"
+    actions = [
+        { num = 1, t = "fn", dst = "personalmenu"},
+        { num = 2, t = "fn", dst = "barmenu"},
+        { num = 3, t = "fn", dst = "trainmenu"},
+        { num = 4, t = "fn", dst = "systemetmenu"},
+        { num = 5, t = "def", dst = "uganda"},
+    ]
+
+# uganda
+[[fn]]
+    name = "uganda"
+    prefix = { tts = "Astrid", msg = """TRYCK, ETT, till FYRKANT, 
+    NOLL FÖR ATT GÅ TILLBAKA""" }
+    exit = "main"
+
+    actions = [
+        { t = "randomfile", dst= "./files/ugandan/"},
+        { t = "file", dst = "files/ugandan/COMMANDO-COMMANDO.ogg", wait = true },
+        { t = "file", dst = "files/ugandan/Commando-1.ogg", wait = true },
+        { t = "file", dst = "files/ugandan/Gwe-Gwe-Gwe.ogg", wait = true },
+        { t = "file", dst = "files/ugandan/One-hell-of-a-movie.ogg", wait = true },
+        { t = "file", dst = "files/ugandan/WHAT-THE-FU.ogg", wait = true },
+        { t = "file", dst = "files/ugandan/Tough-Commando-on-da-Mission.ogg", wait = true },
+        { t = "file", dst = "files/ugandan/UGAANDA.ogg", wait = true },
+        { t = "file", dst = "files/ugandan/HELLO-2.ogg", wait = true },
+        { t = "file", dst = "files/ugandan/SUPA-MAFIA-ON-THE-RUN.ogg", wait = true },
+        { t = "file", dst = "files/ugandan/Warrior.ogg", wait = true },
+    ]
+
+# trainmenu
+[[fn]]
+    name = "trainmenu"
+
