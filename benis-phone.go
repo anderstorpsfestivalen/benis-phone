@@ -10,6 +10,7 @@ import (
 
 	"gitlab.com/anderstorpsfestivalen/benis-phone/controller"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/audio"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/definition"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/filesync"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/muxer"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/phone"
@@ -20,6 +21,9 @@ import (
 )
 
 func main() {
+	enable_s3 := flag.Bool("s3", true, "s3 sync")
+	enable_http := flag.Bool("http", true, "http server")
+	flag.Parse()
 
 	log := logrus.New()
 
@@ -34,7 +38,11 @@ func main() {
 	if err != nil {
 		log.Fatal("Could not initialize sync")
 	}
-	fsx.Start("files/")
+
+	if *enable_s3 {
+		fsx.Start("files/")
+	}
+
 	err = systemet.Init()
 	if err != nil {
 		log.Error(err)
@@ -78,26 +86,32 @@ func main() {
 		log.Panic("Could not get systembolaget key")
 	}
 
-	systemetAPI := systemet.New(key)
+	_ = systemet.New(key)
 
-	go func() {
-		// Setup http server
-		r := gin.Default()
-		authorized := r.Group("/", gin.BasicAuth(gin.Accounts{
-			"recording": "penis",
-		}))
+	// Load definition
+	def, err := definition.LoadFromFile("definitions/def.toml")
+	if err != nil {
+		panic(err)
+	}
 
-		authorized.StaticFS("message", http.Dir("files/recording/message"))
-		authorized.StaticFS("random", http.Dir("files/recording/random"))
-		r.Run()
-	}()
+	if *enable_http {
+		go func() {
+			// Setup http server
+			r := gin.Default()
+			authorized := r.Group("/", gin.BasicAuth(gin.Accounts{
+				"recording": "penis",
+			}))
+
+			authorized.StaticFS("message", http.Dir("files/recording/message"))
+			authorized.StaticFS("random", http.Dir("files/recording/random"))
+			r.Run()
+		}()
+	}
 
 	// Start controller
 	log.Info("Starting Controller")
 	log.SetLevel(logrus.DebugLevel)
-	ctrl := controller.New(ctrlPhone, ad, rec, polly, *systemetAPI, controller.ControllerSettings{
-		HiddenPlayback: true,
-	})
+	ctrl := controller.New(ctrlPhone, ad, rec, polly, def)
 
 	var waitgroup sync.WaitGroup
 	waitgroup.Add(1)
