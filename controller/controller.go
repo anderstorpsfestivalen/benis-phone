@@ -16,6 +16,8 @@ type Controller struct {
 	Recorder   audio.Recorder
 	Polly      polly.Polly
 	Definition definition.Definition
+
+	Current string
 }
 
 func New(ph phone.FlowPhone, audio *audio.Audio, rec audio.Recorder, polly polly.Polly, def definition.Definition) Controller {
@@ -30,5 +32,7 @@ func New(ph phone.FlowPhone, audio *audio.Audio, rec audio.Recorder, polly polly
 
 func (c *Controller) Start(wg *sync.WaitGroup) {
 
-	fmt.Println(c.Definition)
+	c.Current = c.Definition.General.Entrypoint
+
+	fmt.Println(c.Definition.Functions)
 }

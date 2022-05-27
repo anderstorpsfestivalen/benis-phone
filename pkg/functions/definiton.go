@@ -1,4 +1,4 @@
-package definition
+package functions
 
 import (
 	"os"
@@ -20,7 +20,7 @@ func LoadFromFile(path string) (Definition, error) {
 		return Definition{}, err
 	}
 
-	conf.Functions = make(map[string]Fn)
+	conf.Functions = make(map[string]*Fn)
 
 	conf.Prepare()
 
@@ -28,42 +28,25 @@ func LoadFromFile(path string) (Definition, error) {
 }
 
 type Definition struct {
-	General   General
-	functions []Fn `toml:"fn"`
+	General           General
+	UnsortedFunctions []Fn `toml:"fn"`
 
-	Functions map[string]Fn
+	Functions map[string]*Fn
 }
 
 func (d *Definition) Prepare() {
-	for _, f := range d.functions {
+	for _, f := range d.UnsortedFunctions {
 		f.IndexActions()
 	}
 
-	for _, v := range d.functions {
-		d.Functions[v.Name] = v
+	for _, v := range d.UnsortedFunctions {
+		d.Functions[v.Name] = &v
 	}
 }
 
 type General struct {
 	Entrypoint string
 	DefaultTTS string `toml:"default_tts"`
-}
-
-type Fn struct {
-	Name        string
-	Prefix      Prefix
-	Exit        string
-	InputLength int
-
-	Actions []Action
-}
-
-func (f *Fn) IndexActions() {
-	for i, val := range f.Actions {
-		if val.Num == 0 {
-			f.Actions[i].Num = i
-		}
-	}
 }
 
 type Prefix struct {
