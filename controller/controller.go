@@ -107,12 +107,13 @@ func (c *Controller) Start(wg *sync.WaitGroup) {
 }
 
 func (c *Controller) handlePrefix() error {
+
 	pr, err := c.Definition.Functions[c.Current].Prefix.GetPlayable()
 	if err != nil {
 		return err
 	}
 
-	err = pr.Play(c.Audio, c.Polly, c.Definition.General.DefaultTTS)
+	err = pr.Play(c.Audio, c.Polly)
 	if err != nil {
 		return err
 	}
@@ -142,8 +143,8 @@ func (c *Controller) checkError(e error) {
 		log.Error(e)
 
 		// Try to read out the error with TTS
-		p := functions.CreatePlayableTTS(e.Error(), "Kendra")
-		p.Play(c.Audio, c.Polly, c.Definition.General.DefaultTTS)
+		p := functions.CreatePlayableFromTTS(c.Definition.EnglishTTS(e.Error()))
+		p.Play(c.Audio, c.Polly)
 
 	}
 }

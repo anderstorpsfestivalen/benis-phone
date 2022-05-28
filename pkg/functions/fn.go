@@ -16,3 +16,7 @@ func (f *Fn) IndexActions() {
 		}
 	}
 }
+
+func (f *Fn) Enter() {
+
+}

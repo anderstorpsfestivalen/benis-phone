@@ -35,8 +35,10 @@ type Definition struct {
 }
 
 func (d *Definition) Prepare() {
-	for _, f := range d.UnsortedFunctions {
+	for i, f := range d.UnsortedFunctions {
 		f.IndexActions()
+		d.UnsortedFunctions[i].Prefix.TTS.SetDefault(d.General.DefaultTTSVoice, d.General.DefaultTTSLanguage)
+
 	}
 
 	for i, v := range d.UnsortedFunctions {
@@ -47,7 +49,12 @@ func (d *Definition) Prepare() {
 
 type General struct {
 	Entrypoint string
-	DefaultTTS string `toml:"default_tts"`
+
+	// https://docs.aws.amazon.com/polly/latest/dg/voicelist.html
+	DefaultTTSVoice string `toml:"default_tts_voice"`
+
+	// https://docs.aws.amazon.com/polly/latest/dg/SupportedLanguage.html
+	DefaultTTSLanguage string `toml:"default_tts_lang"`
 }
 
 type Action struct {

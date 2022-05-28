@@ -1,14 +1,20 @@
 [general]
     entrypoint = "main"
-    default_tts = "Astrid"
+
+    # AWS Polly specific
+    # https://docs.aws.amazon.com/polly/latest/dg/voicelist.html
+    default_tts_voice = "Astrid"
+    # en-US , sv-SE
+    # https://docs.aws.amazon.com/polly/latest/dg/SupportedLanguage.html
+    default_tts_lang = "sv-SE"
 
 # main
 [[fn]]
     name = "main"
     #prefix = { file = "files/atp-intro.mp3" }
-    prefix = { voice = "Kendra", msg = """Välkommen till din personliga service meny,
+    prefix = { tts = {  msg = """Välkommen till din personliga service meny,
     för saldo, tryck ett, för promille, tryck två,
-    för fulöls poäng, tryck tre, för att gå tillbaka, tryck 0""", file = "files/atp-intro.mp3"}
+    för fulöls poäng, tryck tre, för att gå tillbaka, tryck 0"""}}
 
     actions = [
         { num = 1, t = "fn", dst = "personalmenu"},
@@ -21,9 +27,9 @@
 # personalmenu
 [[fn]]
     name = "personalmenu"
-    prefix = { voice = "Astrid", msg = """Välkommen till din personliga service meny,
+    prefix = { tts = {voice = "Astrid", msg = """Välkommen till din personliga service meny,
     för saldo, tryck ett, för promille, tryck två,
-    för fulöls poäng, tryck tre, för att gå tillbaka, tryck 0""" }
+    för fulöls poäng, tryck tre, för att gå tillbaka, tryck 0""" }}
     exit = "main"
 
     actions = [
@@ -37,8 +43,8 @@
 # uganda
 [[fn]]
     name = "uganda"
-    prefix = { tts = "Astrid", msg = """TRYCK, ETT, till FYRKANT, 
-    NOLL FÖR ATT GÅ TILLBAKA""" }
+    prefix = { tts = {voice = "Mads", msg = """TRYCK, ETT, till FYRKANT, 
+    NOLL FÖR ATT GÅ TILLBAKA""", lang = "da-DK"} }
     exit = "main"
 
     actions = [

@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net/http"
 	"sync"
 
@@ -91,6 +92,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	fmt.Println(def)
 
 	if *enableHttp {
 		go func() {

@@ -8,46 +8,34 @@ import (
 )
 
 type Playable struct {
-	T    string
 	File string
-
-	TTSVoice   string
-	TTSMessage string
-	TTSLang    string
+	TTS  TTS
 
 	Wait  bool
 	Clear bool
 }
 
-func CreatePlayableTTS(message string, voice string, lang string) Playable {
+func CreatePlayableFromTTS(t TTS) Playable {
 	return Playable{
-		T:          "msg",
-		TTSVoice:   voice,
-		TTSMessage: message,
-		TTSLang:    lang,
+		TTS: t,
 	}
 }
 
-func (p *Playable) Play(a *audio.Audio, polly polly.Polly, defaultTTSVoice string, defaultTTSLang string) error {
+func (p *Playable) Play(a *audio.Audio, polly polly.Polly) error {
 	if p.Clear {
 		a.Clear()
 	}
 
-	voice := defaultTTSVoice
-
-	if p.TTSVoice != "" {
-		voice = p.TTSVoice
-	}
-
-	if p.T == "file" {
+	if p.File != "" {
 		if p.Wait {
 			return a.PlayFromFile(p.File)
 		} else {
 			go a.PlayFromFile(p.File)
+			return nil
 		}
 
-	} else if p.T == "msg" {
-		ttsData, err := polly.TTSLang(p.TTSMessage, voice)
+	} else if p.TTS != (TTS{}) {
+		ttsData, err := polly.TTSLang(p.TTS.Message, p.TTS.Language, p.TTS.Voice)
 		if err != nil {
 			return err
 		}
