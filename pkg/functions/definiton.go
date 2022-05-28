@@ -39,18 +39,15 @@ func (d *Definition) Prepare() {
 		f.IndexActions()
 	}
 
-	for _, v := range d.UnsortedFunctions {
-		d.Functions[v.Name] = &v
+	for i, v := range d.UnsortedFunctions {
+		d.Functions[v.Name] = &d.UnsortedFunctions[i]
 	}
+
 }
 
 type General struct {
 	Entrypoint string
 	DefaultTTS string `toml:"default_tts"`
-}
-
-type Prefix struct {
-	File string
 }
 
 type Action struct {

@@ -2,11 +2,13 @@ package audio
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/faiface/beep"
 	"github.com/faiface/beep/flac"
@@ -21,12 +23,14 @@ type Audio struct {
 	sampleRate beep.SampleRate
 	isPlaying  bool
 	cancel     *broadcast.Broadcaster
+
+	ctrl sync.Mutex
 }
 
 func New(samplerate int) *Audio {
 	return &Audio{
 		sampleRate: beep.SampleRate(samplerate),
-		cancel:     broadcast.NewBroadcaster(5),
+		cancel:     broadcast.NewBroadcaster(200),
 	}
 }
 
@@ -39,30 +43,35 @@ func (a *Audio) Init() error {
 }
 
 func (a *Audio) PlayMP3FromStream(data []byte) error {
+	a.ctrl.Lock()
+	defer a.ctrl.Unlock()
+
 	a.Clear()
 
 	f := bytes.NewReader(data)
 	streamer, format, err := mp3.Decode(ioutil.NopCloser(f))
 	if err != nil {
+		log.Trace(err)
 		return err
 	}
 
 	defer streamer.Close()
 
-	err = a.playback(streamer, format)
-	if err != nil {
-		return err
-	}
+	a.playback(streamer, format)
 
 	return nil
 }
 
 //PlayFromFile playes a MP3, WAV, FLAC or OGG file from disk.
 func (a *Audio) PlayFromFile(filename string) error {
+	a.ctrl.Lock()
+	defer a.ctrl.Unlock()
+
 	a.Clear()
 
 	f, err := os.Open(filename)
 	if err != nil {
+		log.Trace(err)
 		return err
 	}
 
@@ -74,28 +83,34 @@ func (a *Audio) PlayFromFile(filename string) error {
 	case ".mp3":
 		streamer, format, err = mp3.Decode(f)
 		if err != nil {
+			log.Trace(err)
 			return err
 		}
 	case ".wav":
 		streamer, format, err = wav.Decode(f)
 		if err != nil {
+			log.Trace(err)
 			return err
 		}
 	case ".flac":
 		streamer, format, err = flac.Decode(f)
 		if err != nil {
+			log.Trace(err)
 			return err
 		}
 	case ".ogg":
 		streamer, format, err = vorbis.Decode(f)
 		if err != nil {
+			log.Trace(err)
 			return err
 		}
 	}
 
 	defer streamer.Close()
 
-	return a.playback(streamer, format)
+	a.playback(streamer, format)
+
+	return nil
 
 }
 
@@ -104,7 +119,7 @@ func (a *Audio) Clear() {
 	speaker.Clear()
 	err := a.cancel.Send(true)
 	if err != nil {
-		fmt.Println(err)
+		log.Error(err)
 	}
 }
 
@@ -117,7 +132,7 @@ func (a *Audio) IsPlaying() bool {
 //// Internal stuff
 //////////////////////////////////////////////////
 
-func (a *Audio) playback(stream beep.StreamSeekCloser, format beep.Format) error {
+func (a *Audio) playback(stream beep.StreamSeekCloser, format beep.Format) {
 
 	a.isPlaying = true
 	resampled := beep.Resample(4, format.SampleRate, a.sampleRate, stream)
@@ -132,31 +147,29 @@ func (a *Audio) playback(stream beep.StreamSeekCloser, format beep.Format) error
 	case <-done:
 		a.isPlaying = false
 		cancel.Discard()
-		return nil
 	case <-cancel.Channel():
 		cancel.Discard()
-		fmt.Println("kill play")
-		return nil
+		log.Trace("Kill play")
 	}
 }
 
-func (a *Audio) ExternalPlayback(stream beep.StreamSeekCloser, format beep.Format) error {
-	a.isPlaying = true
-	resampled := beep.Resample(4, format.SampleRate, a.sampleRate, stream)
+func (a *Audio) ExternalPlayback(stream beep.StreamSeekCloser, format beep.Format) {
+	a.playback(stream, format)
+	// a.isPlaying = true
+	// resampled := beep.Resample(4, format.SampleRate, a.sampleRate, stream)
 
-	cancel := a.cancel.Listen()
-	done := make(chan bool)
-	speaker.Play(beep.Seq(resampled, beep.Callback(func() {
-		done <- true
-	})))
+	// cancel := a.cancel.Listen()
+	// done := make(chan bool)
+	// speaker.Play(beep.Seq(resampled, beep.Callback(func() {
+	// 	done <- true
+	// })))
 
-	select {
-	case <-done:
-		a.isPlaying = false
-		cancel.Discard()
-		return nil
-	case <-cancel.Channel():
-		cancel.Discard()
-		return nil
-	}
+	// select {
+	// case <-done:
+	// 	a.isPlaying = false
+	// 	cancel.Discard()
+	// case <-cancel.Channel():
+	// 	cancel.Discard()
+	// 	log.Trace("Kill play")
+	// }
 }

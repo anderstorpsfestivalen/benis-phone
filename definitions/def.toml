@@ -5,7 +5,10 @@
 # main
 [[fn]]
     name = "main"
-    prefix = { file = "files/atp-intro.mp3" }
+    #prefix = { file = "files/atp-intro.mp3" }
+    prefix = { voice = "Kendra", msg = """Välkommen till din personliga service meny,
+    för saldo, tryck ett, för promille, tryck två,
+    för fulöls poäng, tryck tre, för att gå tillbaka, tryck 0""", file = "files/atp-intro.mp3"}
 
     actions = [
         { num = 1, t = "fn", dst = "personalmenu"},
@@ -18,7 +21,7 @@
 # personalmenu
 [[fn]]
     name = "personalmenu"
-    prefix = { tts = "Astrid", msg = """Välkommen till din personliga service meny,
+    prefix = { voice = "Astrid", msg = """Välkommen till din personliga service meny,
     för saldo, tryck ett, för promille, tryck två,
     för fulöls poäng, tryck tre, för att gå tillbaka, tryck 0""" }
     exit = "main"

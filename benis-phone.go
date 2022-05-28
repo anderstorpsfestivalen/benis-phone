@@ -10,8 +10,8 @@ import (
 
 	"gitlab.com/anderstorpsfestivalen/benis-phone/controller"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/audio"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/definition"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/filesync"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/functions"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/muxer"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/phone"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/polly"
@@ -21,8 +21,9 @@ import (
 )
 
 func main() {
-	enable_s3 := flag.Bool("s3", true, "s3 sync")
-	enable_http := flag.Bool("http", true, "http server")
+	enableS3 := flag.Bool("s3", true, "s3 sync")
+	enableHttp := flag.Bool("http", true, "http server")
+	enablePhone := flag.Bool("phone", false, "Enable GPIO for physical phone")
 	flag.Parse()
 
 	log := logrus.New()
@@ -39,7 +40,7 @@ func main() {
 		log.Fatal("Could not initialize sync")
 	}
 
-	if *enable_s3 {
+	if *enableS3 {
 		fsx.Start("files/")
 	}
 
@@ -50,9 +51,6 @@ func main() {
 	}
 
 	// Setup GPIO if -phone is used
-	enablePhone := flag.Bool("phone", false, "Enable GPIO for physical phone")
-	flag.Parse()
-
 	var ctrlPhone phone.FlowPhone
 
 	if *enablePhone {
@@ -89,12 +87,12 @@ func main() {
 	_ = systemet.New(key)
 
 	// Load definition
-	def, err := definition.LoadFromFile("definitions/def.toml")
+	def, err := functions.LoadFromFile("definitions/def.toml")
 	if err != nil {
 		panic(err)
 	}
 
-	if *enable_http {
+	if *enableHttp {
 		go func() {
 			// Setup http server
 			r := gin.Default()

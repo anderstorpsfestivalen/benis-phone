@@ -16,7 +16,3 @@ func (f *Fn) IndexActions() {
 		}
 	}
 }
-
-func (f *Fn) RunPrefix() {
-
-}
