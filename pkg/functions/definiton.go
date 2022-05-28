@@ -56,10 +56,3 @@ type General struct {
 	// https://docs.aws.amazon.com/polly/latest/dg/SupportedLanguage.html
 	DefaultTTSLanguage string `toml:"default_tts_lang"`
 }
-
-type Action struct {
-	Num  int
-	Type string `toml:"t"`
-	Dst  string
-	Wait bool
-}

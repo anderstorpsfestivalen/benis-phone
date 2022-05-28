@@ -4,4 +4,6 @@ type Callable interface {
 	Enter()
 	Command()
 	Poll()
+
+	MaxInputLength() int
 }

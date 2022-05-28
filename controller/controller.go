@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -67,9 +66,12 @@ func (c *Controller) Start(wg *sync.WaitGroup) {
 		for {
 			select {
 			case key := <-keychan:
-				fmt.Println("Controller got key:", key)
+				log.Trace("Controller got key:", key)
 				if c.HookState {
-					fmt.Println("Controller acts on key", key, ". Controller is at:", "")
+					log.Trace("Controller acts on key", key, ". Controller is at:", "")
+					c.Audio.Clear()
+
+					c.handleKey(key)
 					// il := MenuOptions[c.Where].InputLength()
 					// keys += key
 
@@ -118,6 +120,27 @@ func (c *Controller) handlePrefix() error {
 		return err
 	}
 	return nil
+}
+
+func (c *Controller) handleKey(key string) {
+	// Resolve action
+	action, err := c.Definition.Functions[c.Current].ResolveAction(key)
+	if err != nil {
+		if err.Error() == "could not find key" {
+			log.Trace(key, c.Current, err.Error())
+			return
+		} else {
+			c.checkError(err)
+		}
+	}
+
+	switch action.Type {
+	case "fn":
+		if newFn, ok := c.Definition.Functions[action.Dst]; ok {
+			c.Current = newFn.Name
+			c.prefixSignal <- true
+		}
+	}
 }
 
 func (c *Controller) liftHook() {
