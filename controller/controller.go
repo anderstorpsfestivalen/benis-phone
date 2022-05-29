@@ -19,7 +19,6 @@ type Controller struct {
 	Polly      polly.Polly
 	Definition functions.Definition
 
-	Current   string
 	Callstack []string
 
 	HookState bool
@@ -41,8 +40,6 @@ func New(ph phone.FlowPhone, audio *audio.Audio, rec audio.Recorder, polly polly
 }
 
 func (c *Controller) Start(wg *sync.WaitGroup) {
-
-	c.Current = c.Definition.General.Entrypoint
 
 	//Setup Hook parsing
 	hookchan := c.Phone.GetHookChannel()
@@ -73,6 +70,7 @@ func (c *Controller) Start(wg *sync.WaitGroup) {
 					c.Audio.Clear()
 
 					c.handleKey(key)
+
 					// il := MenuOptions[c.Where].InputLength()
 					// keys += key
 
@@ -125,9 +123,13 @@ func (c *Controller) handlePrefix() error {
 
 // This is the actual control flow
 func (c *Controller) handleKey(key string) {
-	// Exit
+	// Exit, pop one from the callstack
 	if key == "0" {
-		c.exitFunction()
+		if c.getCurrent().ClearCallstack {
+			c.clearCallstack()
+		} else {
+			c.exitFunction()
+		}
 		return
 	}
 
@@ -135,7 +137,7 @@ func (c *Controller) handleKey(key string) {
 	action, err := c.getCurrent().ResolveAction(key)
 	if err != nil {
 		if err.Error() == "could not find key" {
-			log.Trace(key, c.Current, err.Error())
+			log.Trace("%v %v %v", key, *c.getCurrent(), err.Error())
 			return
 		} else {
 			c.checkError(err)
@@ -145,6 +147,12 @@ func (c *Controller) handleKey(key string) {
 	switch action.Type {
 	case "fn":
 		c.enterFunction(action.Dst)
+	case "file":
+		c.play(action.File)
+	case "randomfile":
+		c.play(action.RandomFile)
+	case "srv":
+		log.Info("srv")
 	}
 }
 
@@ -155,7 +163,7 @@ func (c *Controller) enterFunction(dst string) error {
 		c.prefixSignal <- true
 		return nil
 	}
-	return fmt.Errorf("could not find dst function: ", dst)
+	return fmt.Errorf("could not find dst function: %v", dst)
 }
 
 // Removes from the callstack
@@ -164,6 +172,13 @@ func (c *Controller) exitFunction() {
 		c.Callstack = c.Callstack[:len(c.Callstack)-1]
 		c.prefixSignal <- true
 	}
+}
+
+// Reset Callstack
+func (c *Controller) clearCallstack() {
+	c.Callstack = c.Callstack[:0]
+	c.Callstack = append(c.Callstack, c.Definition.General.Entrypoint)
+	c.prefixSignal <- true
 }
 
 // Gets the most recent added function from the callstack
@@ -194,14 +209,19 @@ func (c *Controller) slamHook() {
 	c.hs.Unlock()
 }
 
+func (c *Controller) play(pl functions.PlayGenerator) {
+	p := functions.CreatePlayable(pl)
+	log.Trace("Playing %v", p)
+	p.Play(c.Audio, c.Polly)
+}
+
 func (c *Controller) checkError(e error) {
 	if e != nil {
 		// Log the error
 		log.Error(e)
 
 		// Try to read out the error with TTS
-		p := functions.CreatePlayableFromTTS(c.Definition.EnglishTTS(e.Error()))
-		p.Play(c.Audio, c.Polly)
+		c.play(c.Definition.EnglishTTS(e.Error()))
 
 	}
 }

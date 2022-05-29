@@ -6,10 +6,10 @@ import (
 )
 
 type Fn struct {
-	Name        string
-	Prefix      Prefix
-	Exit        string
-	InputLength int
+	Name           string
+	Prefix         Prefix
+	ClearCallstack bool `toml:"clear_callstack"`
+	InputLength    int
 
 	Actions []Action
 }
@@ -17,7 +17,7 @@ type Fn struct {
 func (f *Fn) IndexActions() {
 	for i, val := range f.Actions {
 		if val.Num == 0 {
-			f.Actions[i].Num = i
+			f.Actions[i].Num = i + 1
 		}
 	}
 }

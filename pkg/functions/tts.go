@@ -16,7 +16,12 @@ func (t *TTS) SetDefault(dv string, dl string) {
 			t.Language = dl
 		}
 	}
+}
 
+func (t TTS) GetPlayable() (Playable, error) {
+	return Playable{
+		TTS: t,
+	}, nil
 }
 
 func (t *Definition) StandardTTS(message string) TTS {

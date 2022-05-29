@@ -5,4 +5,9 @@ type Action struct {
 	Type string `toml:"t"`
 	Dst  string
 	Wait bool
+
+	// actionables
+
+	File       File       `toml:"file"`
+	RandomFile RandomFile `toml:"randomfile"`
 }

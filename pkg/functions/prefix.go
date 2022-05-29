@@ -5,8 +5,8 @@ import (
 )
 
 type Prefix struct {
-	File        string
-	TTS         TTS `toml:"tts"`
+	File        File `toml:"file"`
+	TTS         TTS  `toml:"tts"`
 	Wait        bool
 	IgnoreClear bool
 }
@@ -14,11 +14,11 @@ type Prefix struct {
 func (p *Prefix) GetPlayable() (Playable, error) {
 
 	// Check if prefix is empty
-	if p.File == "" && p.TTS == (TTS{}) {
+	if p.File == (File{}) && p.TTS == (TTS{}) {
 		return Playable{}, nil
 	}
 	// Check if prefix is double defined
-	if p.File != "" && p.TTS != (TTS{}) {
+	if p.File != (File{}) && p.TTS != (TTS{}) {
 		return Playable{}, fmt.Errorf("Prefix cannot have both a file and a message. ", p.File, p.TTS.Message)
 	}
 
