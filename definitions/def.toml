@@ -59,6 +59,6 @@
     #     actions = [
     #         { t = "srv", dst= "balance"},
     #         { t = "srv", dst= "promille"},
-    #         { t = "randomfile", dst= "./files/ugandan/"},
-    #         { t = "file", dst = "files/ugandan/COMMANDO-COMMANDO.ogg", wait = true },
+    #         { t = "randomfile", randomfile = { folder = "./files/ugandan/" } },
+    #         { t = "file", file = { src = "files/ugandan/Commando-1.ogg" } },
     #     ]
