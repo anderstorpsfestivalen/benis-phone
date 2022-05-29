@@ -25,7 +25,7 @@
 # personalmenu
 [[fn]]
     name = "personalmenu"
-    prefix = { tts = {voice = "Astrid", msg = """Välkommen till din personliga service meny,
+    prefix = { tts = {voice = "Astrid", msg = """Personlig service meny,
     för saldo, tryck ett, för promille, tryck två,
     för fulöls poäng, tryck tre, för att gå tillbaka, tryck 0""" }}
     exit = "main"

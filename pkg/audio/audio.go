@@ -119,7 +119,7 @@ func (a *Audio) Clear() {
 	speaker.Clear()
 	err := a.cancel.Send(true)
 	if err != nil {
-		log.Error(err)
+		log.Trace("Audio channel clear error, unsure why this happens, likely race condition: %v", err.Error())
 	}
 }
 

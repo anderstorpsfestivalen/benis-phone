@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -19,6 +20,8 @@ type Controller struct {
 	Definition functions.Definition
 
 	Current   string
+	Callstack []string
+
 	HookState bool
 
 	hs           sync.Mutex
@@ -40,8 +43,6 @@ func New(ph phone.FlowPhone, audio *audio.Audio, rec audio.Recorder, polly polly
 func (c *Controller) Start(wg *sync.WaitGroup) {
 
 	c.Current = c.Definition.General.Entrypoint
-
-	//fmt.Println(c.Definition)
 
 	//Setup Hook parsing
 	hookchan := c.Phone.GetHookChannel()
@@ -110,7 +111,7 @@ func (c *Controller) Start(wg *sync.WaitGroup) {
 
 func (c *Controller) handlePrefix() error {
 
-	pr, err := c.Definition.Functions[c.Current].Prefix.GetPlayable()
+	pr, err := c.getCurrent().Prefix.GetPlayable()
 	if err != nil {
 		return err
 	}
@@ -122,9 +123,16 @@ func (c *Controller) handlePrefix() error {
 	return nil
 }
 
+// This is the actual control flow
 func (c *Controller) handleKey(key string) {
+	// Exit
+	if key == "0" {
+		c.exitFunction()
+		return
+	}
+
 	// Resolve action
-	action, err := c.Definition.Functions[c.Current].ResolveAction(key)
+	action, err := c.getCurrent().ResolveAction(key)
 	if err != nil {
 		if err.Error() == "could not find key" {
 			log.Trace(key, c.Current, err.Error())
@@ -136,19 +144,42 @@ func (c *Controller) handleKey(key string) {
 
 	switch action.Type {
 	case "fn":
-		if newFn, ok := c.Definition.Functions[action.Dst]; ok {
-			c.Current = newFn.Name
-			c.prefixSignal <- true
-		}
+		c.enterFunction(action.Dst)
 	}
+}
+
+// Appends to the callstack if function exists and tries to schedule prefix
+func (c *Controller) enterFunction(dst string) error {
+	if newFn, ok := c.Definition.Functions[dst]; ok {
+		c.Callstack = append(c.Callstack, newFn.Name)
+		c.prefixSignal <- true
+		return nil
+	}
+	return fmt.Errorf("could not find dst function: ", dst)
+}
+
+// Removes from the callstack
+func (c *Controller) exitFunction() {
+	if len(c.Callstack) > 1 {
+		c.Callstack = c.Callstack[:len(c.Callstack)-1]
+		c.prefixSignal <- true
+	}
+}
+
+// Gets the most recent added function from the callstack
+func (c *Controller) getCurrent() *functions.Fn {
+	current := c.Callstack[len(c.Callstack)-1]
+	return c.Definition.Functions[current]
 }
 
 func (c *Controller) liftHook() {
 	c.hs.Lock()
 	c.HookState = true
 	c.Audio.Clear()
-	log.Info("Hook is lifted")
+	c.Callstack = append(c.Callstack, c.Definition.General.Entrypoint)
 	c.prefixSignal <- true
+
+	log.Info("Hook is lifted")
 	c.hs.Unlock()
 }
 
@@ -156,6 +187,9 @@ func (c *Controller) slamHook() {
 	c.hs.Lock()
 	c.HookState = false
 	c.Audio.Clear()
+
+	c.Callstack = c.Callstack[:0]
+
 	log.Info("Hook is slammed")
 	c.hs.Unlock()
 }
