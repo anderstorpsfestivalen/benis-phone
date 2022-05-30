@@ -96,6 +96,27 @@
         { t = "file", file = { src = "files/ugandan/WHAT-THE-FU.ogg" } },
     ]
 
+# syralotto
+[[fn]]
+    name = "syralotto"
+    prefix = { tts = { msg = """TRYCK ETT FÖR RANDOM, 
+    TVÅ till FYRKANT FÖR FASTA ALTERNATIV,
+    NOLL FÖR ATT GÅ TILLBAKA""" } }
+
+    actions = [
+        { t = "file", file = { src = "files/lasse-liten/e.ogg" } },
+        { t = "file", file = { src = "files/lasse-liten/lsd.ogg" } },
+        { t = "file", file = { src = "files/lasse-liten/acid-house.ogg" } },
+        { t = "file", file = { src = "files/lasse-liten/goa-trance.ogg" } },
+        { t = "file", file = { src = "files/lasse-liten/electro.ogg" } },
+        { t = "file", file = { src = "files/lasse-liten/garage.ogg" } },
+        { t = "file", file = { src = "files/lasse-liten/deep-house.ogg" } },
+        { t = "file", file = { src = "files/lasse-liten/e-type.ogg" } },
+        { t = "file", file = { src = "files/lasse-liten/allt-snurrar.ogg" } },
+        { t = "file", file = { src = "files/lasse-liten/torr-i-munnen.ogg" } },
+        { t = "file", file = { src = "files/lasse-liten/josses-vad-det-gar-igang.ogg" } },
+    ]
+
     # example
     # [[fn]]
     #     name = "example"
