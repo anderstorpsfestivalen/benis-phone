@@ -64,8 +64,6 @@ func (a *Audio) PlayMP3FromStream(data []byte) error {
 
 //PlayFromFile playes a MP3, WAV, FLAC or OGG file from disk.
 func (a *Audio) PlayFromFile(filename string) error {
-	a.ctrl.Lock()
-	defer a.ctrl.Unlock()
 
 	a.Clear()
 
