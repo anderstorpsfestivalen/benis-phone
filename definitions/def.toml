@@ -24,7 +24,7 @@
         klockan {{.Hour}} och {{.Minute}}""", args = { station = "Reftele" } } },
         { num = 4, t = "fn", dst = "systemetmenu" },
         { num = 5, t = "def", dst = "uganda" },
-        { num = 11, t = "fn", dst = "dee" },
+        { num = 9, t = "fn", dst = "extramenu" },
     ]
 
 # personalmenu
@@ -33,12 +33,52 @@
     prefix = { tts = { voice = "Astrid", msg = """Personlig service meny,
     för saldo, tryck ett, för promille, tryck två,
     för fulöls poäng, tryck tre, för att gå tillbaka, tryck 0""" } }
-    clear_callstack = true
 
     actions = [
         { t = "srv", dst = "balance" },
         { t = "srv", dst = "promille" },
         { t = "srv", dst = "fulolpoints" },
+    ]
+
+# extramenu
+[[fn]]
+    name = "extramenu"
+    prefix = { tts = { voice = "Astrid", msg = """Välkommen till extra menyn,
+     för perrra, tryck ett,
+     för drog slang, tryck två,
+     ugandan, tryck tre,
+     syra lotto, tryck fyra,
+     för att gå tillbaka, tryck 0""" } }
+
+    actions = [
+        { t = "fn", dst = "perrralotto" },
+        { t = "srv", srv = { dst = "drogslang", tmpl = """Har du koll på drogslangen? {{.Slang}}""" } },
+        { t = "fn", dst = "ugandan" },
+    ]
+
+
+################################
+########## SOUNDBOARDS 
+################################
+# perrralotto
+[[fn]]
+    name = "perrralotto"
+    prefix = { tts = { msg = """TRYCK ETT FÖR RANDOM, 
+    TVÅ till FYRKANT FÖR FASTA ALTERNATIV,
+    NOLL FÖR ATT GÅ TILLBAKA""" } }
+
+    actions = [
+        { t = "randomfile", randomfile = { folder = "./files/perrra/" } },
+        { t = "file", file = { src = "files/perrra/are-bengt.ogg" } },
+        { t = "file", file = { src = "files/perrra/avinstallera-win95.ogg" } },
+        { t = "file", file = { src = "files/perrra/det-var-inte-bra.ogg" } },
+        { t = "file", file = { src = "files/perrra/en-warez-dator.ogg" } },
+        { t = "file", file = { src = "files/perrra/fixa-lite-skit.ogg" } },
+        { t = "file", file = { src = "files/perrra/fixa-lite-warez.ogg" } },
+        { t = "file", file = { src = "files/perrra/hackare-va.ogg" } },
+        { t = "file", file = { src = "files/perrra/hur-ar-det-med-mircwaret.ogg" } },
+        { t = "file", file = { src = "files/perrra/knarket.ogg" } },
+        { t = "file", file = { src = "files/perrra/pirat-version.ogg" } },
     ]
 
 
