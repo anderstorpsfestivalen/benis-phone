@@ -1,20 +1,40 @@
 package train
 
 import (
-	"flag"
+	"bytes"
 	"fmt"
+	"text/template"
 
 	"github.com/coral/trafikverket"
+	"github.com/coral/trafikverket/responses/trainannouncement"
+	"github.com/coral/trafikverket/responses/trainstation"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/secrets"
 )
 
 type Train struct{}
 
-func (f *Train) Get(string) (string, error) {
+func (f *Train) Get(input string, tmpl string, arguments map[string]string) (string, error) {
+	type Times struct {
+		K      trainannouncement.TrainAnnouncement
+		From   trainstation.TrainStation
+		To     trainstation.TrainStation
+		Hour   string
+		Minute string
+	}
+
+	ttmpl, err := template.New("traintimes").Parse(tmpl)
+	if err != nil {
+		return "", err
+	}
+
 	credentials := secrets.Loaded
 
 	var searchstation = "Reftele"
-	flag.Parse()
+
+	//check for station argument
+	if v, ok := arguments["station"]; ok {
+		searchstation = v
+	}
 
 	tf := trafikverket.New(credentials.Trafiklab)
 
@@ -49,17 +69,26 @@ func (f *Train) Get(string) (string, error) {
 				k.TrackAtLocation = "ett"
 			}
 
-			formatted = formatted +
-				k.InformationOwner + ", " +
-				k.ProductInformation[0] + ", " +
-				k.TypeOfTraffic + " nummer, " +
-				k.TechnicalTrainIdent + ", " +
-				"Från " + from.AdvertisedLocationName + ", " +
-				"Till " + to.AdvertisedLocationName + ", " +
-				"avgår från spår, " + k.TrackAtLocation +
-				", klockan, " + formatted_hour +
-				", och, " + formatted_minute
+			d := Times{
+				K:      k,
+				From:   from,
+				To:     to,
+				Hour:   formatted_hour,
+				Minute: formatted_minute,
+			}
+
+			buf := new(bytes.Buffer)
+			err = ttmpl.Execute(buf, d)
+			if err != nil {
+				return "", err
+			}
+
+			formatted = formatted + buf.String()
 		}
 	}
 	return formatted, nil
+}
+
+func (t *Train) MaxInputLength() int {
+	return 0
 }

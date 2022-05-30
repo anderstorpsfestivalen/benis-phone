@@ -10,6 +10,7 @@ import (
 	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/functions"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/phone"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/polly"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/services"
 )
 
 type Controller struct {
@@ -146,13 +147,14 @@ func (c *Controller) handleKey(key string) {
 
 	switch action.Type {
 	case "fn":
-		c.enterFunction(action.Dst)
+		c.checkError(c.enterFunction(action.Dst))
 	case "file":
 		c.play(action.File)
 	case "randomfile":
 		c.play(action.RandomFile)
 	case "srv":
-		log.Info("srv")
+		err := c.runService(action.Service)
+		c.checkError(err)
 	}
 }
 
@@ -179,6 +181,23 @@ func (c *Controller) clearCallstack() {
 	c.Callstack = c.Callstack[:0]
 	c.Callstack = append(c.Callstack, c.Definition.General.Entrypoint)
 	c.prefixSignal <- true
+}
+
+// Run service
+func (c *Controller) runService(srv functions.Service) error {
+	data, err := services.ServiceRegistry[srv.Destination].Get("", srv.Template, srv.Arguments)
+	if err != nil {
+		return err
+	}
+
+	t := c.Definition.StandardTTS(data)
+	if srv.TTS != (functions.TTS{}) {
+		t = srv.TTS
+	}
+
+	c.play(t)
+
+	return nil
 }
 
 // Gets the most recent added function from the callstack

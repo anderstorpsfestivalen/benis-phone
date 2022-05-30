@@ -10,4 +10,5 @@ type Action struct {
 
 	File       File       `toml:"file"`
 	RandomFile RandomFile `toml:"randomfile"`
+	Service    Service    `toml:"srv"`
 }

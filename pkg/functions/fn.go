@@ -45,12 +45,14 @@ func (f *Fn) ResolveAction(key string) (*Action, error) {
 	}
 
 	l := Action{}
+	found := false
 	for _, a := range f.Actions {
 		if a.Num == num {
 			l = a
+			found = true
 		}
 	}
-	if l == (Action{}) {
+	if !found {
 		return nil, fmt.Errorf("could not find key")
 	}
 
