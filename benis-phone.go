@@ -9,8 +9,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 
-	"gitlab.com/anderstorpsfestivalen/benis-phone/controller"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/audio"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/controller"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/filesync"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/functions"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/muxer"
