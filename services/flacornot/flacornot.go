@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+
+	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/secrets"
 )
 
 type APIResopnse struct {
@@ -27,13 +29,14 @@ type APIResopnse struct {
 type FlacOrNot struct {
 }
 
-func (f *FlacOrNot) Get(string) (string, error) {
+func (f *FlacOrNot) Get(input string, tmpl string, arguments map[string]string) (string, error) {
 
 	s := APIResopnse{}
 	// temp for testing
 	//res, err := http.Get("https://files.anderstorpsfestivalen.se/dump/playing.json")
 	// ATP prod IP
-	res, err := http.Get("http://45.154.31.62:8080")
+	credentials := secrets.Loaded
+	res, err := http.Get(credentials.MediaServer)
 
 	if err != nil {
 		return "", fmt.Errorf("Could not craft request from API")
@@ -62,4 +65,8 @@ func (f *FlacOrNot) Get(string) (string, error) {
 
 	return message, nil
 
+}
+
+func (t *FlacOrNot) MaxInputLength() int {
+	return 0
 }

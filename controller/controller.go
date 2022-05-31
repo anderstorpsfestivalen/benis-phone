@@ -199,6 +199,7 @@ func (c *Controller) runService(srv functions.Service) error {
 	t := c.Definition.StandardTTS(data)
 	if srv.TTS != (functions.TTS{}) {
 		t = srv.TTS
+		t.Message = data
 	}
 
 	c.play(t)

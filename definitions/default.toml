@@ -23,7 +23,7 @@
         avgår från spår: {{.K.TrackAtLocation}}, 
         klockan {{.Hour}} och {{.Minute}}""", args = { station = "Reftele" } } },
         { num = 4, dst = "systemetmenu" },
-        { num = 5, dst = "uganda" },
+        { num = 5, srv = { dst = "flacornot", tts = { voice = "Kendra", lang = "en-US" } } },
         { num = 9, dst = "extramenu" },
     ]
 

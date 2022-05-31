@@ -21,6 +21,8 @@ type Credentials struct {
 	Backend   Backend
 	Trafiklab string
 	Systemet  string
+
+	MediaServer string
 }
 
 var Loaded Credentials

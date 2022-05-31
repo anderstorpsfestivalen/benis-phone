@@ -2,6 +2,7 @@ package services
 
 import (
 	"gitlab.com/anderstorpsfestivalen/benis-phone/services/drogslang"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/services/flacornot"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/services/train"
 )
 
@@ -11,7 +12,7 @@ type Service interface {
 }
 
 var ServiceRegistry = map[string]Service{
-	// "flacornot":  &flacornot.FlacOrNot{},
+	"flacornot": &flacornot.FlacOrNot{},
 	// "barclosing": &barclosing.BarClosing{},
 	"traintimes": &train.Train{},
 	"drogslang":  &drogslang.Drogslang{},
