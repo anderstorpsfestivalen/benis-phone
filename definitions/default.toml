@@ -24,6 +24,7 @@
         klockan {{.Hour}} och {{.Minute}}""", args = { station = "Reftele" } } },
         { num = 4, dst = "systemetmenu" },
         { num = 5, srv = { dst = "flacornot", tts = { voice = "Kendra", lang = "en-US" } } },
+        { num = 6, srv = { dst = "idiom" } },
         { num = 7, dst = "boraaaaaas" },
         { num = 9, dst = "extramenu" },
     ]
