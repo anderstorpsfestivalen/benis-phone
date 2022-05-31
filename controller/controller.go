@@ -123,6 +123,12 @@ func (c *Controller) handlePrefix() error {
 }
 
 // This is the actual control flow
+//
+// Yes coral this is the function you scroll over everytime
+// putting this here as a visual marker
+// to not get lost in this spaghetti codebase
+//
+//
 func (c *Controller) handleKey(key string) {
 	// Exit, pop one from the callstack
 	if key == "0" {
@@ -161,6 +167,8 @@ func (c *Controller) handleKey(key string) {
 	case "srv":
 		err := c.runService(action.Service)
 		c.checkError(err)
+	case "clear":
+		c.Audio.Clear()
 	}
 }
 

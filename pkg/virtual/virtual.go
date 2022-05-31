@@ -54,6 +54,14 @@ func (d *Virtual) startRead() {
 				default:
 				}
 			} else {
+				//hack to convert u to * and j to #
+				if s == "u" {
+					s = "10"
+				}
+				if s == "j" {
+					s = "11"
+				}
+
 				select {
 				case d.KeyChannel <- s:
 					log.Debug("Wrote key: " + s + " to keychannel")

@@ -50,11 +50,14 @@ func (p *Playable) Play(a *audio.Audio, polly polly.Polly) error {
 		} else {
 			go a.PlayMP3FromStream(ttsData)
 		}
-	} else {
-		return fmt.Errorf("Playable type not defined")
+		return nil
 	}
 
-	return nil
+	if p.Clear {
+		return nil
+	}
+
+	return fmt.Errorf("Playable type not defined")
 }
 
 type PlayGenerator interface {

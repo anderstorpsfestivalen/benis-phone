@@ -27,6 +27,8 @@
         { num = 6, srv = { dst = "idiom" } },
         { num = 7, dst = "boraaaaaas" },
         { num = 9, dst = "extramenu" },
+        # announce
+        { num = 10, clear = true },
     ]
 
 # personalmenu
