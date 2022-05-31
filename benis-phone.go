@@ -25,6 +25,9 @@ func main() {
 	enableS3 := flag.Bool("s3", true, "s3 sync")
 	enableHttp := flag.Bool("http", true, "http server")
 	enablePhone := flag.Bool("phone", false, "Enable GPIO for physical phone")
+	definition := flag.String("def",
+		"definitions/default.toml",
+		"Set a custom definition file, standard is definitions/default.toml")
 	flag.Parse()
 
 	log := logrus.New()
@@ -88,7 +91,7 @@ func main() {
 	_ = systemet.New(key)
 
 	// Load definition
-	def, err := functions.LoadFromFile("definitions/def.toml")
+	def, err := functions.LoadFromFile(*definition)
 	if err != nil {
 		panic(err)
 	}

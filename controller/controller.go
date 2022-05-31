@@ -145,7 +145,13 @@ func (c *Controller) handleKey(key string) {
 		}
 	}
 
-	switch action.Type {
+	actionType, err := action.Type()
+	if err != nil {
+		c.checkError(err)
+		return
+	}
+
+	switch actionType {
 	case "fn":
 		c.checkError(c.enterFunction(action.Dst))
 	case "file":
