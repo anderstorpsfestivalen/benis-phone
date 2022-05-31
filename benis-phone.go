@@ -2,13 +2,11 @@ package main
 
 import (
 	"flag"
-	"fmt"
-	"net/http"
 	"sync"
 
-	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 
+	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/api"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/audio"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/controller"
 	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/filesync"
@@ -96,22 +94,6 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Println(def)
-
-	if *enableHttp {
-		go func() {
-			// Setup http server
-			r := gin.Default()
-			authorized := r.Group("/", gin.BasicAuth(gin.Accounts{
-				"recording": "penis",
-			}))
-
-			authorized.StaticFS("message", http.Dir("files/recording/message"))
-			authorized.StaticFS("random", http.Dir("files/recording/random"))
-			r.Run()
-		}()
-	}
-
 	// Start controller
 	log.Info("Starting Controller")
 	log.SetLevel(logrus.DebugLevel)
@@ -126,6 +108,12 @@ func main() {
 	}
 
 	go ctrl.Start(&waitgroup)
+
+	if *enableHttp {
+		waitgroup.Add(1)
+		srv := api.Server{}
+		srv.Start(&waitgroup, &ctrl)
+	}
 
 	waitgroup.Wait()
 

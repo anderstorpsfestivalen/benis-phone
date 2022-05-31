@@ -10,7 +10,7 @@ type AWSCred struct {
 	Secret string
 }
 
-type Backend struct {
+type PWCombo struct {
 	Username string
 	Password string
 }
@@ -18,11 +18,12 @@ type Backend struct {
 type Credentials struct {
 	S3        AWSCred
 	Polly     AWSCred
-	Backend   Backend
+	Backend   PWCombo
 	Trafiklab string
 	Systemet  string
 
-	MediaServer string
+	HTTPServerAuth PWCombo
+	MediaServer    string
 }
 
 var Loaded Credentials
