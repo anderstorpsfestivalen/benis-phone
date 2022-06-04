@@ -12,6 +12,11 @@ type Service interface {
 	MaxInputLength() int
 }
 
+type ServiceResponse struct {
+	Message string
+	State   map[string]string
+}
+
 var ServiceRegistry = map[string]Service{
 	"flacornot": &flacornot.FlacOrNot{},
 	// "barclosing": &barclosing.BarClosing{},
