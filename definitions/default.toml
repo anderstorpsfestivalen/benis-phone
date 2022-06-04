@@ -12,7 +12,10 @@
     name = "main"
     prefix = { file = { src = "files/atp-intro.mp3" } }
     actions = [
-        { num = 1, dst = "personalmenu" },
+        # 1 ) Personlig meny
+        { num = 1, gate = { dst = "validatephone", accept = "personalmenu", prompt = """
+        Fyll i ditt telefonnummer, tio siffror. Avsluta med fyrkant.""", deny_tmpl = """
+        "Telefonnummret kan inte hittas, var god försök igen.""" } },
         { num = 2, dst = "uganda" },
         { num = 3, srv = { dst = "traintimes", tmpl = """{{.K.InformationOwner}}, 
         {{index .K.ProductInformation 0}}, 
@@ -37,6 +40,9 @@
     prefix = { tts = { voice = "Astrid", msg = """Personlig service meny,
     för saldo, tryck ett, för promille, tryck två,
     för fulöls poäng, tryck tre, för att gå tillbaka, tryck 0""" } }
+    gate = { dst = "validatephone", accept = "personalmenu", prompt = """
+        Fyll i ditt telefonnummer, tio siffror. Avsluta med fyrkant.""", deny_tmpl = """
+        "Telefonnummret kan inte hittas, var god försök igen.""" }
 
     actions = [
         { dst = "balance" },
