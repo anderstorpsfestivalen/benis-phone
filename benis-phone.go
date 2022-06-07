@@ -100,8 +100,9 @@ func main() {
 	ctrl := controller.New(ctrlPhone, ad, rec, polly, def)
 
 	var waitgroup sync.WaitGroup
-	waitgroup.Add(1)
 
+	//Phone
+	waitgroup.Add(1)
 	err = ctrlPhone.Init()
 	if err != nil {
 		log.Panic(err)

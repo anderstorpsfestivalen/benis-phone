@@ -1,9 +1,9 @@
 package virtual
 
 import (
-	"bufio"
 	"os"
 
+	"github.com/eiannone/keyboard"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -22,58 +22,123 @@ func New() *Virtual {
 }
 
 func (d *Virtual) Init() error {
+	keysEvents, err := keyboard.GetKeys(1)
+	if err != nil {
+		return err
+	}
 
-	go d.startRead()
+	go d.startRead(keysEvents)
 
 	return nil
 
 }
 
-func (d *Virtual) startRead() {
+func (d *Virtual) startRead(k <-chan keyboard.KeyEvent) {
+	defer func() {
+		_ = keyboard.Close()
+	}()
 
-	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		text := []byte(scanner.Text())
-		if len(text) > 0 {
-			s := string(text[0])
-			log.Debug("Keyboard input: " + s)
-			if s == "o" || s == "k" {
-				var dem bool = false
-				if s == "o" {
-					dem = true
-					d.hookState = true
-				}
+	for {
+		event := <-k
+		if event.Err != nil {
+			log.Fatal(event.Err)
+		}
 
-				if s == "k" {
-					d.hookState = false
-				}
+		log.Trace("You pressed: rune %q, key %X\r\n", event.Rune, event.Key)
 
-				select {
-				case d.HookChannel <- dem:
-					log.Debug("Wrote to hookchannel")
-				default:
-				}
-			} else {
-				//hack to convert u to * and j to #
-				if s == "u" {
-					s = "10"
-				}
-				if s == "j" {
-					s = "11"
-				}
+		// Quit
+		if event.Key == keyboard.KeyEsc {
+			log.Info("Escape pressed - Exiting")
+			os.Exit(0)
+		}
 
-				select {
-				case d.KeyChannel <- s:
-					log.Debug("Wrote key: " + s + " to keychannel")
-				default:
-				}
+		s := string(event.Rune)
+
+		if s == "o" || s == "k" {
+			var dem bool = false
+			if s == "o" {
+				dem = true
+				d.hookState = true
+			}
+
+			if s == "k" {
+				d.hookState = false
+			}
+
+			select {
+			case d.HookChannel <- dem:
+				log.Debug("Wrote to hookchannel")
+			default:
+			}
+		} else {
+			//hack to convert u to * and j to #
+			if s == "u" {
+				s = "10"
+			}
+			if s == "j" {
+				s = "11"
+			}
+
+			select {
+			case d.KeyChannel <- s:
+				log.Debug("Wrote key: " + s + " to keychannel")
+			default:
+
 			}
 
 		}
-
 	}
-
 }
+
+// Saving this shit code because I know that I needed it at some point?
+// Can't remember though lol
+// maybe there was some linux lib issue with this approach?
+//
+// func (d *Virtual) startRead() {
+
+// 	scanner := bufio.NewScanner(os.Stdin)
+// 	for scanner.Scan() {
+// 		text := []byte(scanner.Text())
+// 		if len(text) > 0 {
+// 			s := string(text[0])
+// 			log.Debug("Keyboard input: " + s)
+// 			if s == "o" || s == "k" {
+// 				var dem bool = false
+// 				if s == "o" {
+// 					dem = true
+// 					d.hookState = true
+// 				}
+
+// 				if s == "k" {
+// 					d.hookState = false
+// 				}
+
+// 				select {
+// 				case d.HookChannel <- dem:
+// 					log.Debug("Wrote to hookchannel")
+// 				default:
+// 				}
+// 			} else {
+// 				//hack to convert u to * and j to #
+// 				if s == "u" {
+// 					s = "10"
+// 				}
+// 				if s == "j" {
+// 					s = "11"
+// 				}
+
+// 				select {		case d.KeyChannel <- s:
+// 					log.Debug("Wrote key: " + s + " to keychannel")
+// 				default:
+//
+// 		}
+// 			}
+
+// 		}
+
+// 	}
+
+// }
 
 func (d *Virtual) Close() {
 
