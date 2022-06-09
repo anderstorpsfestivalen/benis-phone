@@ -15,7 +15,11 @@
         # 1 ) Personlig meny
         { num = 1, dst = "personalmenu" },
         { num = 2, dst = "uganda" },
-        { num = 3, srv = { dst = "traintimes", tmpl = """{{.K.InformationOwner}}, 
+        { num = 4, dst = "systemetmenu" },
+        { num = 5, srv = { dst = "flacornot", tts = { voice = "Kendra", lang = "en-US" } } },
+        { num = 6, srv = { dst = "idiom" } },
+        { num = 7, dst = "boraaaaaas" },
+        { num = 8, srv = { dst = "traintimes", tmpl = """{{.K.InformationOwner}}, 
         {{index .K.ProductInformation 0}}, 
         {{.K.TypeOfTraffic}} nummer,  
         {{.K.TechnicalTrainIdent}}, 
@@ -23,10 +27,6 @@
         Till {{.To.AdvertisedLocationName}},  
         avgår från spår: {{.K.TrackAtLocation}}, 
         klockan {{.Hour}} och {{.Minute}}""", args = { station = "Reftele" } } },
-        { num = 4, dst = "systemetmenu" },
-        { num = 5, srv = { dst = "flacornot", tts = { voice = "Kendra", lang = "en-US" } } },
-        { num = 6, srv = { dst = "idiom" } },
-        { num = 7, dst = "boraaaaaas" },
         { num = 9, dst = "extramenu" },
         # announce
         { num = 10, clear = true },
