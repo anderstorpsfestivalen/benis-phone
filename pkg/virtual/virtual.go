@@ -29,6 +29,19 @@ func (d *Virtual) Init() error {
 
 	go d.startRead(keysEvents)
 
+	log.Info(`Virtual phone started
+	
+	Key Mapping
+	
+	0-9: 0-9
+	U: *
+	J: #
+
+	O: lift hook
+	K: slam hook
+
+	ESC: quit benis-phone`)
+
 	return nil
 
 }
