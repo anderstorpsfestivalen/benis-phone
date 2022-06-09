@@ -1,18 +1,16 @@
-# MCH 2022
-
 [general]
     entrypoint = "main"
     # AWS Polly specific
     # https://docs.aws.amazon.com/polly/latest/dg/voicelist.html
-    default_tts_voice = "Kendra"
+    default_tts_voice = "Astrid"
     # en-US , sv-SE
     # https://docs.aws.amazon.com/polly/latest/dg/SupportedLanguage.html
-    default_tts_lang = "en-US"
+    default_tts_lang = "sv-SE"
 
 # main
 [[fn]]
     name = "main"
-    prefix = { tts = { msg = "WELCOME TO THE PHONE SYSTEM" } }
+    prefix = { file = { src = "files/atp-intro.mp3" } }
     actions = [
         # 1 ) Personlig meny
         { num = 1, dst = "personalmenu" },
@@ -34,6 +32,25 @@
         { num = 10, clear = true },
     ]
 
+# personalmenu
+[[fn]]
+    name = "personalmenu"
+
+    gate = { dst = "validatephone", accept = "personalmenu", prompt = """
+        Fyll i ditt telefonnummer, tio siffror. Avsluta med fyrkant.""", deny_tmpl = """
+        "Telefonnummret {{.Input}] kan inte hittas, var god försök igen.""" }
+
+    prefix = { tts = { voice = "Astrid", msg = """Personlig service meny,
+    för saldo, tryck ett, för promille, tryck två,
+    för fulöls poäng, tryck tre, för att gå tillbaka, tryck 0""" } }
+
+
+    actions = [
+        { dst = "balance" },
+        { dst = "promille" },
+        { dst = "fulolpoints" },
+    ]
+
 # extramenu
 [[fn]]
     name = "extramenu"
@@ -51,6 +68,47 @@
         { dst = "syralotto" },
     ]
 
+# systemetmenu
+[[fn]]
+    name = "systemetmenu"
+    prefix = { tts = { voice = "Astrid", msg = """Tryck ett,
+     för antalet arboga 10 komma 2 i lager på systembolaget i gislaved,
+     tryck två, för systembolaget produkt sök,
+     tryck tre, för lagerstatus för produktid,
+     för att återgå, tryck 0""" } }
+
+    actions = [
+
+        # Systemetstock
+        { srv = { dst = "systemetstock", tmpl = """Antalet Arboga 10.2 i lager på Systembolaget Gislaved
+         är just nu {{.Stock}}""", args = { productid = "508393", storeid = "0611" } } },
+
+        # Systemet has changed their API resonse
+        # so this has to be rewritten lol
+        # fml
+        #
+        # SystemetPID
+        # Bit messy here but there's a prefix and there's a service sequentially
+        # { prefix = { tts = { msg = """
+        # Mata in Systembolagets artikelnummer, 4 siffror, avsluta med fyrkant.
+        # """ } }, srv = { dst = "systemetpid", tmpl = """
+        #  Artikelnummer: {{.R.ProductNumberShort}}, {{.R.ProductNameBold}},
+        #  Producent: {{.R.ProducerName}},
+        #  Kategori: {{.R.CategoryLevel1}},
+        #  Förpackning: {{.R.BottleTextShort}},
+        #  Volym: {{printf "%.0f" .R.Volume}} milliliter,
+        #  Alkohol procent: {{.Percent}},
+        #  Pris: {{printf "%.0f" .R.Price}} kronor,
+        #  Pant: {{printf "%.0f" .R.RecycleFee}} krona,
+        #  Användnignsområden: {{.R.Usage}},
+        #  Smak: {{.R.Taste}}, 
+        #  Färg: {{.R.Color}},
+        #  Passar bra till: 
+        # {{range $val := .R.TasteSymbols}}
+        #     {{$val}}", 
+        # {{end}}
+        #  """ } },
+    ]
 
 ################################
 ########## SOUNDBOARDS 
@@ -136,3 +194,17 @@
         { file = { src = "files/chatten/johanna-toalett.ogg" } },
         { file = { src = "files/chatten/halla-klockan-8.ogg" } },
     ]
+
+    # example
+    # [[fn]]
+    #     name = "example"
+    #     prefix = { tts = {voice = "Astrid", msg = """this function
+    #     has a lot of things so i can remember""", lang = "en-US" } }
+    ##    this will ignore the callstack and go back to the entrypoint
+    #     clear_callstack = true
+    #     actions = [
+    #         { t = "srv", dst= "balance"},
+    #         { t = "srv", dst= "promille"},
+    #         { t = "randomfile", randomfile = { folder = "./files/ugandan/" } },
+    #         { t = "file", file = { src = "files/ugandan/Commando-1.ogg" } },
+    #     ]
