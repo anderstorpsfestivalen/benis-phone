@@ -2,7 +2,7 @@ package systemet
 
 import (
 	log "github.com/sirupsen/logrus"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/services"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/extensions/services"
 )
 
 // This is such a shit hack to retrofit this into the new structure

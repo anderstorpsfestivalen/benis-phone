@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/functions"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/core/functions"
 )
 
 type Collector struct {

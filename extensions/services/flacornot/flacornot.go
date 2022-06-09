@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/secrets"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/core/secrets"
 )
 
 type APIResopnse struct {

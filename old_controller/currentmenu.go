@@ -1,7 +1,7 @@
 package controller
 
 import (
-	"gitlab.com/anderstorpsfestivalen/benis-phone/services/currentmenu"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/extensions/services/currentmenu"
 )
 
 type CurrentMenu struct {

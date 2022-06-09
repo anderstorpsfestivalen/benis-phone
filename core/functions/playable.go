@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/audio"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/polly"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/core/audio"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/core/polly"
 )
 
 type Playable struct {

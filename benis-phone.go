@@ -6,17 +6,17 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/api"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/audio"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/controller"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/filesync"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/functions"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/muxer"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/phone"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/polly"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/secrets"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/virtual"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/services/systemet"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/core/api"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/core/audio"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/core/controller"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/core/filesync"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/core/functions"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/core/muxer"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/core/phone"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/core/polly"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/core/secrets"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/core/virtual"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/extensions/services/systemet"
 )
 
 func main() {
@@ -24,8 +24,8 @@ func main() {
 	enableHttp := flag.Bool("http", true, "http server")
 	enablePhone := flag.Bool("phone", false, "Enable GPIO for physical phone")
 	definition := flag.String("def",
-		"definitions/default.toml",
-		"Set a custom definition file, standard is definitions/default.toml")
+		"configurations/default.toml",
+		"Set a custom definition file, standard is configurations/default.toml")
 	flag.Parse()
 
 	log := logrus.New()

@@ -3,7 +3,7 @@ package controller
 import (
 	"fmt"
 
-	"gitlab.com/anderstorpsfestivalen/benis-phone/services/train"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/extensions/services/train"
 )
 
 type TrainMenu struct {

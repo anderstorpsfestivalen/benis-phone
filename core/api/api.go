@@ -5,8 +5,8 @@ import (
 	"sync"
 
 	"github.com/gin-gonic/gin"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/controller"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/secrets"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/core/controller"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/core/secrets"
 )
 
 type Server struct {

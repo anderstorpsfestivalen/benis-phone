@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	log "github.com/sirupsen/logrus"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/services/backend"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/extensions/services/backend"
 )
 
 type Promille struct {

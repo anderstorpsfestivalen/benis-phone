@@ -16,7 +16,7 @@ import (
 	"github.com/faiface/beep/speaker"
 	"github.com/faiface/beep/vorbis"
 	"github.com/faiface/beep/wav"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/broadcast"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/core/broadcast"
 )
 
 type Audio struct {

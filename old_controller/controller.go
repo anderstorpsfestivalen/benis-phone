@@ -7,10 +7,10 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/audio"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/phone"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/polly"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/services/systemet"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/core/audio"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/core/phone"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/core/polly"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/extensions/services/systemet"
 )
 
 var MenuOptions = map[string]MenuOption{

@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/secrets"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/core/secrets"
 )
 
 type FulolPointsResp struct {

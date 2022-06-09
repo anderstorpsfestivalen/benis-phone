@@ -8,7 +8,7 @@ import (
 	"github.com/coral/trafikverket"
 	"github.com/coral/trafikverket/responses/trainannouncement"
 	"github.com/coral/trafikverket/responses/trainstation"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/pkg/secrets"
+	"gitlab.com/anderstorpsfestivalen/benis-phone/core/secrets"
 )
 
 type Train struct{}
