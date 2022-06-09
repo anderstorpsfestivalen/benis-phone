@@ -27,6 +27,8 @@ func (f *SystemetPid) Get(input string, tmpl string, arguments map[string]string
 
 	res, err := f.api.SearchForItem(input)
 
+	fmt.Println(err)
+
 	if err != nil {
 		// Den här triggar om produkten inte hittas i systembolagets API
 		if err.Error() == "No products found" {

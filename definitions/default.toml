@@ -82,28 +82,32 @@
         # Systemetstock
         { srv = { dst = "systemetstock", tmpl = """Antalet Arboga 10.2 i lager på Systembolaget Gislaved
          är just nu {{.Stock}}""", args = { productid = "508393", storeid = "0611" } } },
-        
+
+        # Systemet has changed their API resonse
+        # so this has to be rewritten lol
+        # fml
+        #
         # SystemetPID
         # Bit messy here but there's a prefix and there's a service sequentially
-        { prefix = { tts = { msg = """
-        Mata in Systembolagets artikelnummer, 4 siffror, avsluta med fyrkant.
-        """ } }, srv = { dst = "systemetpid", tmpl = """
-         Artikelnummer: {{.R.ProductNumberShort}}, {{.R.ProductNameBold}},
-         Producent: {{.R.ProducerName}},
-         Kategori: {{.R.CategoryLevel1}},
-         Förpackning: {{.R.BottleTextShort}},
-         Volym: {{printf "%.0f" .R.Volume}} milliliter,
-         Alkohol procent: {{.Percent}},
-         Pris: {{printf "%.0f" .R.Price}} kronor,
-         Pant: {{printf "%.0f" .R.RecycleFee}} krona,
-         Användnignsområden: {{.R.Usage}},
-         Smak: {{.R.Taste}}, 
-         Färg: {{.R.Color}},
-         Passar bra till: 
-        {{range $val := .R.TasteSymbols}}
-            {{$val}}", 
-        {{end}}
-         """ } },
+        # { prefix = { tts = { msg = """
+        # Mata in Systembolagets artikelnummer, 4 siffror, avsluta med fyrkant.
+        # """ } }, srv = { dst = "systemetpid", tmpl = """
+        #  Artikelnummer: {{.R.ProductNumberShort}}, {{.R.ProductNameBold}},
+        #  Producent: {{.R.ProducerName}},
+        #  Kategori: {{.R.CategoryLevel1}},
+        #  Förpackning: {{.R.BottleTextShort}},
+        #  Volym: {{printf "%.0f" .R.Volume}} milliliter,
+        #  Alkohol procent: {{.Percent}},
+        #  Pris: {{printf "%.0f" .R.Price}} kronor,
+        #  Pant: {{printf "%.0f" .R.RecycleFee}} krona,
+        #  Användnignsområden: {{.R.Usage}},
+        #  Smak: {{.R.Taste}}, 
+        #  Färg: {{.R.Color}},
+        #  Passar bra till: 
+        # {{range $val := .R.TasteSymbols}}
+        #     {{$val}}", 
+        # {{end}}
+        #  """ } },
     ]
 
 ################################

@@ -70,7 +70,6 @@ func (c *Controller) Start(wg *sync.WaitGroup) {
 					log.Trace("Controller acts on key", key, ". Controller is at:", "")
 					c.Audio.Clear()
 
-					fmt.Println(key)
 					// Check if we are in collect mode
 					if c.collector == nil {
 						// Nope, the normal

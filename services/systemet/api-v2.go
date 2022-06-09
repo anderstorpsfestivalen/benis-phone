@@ -207,6 +207,12 @@ func (s *SystemetV2) SearchForItem(artikelnr string) (SearchResponse, error) {
 
 	body, err := io.ReadAll(resp.Body)
 
+	if err != nil {
+		return SearchResponse{}, err
+	}
+
+	fmt.Println(string(body))
+
 	var sresp SearchResponse
 
 	err = json.Unmarshal(body, &sresp)
