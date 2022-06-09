@@ -21,11 +21,9 @@ type Controller struct {
 	Definition functions.Definition
 
 	Callstack []string
-
 	HookState bool
 
-	collector *Collector
-
+	collector    *Collector
 	hs           sync.Mutex
 	prefixSignal chan bool
 }
@@ -72,6 +70,7 @@ func (c *Controller) Start(wg *sync.WaitGroup) {
 					log.Trace("Controller acts on key", key, ". Controller is at:", "")
 					c.Audio.Clear()
 
+					fmt.Println(key)
 					// Check if we are in collect mode
 					if c.collector == nil {
 						// Nope, the normal
@@ -80,31 +79,6 @@ func (c *Controller) Start(wg *sync.WaitGroup) {
 						// Lets collect until we have what we need
 						c.handleCollect(key)
 					}
-
-					// il := MenuOptions[c.Where].InputLength()
-					// keys += key
-
-					// if il == 0 || c.Where == "mainmenu" {
-					// 	fmt.Println("controller trigger")
-					// 	log.WithFields(log.Fields{
-					// 		"Function":     c.Where,
-					// 		"Input Length": il,
-					// 	}).Info("Entering function")
-					// 	c.TriggerFunction(keys)
-					// 	keys = ""
-					// } else {
-					// 	fmt.Println("controller waits")
-					// 	if len(keys) == il || key == "#" {
-
-					// 		keys = strings.Replace(keys, "#", "", -1)
-					// 		log.WithFields(log.Fields{
-					// 			"Function":     c.Where,
-					// 			"Input Length": il,
-					// 		}).Info("Entering function")
-					// 		c.TriggerFunction(keys)
-					// 		keys = ""
-					// 	}
-					// }
 				}
 
 			//Run prefix
@@ -118,7 +92,6 @@ func (c *Controller) Start(wg *sync.WaitGroup) {
 }
 
 func (c *Controller) handlePrefix() error {
-
 	pr, err := c.getCurrent().Prefix.GetPlayable()
 	if err != nil {
 		return err
@@ -194,10 +167,11 @@ func (c *Controller) handleKey(key string) {
 func (c *Controller) handleCollect(key string) {
 
 	if c.collector.CollectKey(key) || key == "#" {
-		c.collector.Finish(c)
+		err := c.collector.Finish(c)
+		c.checkError(err)
+		c.collector = nil
 	}
 
-	c.collector = nil
 }
 
 // Appends to the callstack if function exists and tries to schedule prefix
@@ -214,6 +188,7 @@ func (c *Controller) enterFunction(dst string) error {
 func (c *Controller) exitFunction() {
 	if len(c.Callstack) > 1 {
 		c.Callstack = c.Callstack[:len(c.Callstack)-1]
+		c.collector = nil
 		c.prefixSignal <- true
 	}
 }
@@ -221,6 +196,7 @@ func (c *Controller) exitFunction() {
 // Reset Callstack
 func (c *Controller) clearCallstack() {
 	c.Callstack = c.Callstack[:0]
+	c.collector = nil
 	c.Callstack = append(c.Callstack, c.Definition.General.Entrypoint)
 	c.prefixSignal <- true
 }
@@ -240,7 +216,12 @@ func (c *Controller) runService(srv functions.Service, collector *string) error 
 		return nil
 	}
 
-	data, err := s.Get("", srv.Template, srv.Arguments)
+	input := ""
+	if collector != nil {
+		input = *collector
+	}
+
+	data, err := s.Get(input, srv.Template, srv.Arguments)
 	if err != nil {
 		return err
 	}
@@ -267,6 +248,7 @@ func (c *Controller) liftHook() {
 	c.HookState = true
 	c.Audio.Clear()
 	c.Callstack = append(c.Callstack, c.Definition.General.Entrypoint)
+	c.collector = nil
 	c.prefixSignal <- true
 
 	log.Info("Hook is lifted")
@@ -279,6 +261,7 @@ func (c *Controller) slamHook() {
 	c.Audio.Clear()
 
 	c.Callstack = c.Callstack[:0]
+	c.collector = nil
 
 	log.Info("Hook is slammed")
 	c.hs.Unlock()

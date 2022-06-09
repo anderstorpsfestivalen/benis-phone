@@ -24,10 +24,6 @@ func CreateServiceCollector(ml int, srv *functions.Service) *Collector {
 
 func (c *Collector) CollectKey(key string) bool {
 	c.buffer = append(c.buffer, key)
-
-	fmt.Println(c.buffer)
-	fmt.Println(len(c.buffer), c.MaxLength)
-
 	return len(c.buffer) >= c.MaxLength
 }
 
@@ -35,9 +31,11 @@ func (c *Collector) GetBuffer() string {
 	return strings.Join(c.buffer, "")
 }
 
-func (c *Collector) Finish(ctrl *Controller) {
+func (c *Collector) Finish(ctrl *Controller) error {
 	buf := c.GetBuffer()
 	if c.service != nil {
-		ctrl.runService(*c.service, &buf)
+		return ctrl.runService(*c.service, &buf)
 	}
+
+	return fmt.Errorf("collector could not dispatch")
 }
