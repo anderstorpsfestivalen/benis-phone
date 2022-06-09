@@ -9,6 +9,12 @@ import (
 // FML
 
 func InitalizeServices() {
+	err := Init()
+	if err != nil {
+		log.Error(err)
+		log.Fatal("Could not init systembolaget lookup")
+	}
+
 	// Setup Systemet API
 	key, err := GetKey()
 	if err != nil {

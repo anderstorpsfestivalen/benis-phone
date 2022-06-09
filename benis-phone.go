@@ -46,12 +46,6 @@ func main() {
 		fsx.Start("files/")
 	}
 
-	err = systemet.Init()
-	if err != nil {
-		log.Error(err)
-		log.Fatal("Could not init systembolaget lookup")
-	}
-
 	// Setup GPIO if -phone is used
 	var ctrlPhone phone.FlowPhone
 

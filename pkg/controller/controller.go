@@ -24,6 +24,8 @@ type Controller struct {
 
 	HookState bool
 
+	collector *Collector
+
 	hs           sync.Mutex
 	prefixSignal chan bool
 }
@@ -70,7 +72,14 @@ func (c *Controller) Start(wg *sync.WaitGroup) {
 					log.Trace("Controller acts on key", key, ". Controller is at:", "")
 					c.Audio.Clear()
 
-					c.handleKey(key)
+					// Check if we are in collect mode
+					if c.collector == nil {
+						// Nope, the normal
+						c.handleKey(key)
+					} else {
+						// Lets collect until we have what we need
+						c.handleCollect(key)
+					}
 
 					// il := MenuOptions[c.Where].InputLength()
 					// keys += key
@@ -175,11 +184,20 @@ func (c *Controller) handleKey(key string) {
 	case "randomfile":
 		c.play(action.RandomFile)
 	case "srv":
-		err := c.runService(action.Service)
+		err := c.runService(action.Service, nil)
 		c.checkError(err)
 	case "clear":
 		c.Audio.Clear()
 	}
+}
+
+func (c *Controller) handleCollect(key string) {
+
+	if c.collector.CollectKey(key) || key == "#" {
+		c.collector.Finish(c)
+	}
+
+	c.collector = nil
 }
 
 // Appends to the callstack if function exists and tries to schedule prefix
@@ -208,16 +226,18 @@ func (c *Controller) clearCallstack() {
 }
 
 // Run service
-func (c *Controller) runService(srv functions.Service) error {
+func (c *Controller) runService(srv functions.Service, collector *string) error {
 	if _, ok := services.ServiceRegistry[srv.Destination]; !ok {
 		return fmt.Errorf("service %s is not loaded", srv.Destination)
 	}
 
 	s := services.ServiceRegistry[srv.Destination]
 
+	// Put the controller in collect mode
 	inputLength := s.MaxInputLength()
-	if inputLength > 0 {
-
+	if inputLength > 0 && collector == nil {
+		c.collector = CreateServiceCollector(inputLength, &srv)
+		return nil
 	}
 
 	data, err := s.Get("", srv.Template, srv.Arguments)
