@@ -129,6 +129,7 @@ func (c *Controller) handleKey(key string) {
 			return
 		} else {
 			c.checkError(err)
+			return
 		}
 	}
 
