@@ -93,3 +93,7 @@ func (m *SystemetPid) Prefix(c *Controller) {
 
 	go c.Audio.PlayMP3FromStream(ttsData)
 }
+
+// func replace(input, from, to string) string {
+// 	return strings.Replace(input, from, to, -1)
+// }

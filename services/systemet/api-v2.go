@@ -15,6 +15,75 @@ type StockResponse []struct {
 	Stock     int    `json:"stock"`
 }
 
+type Product struct {
+	ProductID                string      `json:"productId"`
+	ProductNumber            string      `json:"productNumber"`
+	ProductNameBold          string      `json:"productNameBold"`
+	ProductNameThin          interface{} `json:"productNameThin"`
+	Category                 interface{} `json:"category"`
+	ProductNumberShort       string      `json:"productNumberShort"`
+	ProducerName             string      `json:"producerName"`
+	SupplierName             string      `json:"supplierName"`
+	IsKosher                 bool        `json:"isKosher"`
+	BottleTextShort          string      `json:"bottleTextShort"`
+	RestrictedParcelQuantity int         `json:"restrictedParcelQuantity"`
+	IsOrganic                bool        `json:"isOrganic"`
+	IsEthical                bool        `json:"isEthical"`
+	EthicalLabel             interface{} `json:"ethicalLabel"`
+	IsWebLaunch              bool        `json:"isWebLaunch"`
+	ProductLaunchDate        string      `json:"productLaunchDate"`
+	IsCompletelyOutOfStock   bool        `json:"isCompletelyOutOfStock"`
+	IsTemporaryOutOfStock    bool        `json:"isTemporaryOutOfStock"`
+	AlcoholPercentage        float64     `json:"alcoholPercentage"`
+	VolumeText               string      `json:"volumeText"`
+	Volume                   float64     `json:"volume"`
+	Price                    float64     `json:"price"`
+	Country                  string      `json:"country"`
+	OriginLevel1             interface{} `json:"originLevel1"`
+	OriginLevel2             interface{} `json:"originLevel2"`
+	CategoryLevel1           string      `json:"categoryLevel1"`
+	CategoryLevel2           string      `json:"categoryLevel2"`
+	CategoryLevel3           string      `json:"categoryLevel3"`
+	CategoryLevel4           interface{} `json:"categoryLevel4"`
+	CustomCategoryTitle      string      `json:"customCategoryTitle"`
+	AssortmentText           string      `json:"assortmentText"`
+	Usage                    string      `json:"usage"`
+	Taste                    string      `json:"taste"`
+	TasteSymbols             []string    `json:"tasteSymbols"`
+	TasteClockGroupBitter    interface{} `json:"tasteClockGroupBitter"`
+	TasteClockGroupSmokiness interface{} `json:"tasteClockGroupSmokiness"`
+	TasteClockBitter         int         `json:"tasteClockBitter"`
+	TasteClockFruitacid      int         `json:"tasteClockFruitacid"`
+	TasteClockBody           int         `json:"tasteClockBody"`
+	TasteClockRoughness      int         `json:"tasteClockRoughness"`
+	TasteClockSweetness      int         `json:"tasteClockSweetness"`
+	TasteClockSmokiness      int         `json:"tasteClockSmokiness"`
+	TasteClockCasque         int         `json:"tasteClockCasque"`
+	Assortment               string      `json:"assortment"`
+	RecycleFee               float64     `json:"recycleFee"`
+	IsManufacturingCountry   bool        `json:"isManufacturingCountry"`
+	IsRegionalRestricted     bool        `json:"isRegionalRestricted"`
+	Packaging                string      `json:"packaging"`
+	IsNews                   bool        `json:"isNews"`
+	Images                   []struct {
+		ImageURL string      `json:"imageUrl"`
+		FileType interface{} `json:"fileType"`
+		Size     interface{} `json:"size"`
+	} `json:"images"`
+	IsDiscontinued                  bool          `json:"isDiscontinued"`
+	IsSupplierTemporaryNotAvailable bool          `json:"isSupplierTemporaryNotAvailable"`
+	SugarContent                    int           `json:"sugarContent"`
+	Seal                            []interface{} `json:"seal"`
+	Vintage                         interface{}   `json:"vintage"`
+	Grapes                          []interface{} `json:"grapes"`
+	OtherSelections                 interface{}   `json:"otherSelections"`
+	TasteClocks                     []struct {
+		Key   string `json:"key"`
+		Value int    `json:"value"`
+	} `json:"tasteClocks"`
+	Color string `json:"color"`
+}
+
 type SearchResponse struct {
 	Metadata struct {
 		DocCount               int `json:"docCount"`
@@ -38,75 +107,8 @@ type SearchResponse struct {
 		} `json:"sugarContentRange"`
 		DidYouMeanQuery interface{} `json:"didYouMeanQuery"`
 	} `json:"metadata"`
-	Products []struct {
-		ProductID                string      `json:"productId"`
-		ProductNumber            string      `json:"productNumber"`
-		ProductNameBold          string      `json:"productNameBold"`
-		ProductNameThin          interface{} `json:"productNameThin"`
-		Category                 interface{} `json:"category"`
-		ProductNumberShort       string      `json:"productNumberShort"`
-		ProducerName             string      `json:"producerName"`
-		SupplierName             string      `json:"supplierName"`
-		IsKosher                 bool        `json:"isKosher"`
-		BottleTextShort          string      `json:"bottleTextShort"`
-		RestrictedParcelQuantity int         `json:"restrictedParcelQuantity"`
-		IsOrganic                bool        `json:"isOrganic"`
-		IsEthical                bool        `json:"isEthical"`
-		EthicalLabel             interface{} `json:"ethicalLabel"`
-		IsWebLaunch              bool        `json:"isWebLaunch"`
-		ProductLaunchDate        string      `json:"productLaunchDate"`
-		IsCompletelyOutOfStock   bool        `json:"isCompletelyOutOfStock"`
-		IsTemporaryOutOfStock    bool        `json:"isTemporaryOutOfStock"`
-		AlcoholPercentage        float64     `json:"alcoholPercentage"`
-		VolumeText               string      `json:"volumeText"`
-		Volume                   float64     `json:"volume"`
-		Price                    float64     `json:"price"`
-		Country                  string      `json:"country"`
-		OriginLevel1             interface{} `json:"originLevel1"`
-		OriginLevel2             interface{} `json:"originLevel2"`
-		CategoryLevel1           string      `json:"categoryLevel1"`
-		CategoryLevel2           string      `json:"categoryLevel2"`
-		CategoryLevel3           string      `json:"categoryLevel3"`
-		CategoryLevel4           interface{} `json:"categoryLevel4"`
-		CustomCategoryTitle      string      `json:"customCategoryTitle"`
-		AssortmentText           string      `json:"assortmentText"`
-		Usage                    string      `json:"usage"`
-		Taste                    string      `json:"taste"`
-		TasteSymbols             []string    `json:"tasteSymbols"`
-		TasteClockGroupBitter    interface{} `json:"tasteClockGroupBitter"`
-		TasteClockGroupSmokiness interface{} `json:"tasteClockGroupSmokiness"`
-		TasteClockBitter         int         `json:"tasteClockBitter"`
-		TasteClockFruitacid      int         `json:"tasteClockFruitacid"`
-		TasteClockBody           int         `json:"tasteClockBody"`
-		TasteClockRoughness      int         `json:"tasteClockRoughness"`
-		TasteClockSweetness      int         `json:"tasteClockSweetness"`
-		TasteClockSmokiness      int         `json:"tasteClockSmokiness"`
-		TasteClockCasque         int         `json:"tasteClockCasque"`
-		Assortment               string      `json:"assortment"`
-		RecycleFee               float64     `json:"recycleFee"`
-		IsManufacturingCountry   bool        `json:"isManufacturingCountry"`
-		IsRegionalRestricted     bool        `json:"isRegionalRestricted"`
-		Packaging                string      `json:"packaging"`
-		IsNews                   bool        `json:"isNews"`
-		Images                   []struct {
-			ImageURL string      `json:"imageUrl"`
-			FileType interface{} `json:"fileType"`
-			Size     interface{} `json:"size"`
-		} `json:"images"`
-		IsDiscontinued                  bool          `json:"isDiscontinued"`
-		IsSupplierTemporaryNotAvailable bool          `json:"isSupplierTemporaryNotAvailable"`
-		SugarContent                    int           `json:"sugarContent"`
-		Seal                            []interface{} `json:"seal"`
-		Vintage                         interface{}   `json:"vintage"`
-		Grapes                          []interface{} `json:"grapes"`
-		OtherSelections                 interface{}   `json:"otherSelections"`
-		TasteClocks                     []struct {
-			Key   string `json:"key"`
-			Value int    `json:"value"`
-		} `json:"tasteClocks"`
-		Color string `json:"color"`
-	} `json:"products"`
-	Filters []struct {
+	Products []Product `json:"products"`
+	Filters  []struct {
 		Name             string `json:"name"`
 		Type             string `json:"type"`
 		DisplayName      string `json:"displayName"`

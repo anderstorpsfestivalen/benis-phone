@@ -5,7 +5,7 @@ import (
 	"gitlab.com/anderstorpsfestivalen/benis-phone/services"
 )
 
-// This is such a shit hack to retrofit this into the old structure
+// This is such a shit hack to retrofit this into the new structure
 // FML
 
 func InitalizeServices() {
@@ -21,4 +21,8 @@ func InitalizeServices() {
 	//Add Stock service
 	systemetStock := CreateStock(api)
 	services.AddService("systemetstock", systemetStock)
+
+	//Add Pid service
+	systemetPID := CreatePidSearch(api)
+	services.AddService("systemetpid", systemetPID)
 }

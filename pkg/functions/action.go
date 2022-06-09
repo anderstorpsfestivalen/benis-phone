@@ -13,6 +13,7 @@ type Action struct {
 	File       File       `toml:"file"`
 	RandomFile RandomFile `toml:"randomfile"`
 	Service    Service    `toml:"srv"`
+	Prefix     Prefix     `toml:"prefix"`
 }
 
 func (a *Action) Type() (string, error) {
@@ -37,4 +38,12 @@ func (a *Action) Type() (string, error) {
 	}
 
 	return "", fmt.Errorf("cannot determine action type")
+}
+
+func (a *Action) GetPrefix() (Prefix, error) {
+	if a.Prefix != (Prefix{}) {
+		return a.Prefix, nil
+	}
+
+	return Prefix{}, fmt.Errorf("no prefix")
 }

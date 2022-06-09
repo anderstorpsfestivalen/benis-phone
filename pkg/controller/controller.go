@@ -151,10 +151,20 @@ func (c *Controller) handleKey(key string) {
 		}
 	}
 
+	// Check action type
 	actionType, err := action.Type()
 	if err != nil {
 		c.checkError(err)
 		return
+	}
+
+	// Get prefix (if set)
+	// This err is inverted btw
+	// Go users will hate me
+	prefix, err := action.GetPrefix()
+	if err == nil {
+		pr, _ := prefix.GetPlayable()
+		pr.Play(c.Audio, c.Polly)
 	}
 
 	switch actionType {
@@ -203,7 +213,14 @@ func (c *Controller) runService(srv functions.Service) error {
 		return fmt.Errorf("service %s is not loaded", srv.Destination)
 	}
 
-	data, err := services.ServiceRegistry[srv.Destination].Get("", srv.Template, srv.Arguments)
+	s := services.ServiceRegistry[srv.Destination]
+
+	inputLength := s.MaxInputLength()
+	if inputLength > 0 {
+
+	}
+
+	data, err := s.Get("", srv.Template, srv.Arguments)
 	if err != nil {
 		return err
 	}
