@@ -199,6 +199,10 @@ func (c *Controller) clearCallstack() {
 
 // Run service
 func (c *Controller) runService(srv functions.Service) error {
+	if _, ok := services.ServiceRegistry[srv.Destination]; !ok {
+		return fmt.Errorf("service %s is not loaded", srv.Destination)
+	}
+
 	data, err := services.ServiceRegistry[srv.Destination].Get("", srv.Template, srv.Arguments)
 	if err != nil {
 		return err

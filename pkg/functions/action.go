@@ -13,7 +13,6 @@ type Action struct {
 	File       File       `toml:"file"`
 	RandomFile RandomFile `toml:"randomfile"`
 	Service    Service    `toml:"srv"`
-	Gate       Gate       `toml:"gate"`
 }
 
 func (a *Action) Type() (string, error) {
@@ -31,10 +30,6 @@ func (a *Action) Type() (string, error) {
 
 	if a.Service.Destination != "" {
 		return "srv", nil
-	}
-
-	if a.Gate != (Gate{}) {
-		return "gate", nil
 	}
 
 	if a.Clear {

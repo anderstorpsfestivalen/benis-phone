@@ -80,13 +80,8 @@ func main() {
 	}
 
 	// Setup Systemet
-	key, err := systemet.GetKey()
-	if err != nil {
-		log.Error(err)
-		log.Panic("Could not get systembolaget key")
-	}
-
-	_ = systemet.New(key)
+	// This is an ugly hack
+	systemet.InitalizeServices()
 
 	// Load definition
 	def, err := functions.LoadFromFile(*definition)

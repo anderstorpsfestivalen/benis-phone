@@ -8,6 +8,7 @@ import (
 type Fn struct {
 	Name           string
 	Prefix         Prefix
+	Gate           Gate `toml:"gate"`
 	ClearCallstack bool `toml:"clear_callstack"`
 	InputLength    int
 

@@ -13,9 +13,7 @@
     prefix = { file = { src = "files/atp-intro.mp3" } }
     actions = [
         # 1 ) Personlig meny
-        { num = 1, gate = { dst = "validatephone", accept = "personalmenu", prompt = """
-        Fyll i ditt telefonnummer, tio siffror. Avsluta med fyrkant.""", deny_tmpl = """
-        "Telefonnummret kan inte hittas, var god försök igen.""" } },
+        { num = 1, dst = "personalmenu" },
         { num = 2, dst = "uganda" },
         { num = 3, srv = { dst = "traintimes", tmpl = """{{.K.InformationOwner}}, 
         {{index .K.ProductInformation 0}}, 
@@ -37,12 +35,15 @@
 # personalmenu
 [[fn]]
     name = "personalmenu"
+
+    gate = { dst = "validatephone", accept = "personalmenu", prompt = """
+        Fyll i ditt telefonnummer, tio siffror. Avsluta med fyrkant.""", deny_tmpl = """
+        "Telefonnummret {{.Input}] kan inte hittas, var god försök igen.""" }
+
     prefix = { tts = { voice = "Astrid", msg = """Personlig service meny,
     för saldo, tryck ett, för promille, tryck två,
     för fulöls poäng, tryck tre, för att gå tillbaka, tryck 0""" } }
-    gate = { dst = "validatephone", accept = "personalmenu", prompt = """
-        Fyll i ditt telefonnummer, tio siffror. Avsluta med fyrkant.""", deny_tmpl = """
-        "Telefonnummret kan inte hittas, var god försök igen.""" }
+
 
     actions = [
         { dst = "balance" },
@@ -67,6 +68,19 @@
         { dst = "syralotto" },
     ]
 
+# systemetmenu
+[[fn]]
+    name = "systemetmenu"
+    prefix = { tts = { voice = "Astrid", msg = """Tryck ett,
+     för antalet arboga 10 komma 2 i lager på systembolaget i gislaved,
+     tryck två, för systembolaget produkt sök,
+     tryck tre, för lagerstatus för produktid,
+     för att återgå, tryck 0""" } }
+
+    actions = [
+        { srv = { dst = "systemetstock", tmpl = """Antalet Arboga 10.2 i lager på Systembolaget Gislaved
+         är just nu {{.Stock}}""", args = { productid = "508393", storeid = "0611" } } },
+    ]
 
 ################################
 ########## SOUNDBOARDS 

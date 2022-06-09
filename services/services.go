@@ -24,3 +24,7 @@ var ServiceRegistry = map[string]Service{
 	"traintimes": &train.Train{},
 	"drogslang":  &drogslang.Drogslang{},
 }
+
+func AddService(name string, s Service) {
+	ServiceRegistry[name] = s
+}
