@@ -3,9 +3,9 @@ package functions
 import (
 	"fmt"
 
+	"github.com/anderstorpsfestivalen/benis-phone/core/audio"
+	"github.com/anderstorpsfestivalen/benis-phone/core/polly"
 	log "github.com/sirupsen/logrus"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/core/audio"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/core/polly"
 )
 
 type Playable struct {

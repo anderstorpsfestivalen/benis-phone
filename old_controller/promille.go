@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/backend"
 	log "github.com/sirupsen/logrus"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/extensions/services/backend"
 )
 
 type Promille struct {

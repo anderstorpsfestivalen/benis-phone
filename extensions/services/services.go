@@ -1,10 +1,10 @@
 package services
 
 import (
-	"gitlab.com/anderstorpsfestivalen/benis-phone/extensions/services/drogslang"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/extensions/services/flacornot"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/extensions/services/idiom"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/extensions/services/train"
+	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/drogslang"
+	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/flacornot"
+	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/idiom"
+	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/train"
 )
 
 type Service interface {

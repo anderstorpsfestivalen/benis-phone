@@ -1,7 +1,7 @@
 // package controller
 
 // import (
-// 	"gitlab.com/anderstorpsfestivalen/benis-phone/extensions/services/flacornot"
+// 	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/flacornot"
 // )
 
 // type FlacOrNotMenu struct {

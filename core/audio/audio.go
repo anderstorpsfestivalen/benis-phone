@@ -10,13 +10,13 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/anderstorpsfestivalen/benis-phone/core/broadcast"
 	"github.com/faiface/beep"
 	"github.com/faiface/beep/flac"
 	"github.com/faiface/beep/mp3"
 	"github.com/faiface/beep/speaker"
 	"github.com/faiface/beep/vorbis"
 	"github.com/faiface/beep/wav"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/core/broadcast"
 )
 
 type Audio struct {

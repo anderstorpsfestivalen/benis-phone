@@ -5,12 +5,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/anderstorpsfestivalen/benis-phone/core/audio"
+	"github.com/anderstorpsfestivalen/benis-phone/core/functions"
+	"github.com/anderstorpsfestivalen/benis-phone/core/phone"
+	"github.com/anderstorpsfestivalen/benis-phone/core/polly"
+	"github.com/anderstorpsfestivalen/benis-phone/extensions/services"
 	log "github.com/sirupsen/logrus"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/core/audio"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/core/functions"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/core/phone"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/core/polly"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/extensions/services"
 )
 
 type Controller struct {

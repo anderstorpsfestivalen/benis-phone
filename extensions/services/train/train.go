@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"text/template"
 
+	"github.com/anderstorpsfestivalen/benis-phone/core/secrets"
 	"github.com/coral/trafikverket"
 	"github.com/coral/trafikverket/responses/trainannouncement"
 	"github.com/coral/trafikverket/responses/trainstation"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/core/secrets"
 )
 
 type Train struct{}

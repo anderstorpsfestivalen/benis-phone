@@ -1,7 +1,7 @@
 package controller
 
 import (
-	"gitlab.com/anderstorpsfestivalen/benis-phone/extensions/services/barclosing"
+	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/barclosing"
 )
 
 type BarClosingMenu struct {

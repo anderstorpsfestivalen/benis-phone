@@ -6,17 +6,17 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"gitlab.com/anderstorpsfestivalen/benis-phone/core/api"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/core/audio"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/core/controller"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/core/filesync"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/core/functions"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/core/muxer"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/core/phone"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/core/polly"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/core/secrets"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/core/virtual"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/extensions/services/systemet"
+	"github.com/anderstorpsfestivalen/benis-phone/core/api"
+	"github.com/anderstorpsfestivalen/benis-phone/core/audio"
+	"github.com/anderstorpsfestivalen/benis-phone/core/controller"
+	"github.com/anderstorpsfestivalen/benis-phone/core/filesync"
+	"github.com/anderstorpsfestivalen/benis-phone/core/functions"
+	"github.com/anderstorpsfestivalen/benis-phone/core/muxer"
+	"github.com/anderstorpsfestivalen/benis-phone/core/phone"
+	"github.com/anderstorpsfestivalen/benis-phone/core/polly"
+	"github.com/anderstorpsfestivalen/benis-phone/core/secrets"
+	"github.com/anderstorpsfestivalen/benis-phone/core/virtual"
+	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/systemet"
 )
 
 func main() {

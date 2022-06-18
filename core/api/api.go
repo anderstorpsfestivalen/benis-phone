@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/anderstorpsfestivalen/benis-phone/core/controller"
+	"github.com/anderstorpsfestivalen/benis-phone/core/secrets"
 	"github.com/gin-gonic/gin"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/core/controller"
-	"gitlab.com/anderstorpsfestivalen/benis-phone/core/secrets"
 )
 
 type Server struct {
