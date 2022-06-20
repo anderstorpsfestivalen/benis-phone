@@ -6,7 +6,7 @@ type Queue struct {
 	EntryMessage    string
 	Min             int
 	Max             int
-	Messages        []QueueMessage `toml:"messages"`
+	Messages        []QueueMessage `toml:"msg"`
 	BackgroundMusic File
 
 	rm *wr.Chooser
@@ -34,4 +34,12 @@ func (q *Queue) Load() error {
 	q.rm = chooser
 
 	return nil
+}
+
+func (q *Queue) Start() {
+
+}
+
+func (q *Queue) Stop() {
+
 }
