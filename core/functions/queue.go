@@ -6,7 +6,7 @@ type Queue struct {
 	EntryMessage    string
 	Min             int
 	Max             int
-	Messages        []QueueMessage
+	Messages        []QueueMessage `toml:"messages"`
 	BackgroundMusic File
 
 	rm *wr.Chooser

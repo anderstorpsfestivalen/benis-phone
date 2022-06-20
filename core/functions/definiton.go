@@ -32,6 +32,8 @@ type Definition struct {
 	UnsortedFunctions []Fn `toml:"fn"`
 
 	Functions map[string]*Fn
+
+	Queues []Queue `toml:"queue"`
 }
 
 func (d *Definition) Prepare() {

@@ -40,7 +40,7 @@ func (d *Virtual) Init() error {
 	O: lift hook
 	K: slam hook
 
-	ESC: quit benis-phone`)
+	ESC or Q: quit benis-phone`)
 
 	return nil
 
@@ -60,7 +60,9 @@ func (d *Virtual) startRead(k <-chan keyboard.KeyEvent) {
 		log.Trace("You pressed: rune %q, key %X\r\n", event.Rune, event.Key)
 
 		// Quit
-		if event.Key == keyboard.KeyEsc {
+		if event.Key == keyboard.KeyEsc ||
+			event.Rune == 'q' ||
+			event.Rune == 'Q' {
 			log.Info("Escape pressed - Exiting")
 			os.Exit(0)
 		}

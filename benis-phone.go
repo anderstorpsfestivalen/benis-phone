@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"sync"
 
 	"github.com/sirupsen/logrus"
@@ -82,6 +83,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println(def.Queues)
 
 	// Start controller
 	log.Info("Starting Controller")
