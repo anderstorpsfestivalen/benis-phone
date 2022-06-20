@@ -208,3 +208,34 @@
     #         { t = "randomfile", randomfile = { folder = "./files/ugandan/" } },
     #         { t = "file", file = { src = "files/ugandan/Commando-1.ogg" } },
     #     ]
+
+[[queue]]
+    name = "kundtjanst"
+    min = 20
+    max = 60
+    entrymessage = """Just nu är det många som ringer till oss.
+    Ditt samtal är placerat i kö.
+    Vi besvarar ditt samtal så fort vi kan."""
+    backgroundmusic = { src = "files/hold.mp3" }
+    currentpos = "Din plats i cön är: {{.Position}}"
+
+    [[messages]]
+        text = """Ditt samtal är mycket viktigt för oss.
+        Vi behandlar ditt samtal så fort vi kan."""
+        weight = 1
+    
+    [[messages]]
+        text = """Du vet väl om att du även kan hitta oss på webben?
+         w w w. PUNKT anderstorps festivalen. PUNKT . s. e."""
+        weight = 1
+    
+    [[messages]]
+        text = """Visste du att du kan få svar på många frågor genom att besöka vår hemsida?
+        w w w. PUNKT anderstorps festivalen. PUNKT . s. e."""
+        weight = 1
+    
+    [[messages]]
+        text = """Vi utför en kvalitetsundersökning.
+         Efter att samtalet är slut ber vi dig att inte lägga på luren, 
+         undersökningen består av 5 frågor och tar mindre än en minut."""
+        weight = 1
