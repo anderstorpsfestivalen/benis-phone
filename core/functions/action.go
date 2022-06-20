@@ -4,17 +4,25 @@ import "fmt"
 
 type Action struct {
 	Num   int
-	Dst   string
 	Wait  bool
 	Clear bool
 
+	//////////////
 	// actionables
+	//////////////
 
-	File       File       `toml:"file"`
+	// Play something before triggering the action
+	Prefix Prefix `toml:"prefix"`
+	// Links to another menu
+	Dst string
+	// Plays a file (mp3, ogg, etc)
+	File File `toml:"file"`
+	// Plays a random file from a folder
 	RandomFile RandomFile `toml:"randomfile"`
-	TTS        TTS        `toml:"tts"`
-	Service    Service    `toml:"srv"`
-	Prefix     Prefix     `toml:"prefix"`
+	// Reads a TTS
+	TTS TTS `toml:"tts"`
+	// Calls a service
+	Service Service `toml:"srv"`
 }
 
 func (a *Action) Type() (string, error) {
