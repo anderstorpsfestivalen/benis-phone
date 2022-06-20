@@ -156,6 +156,8 @@ func (c *Controller) handleKey(key string) {
 		c.play(action.File)
 	case "randomfile":
 		c.play(action.RandomFile)
+	case "tts":
+		c.play(action.TTS)
 	case "srv":
 		err := c.runService(action.Service, nil)
 		c.checkError(err)

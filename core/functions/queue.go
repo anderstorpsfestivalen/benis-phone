@@ -3,11 +3,12 @@ package functions
 import wr "github.com/mroth/weightedrand"
 
 type Queue struct {
-	EntryMessage    string
+	EntryMessage    string `toml:"entrymsg"`
 	Min             int
 	Max             int
 	Messages        []QueueMessage `toml:"msg"`
-	BackgroundMusic File
+	BackgroundMusic File           `toml:"bgmusic"`
+	End             Action
 
 	rm *wr.Chooser
 }
@@ -37,6 +38,7 @@ func (q *Queue) Load() error {
 }
 
 func (q *Queue) Start() {
+	// fmt.Println(rand.Intn(max - min) + min)
 
 }
 

@@ -12,6 +12,7 @@ type Action struct {
 
 	File       File       `toml:"file"`
 	RandomFile RandomFile `toml:"randomfile"`
+	TTS        TTS        `toml:"tts"`
 	Service    Service    `toml:"srv"`
 	Prefix     Prefix     `toml:"prefix"`
 }
@@ -27,6 +28,10 @@ func (a *Action) Type() (string, error) {
 
 	if a.RandomFile != (RandomFile{}) {
 		return "randomfile", nil
+	}
+
+	if a.TTS != (TTS{}) {
+		return "tts", nil
 	}
 
 	if a.Service.Destination != "" {

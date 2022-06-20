@@ -15,6 +15,7 @@
         # 1 ) Personlig meny
         { num = 1, dst = "personalmenu" },
         { num = 2, dst = "uganda" },
+        { num = 3, tts = { msg = "DENIS"}},
         { num = 4, dst = "systemetmenu" },
         { num = 5, srv = { dst = "flacornot", tts = { voice = "Kendra", lang = "en-US" } } },
         { num = 6, srv = { dst = "idiom" } },
@@ -213,16 +214,17 @@
     name = "kundtjanst"
     min = 20
     max = 60
-    entrymessage = """Just nu är det många som ringer till oss.
+    entrymsg = """Just nu är det många som ringer till oss.
     Ditt samtal är placerat i kö.
     Vi besvarar ditt samtal så fort vi kan."""
-    backgroundmusic = { src = "files/hold.mp3" }
+    bgmusic = { src = "files/hold.mp3" }
     currentpos = "Din plats i cön är: {{.Position}}"
+    end = { tts = { msg = "DENIS"}}
 
     [[queue.msg]]
         text = """Ditt samtal är mycket viktigt för oss.
         Vi behandlar ditt samtal så fort vi kan."""
-        weight = 1
+        weight = 5
     
     [[queue.msg]]
         text = """Du vet väl om att du även kan hitta oss på webben?

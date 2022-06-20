@@ -47,6 +47,15 @@ func (d *Definition) Prepare() {
 		d.Functions[v.Name] = &d.UnsortedFunctions[i]
 	}
 
+	for i, v := range d.UnsortedFunctions {
+		for n, a := range v.Actions {
+			t, _ := a.Type()
+			if t == "tts" {
+				d.UnsortedFunctions[i].Actions[n].TTS.SetDefault(d.General.DefaultTTSVoice, d.General.DefaultTTSLanguage)
+			}
+		}
+	}
+
 }
 
 type General struct {
