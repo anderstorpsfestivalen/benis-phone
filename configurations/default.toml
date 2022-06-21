@@ -15,124 +15,31 @@
     prefix = { tts = { msg = "WELCOME TO THE PHONE SYSTEM" } }
     actions = [
         # 1 ) Personlig meny
-        { num = 1, dst = "personalmenu" },
-        { num = 2, dst = "uganda" },
-        { num = 4, dst = "systemetmenu" },
-        { num = 5, srv = { dst = "flacornot", tts = { voice = "Kendra", lang = "en-US" } } },
-        { num = 6, srv = { dst = "idiom" } },
-        { num = 7, dst = "boraaaaaas" },
-        { num = 8, srv = { dst = "traintimes", tmpl = """{{.K.InformationOwner}}, 
-        {{index .K.ProductInformation 0}}, 
-        {{.K.TypeOfTraffic}} nummer,  
-        {{.K.TechnicalTrainIdent}}, 
-        Från {{.From.AdvertisedLocationName}},  
-        Till {{.To.AdvertisedLocationName}},  
-        avgår från spår: {{.K.TrackAtLocation}}, 
-        klockan {{.Hour}} och {{.Minute}}""", args = { station = "Reftele" } } },
+        { num = 1, queue = "customerservice" },
         { num = 9, dst = "extramenu" },
         # announce
         { num = 10, clear = true },
     ]
 
-# extramenu
-[[fn]]
-    name = "extramenu"
-    prefix = { tts = { voice = "Astrid", msg = """Välkommen till extra menyn,
-     för perrra, tryck ett,
-     för drog slang, tryck två,
-     ugandan, tryck tre,
-     syra lotto, tryck fyra,
-     för att gå tillbaka, tryck 0""" } }
+[[queue]]
+    name = "customerservice"
 
-    actions = [
-        { dst = "perrralotto" },
-        { srv = { dst = "drogslang", tmpl = """Har du koll på drogslangen? {{.Slang}}""" } },
-        { dst = "ugandan" },
-        { dst = "syralotto" },
-    ]
+    entrymsg = { tts = { msg = """Please wait while we try to connect you to one
+    of our customer service representatives""" }, wait = true }
+    bgmusic = { src = "files/hold.mp3" }
+    currentpos = { msg = "Your current place in line is: {{.Position}}"} 
+    end = { tts = { msg = "Technical error, please try again."}}
 
+    [[queue.prompt]]
+        prompt = { tts = { msg = """"We are currently experiencing high call volumes.
+    Your call will be answered as soon as possible by one of our agents."""}}
+        weight = 4
+    
+    [[queue.prompt]]
+        prompt = { tts = { msg = """"You may find answers to your questions by visiting
+        w w w . anderstorpsfestivalen . s e"""}}
+        weight = 1
 
-################################
-########## SOUNDBOARDS 
-################################
-# perrralotto
-[[fn]]
-    name = "perrralotto"
-    prefix = { tts = { msg = """TRYCK ETT FÖR RANDOM, 
-    TVÅ till FYRKANT FÖR FASTA ALTERNATIV,
-    NOLL FÖR ATT GÅ TILLBAKA""" } }
-
-    actions = [
-        { randomfile = { folder = "./files/perrra/" } },
-        { file = { src = "files/perrra/are-bengt.ogg" } },
-        { file = { src = "files/perrra/avinstallera-win95.ogg" } },
-        { file = { src = "files/perrra/det-var-inte-bra.ogg" } },
-        { file = { src = "files/perrra/en-warez-dator.ogg" } },
-        { file = { src = "files/perrra/fixa-lite-skit.ogg" } },
-        { file = { src = "files/perrra/fixa-lite-warez.ogg" } },
-        { file = { src = "files/perrra/hackare-va.ogg" } },
-        { file = { src = "files/perrra/hur-ar-det-med-mircwaret.ogg" } },
-        { file = { src = "files/perrra/knarket.ogg" } },
-        { file = { src = "files/perrra/pirat-version.ogg" } },
-    ]
-
-# uganda
-[[fn]]
-    name = "uganda"
-    prefix = { tts = { voice = "Mads", msg = """TRYCK, ETT, till FYRKANT, 
-    NOLL FÖR ATT GÅ TILLBAKA""", lang = "da-DK" } }
-
-    actions = [
-        { randomfile = { folder = "./files/ugandan/" } },
-        { file = { src = "files/ugandan/Commando-1.ogg" } },
-        { file = { src = "files/ugandan/Gwe-Gwe-Gwe.ogg" } },
-        { file = { src = "files/ugandan/One-hell-of-a-movie.ogg" } },
-        { file = { src = "files/ugandan/WHAT-THE-FU.ogg" } },
-        { file = { src = "files/ugandan/Tough-Commando-on-da-Mission.ogg" } },
-        { file = { src = "files/ugandan/UGAANDA.ogg" } },
-        { file = { src = "files/ugandan/HELLO-2.ogg" } },
-        { file = { src = "files/ugandan/SUPA-MAFIA-ON-THE-RUN.ogg" } },
-        { file = { src = "files/ugandan/Warrior.ogg" } },
-    ]
-
-# syralotto
-[[fn]]
-    name = "syralotto"
-    prefix = { tts = { msg = """TRYCK ETT FÖR RANDOM, 
-    TVÅ till FYRKANT FÖR FASTA ALTERNATIV,
-    NOLL FÖR ATT GÅ TILLBAKA""" } }
-
-    actions = [
-        { file = { src = "files/lasse-liten/e.ogg" } },
-        { file = { src = "files/lasse-liten/lsd.ogg" } },
-        { file = { src = "files/lasse-liten/acid-house.ogg" } },
-        { file = { src = "files/lasse-liten/goa-trance.ogg" } },
-        { file = { src = "files/lasse-liten/electro.ogg" } },
-        { file = { src = "files/lasse-liten/garage.ogg" } },
-        { file = { src = "files/lasse-liten/deep-house.ogg" } },
-        { file = { src = "files/lasse-liten/e-type.ogg" } },
-        { file = { src = "files/lasse-liten/allt-snurrar.ogg" } },
-        { file = { src = "files/lasse-liten/torr-i-munnen.ogg" } },
-        { file = { src = "files/lasse-liten/josses-vad-det-gar-igang.ogg" } },
-    ]
-
-# boraaaaaas
-[[fn]]
-    name = "boraaaaaas"
-    prefix = { tts = { msg = """TRYCK ETT FÖR RANDOM, 
-    TVÅ till FYRKANT FÖR FASTA ALTERNATIV,
-    NOLL FÖR ATT GÅ TILLBAKA""" } }
-
-    actions = [
-        { randomfile = { folder = "./files/chatten/" } },
-        { file = { src = "files/boraaaaaas.ogg" } },
-        { file = { src = "files/chatten/booooooooooooras.ogg" } },
-        { file = { src = "files/chatten/festen-ar-imorgon.ogg" } },
-        { file = { src = "files/chatten/rom-of-rolf.ogg" } },
-        { file = { src = "files/chatten/pastiiiiissss.ogg" } },
-        { file = { src = "files/chatten/luktar-te-qila.ogg" } },
-        { file = { src = "files/chatten/if-its-up-its-up.ogg" } },
-        { file = { src = "files/chatten/jaja-sager-vi.ogg" } },
-        { file = { src = "files/chatten/johanna-toalett.ogg" } },
-        { file = { src = "files/chatten/halla-klockan-8.ogg" } },
-    ]
+    [[queue.prompt]]
+        empty = true
+        weight = 3
