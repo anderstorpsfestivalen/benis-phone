@@ -135,6 +135,20 @@ func (c *Controller) handleKey(key string) {
 		}
 	}
 
+	c.handleAction(action)
+}
+
+func (c *Controller) handleCollect(key string) {
+
+	if c.collector.CollectKey(key) || key == "#" {
+		err := c.collector.Finish(c)
+		c.checkError(err)
+		c.collector = nil
+	}
+
+}
+
+func (c *Controller) handleAction(action *functions.Action) {
 	// Check action type
 	actionType, err := action.Type()
 	if err != nil {
@@ -172,16 +186,6 @@ func (c *Controller) handleKey(key string) {
 	case "clear":
 		c.Audio.Clear()
 	}
-}
-
-func (c *Controller) handleCollect(key string) {
-
-	if c.collector.CollectKey(key) || key == "#" {
-		err := c.collector.Finish(c)
-		c.checkError(err)
-		c.collector = nil
-	}
-
 }
 
 // Appends to the callstack if function exists and tries to schedule prefix
@@ -311,8 +315,13 @@ func (c *Controller) handleQueue(q functions.Queue) {
 	f := c.activeDispatcher.Start(c.Audio, c.Polly)
 
 	// Wait for dispatcher to finish
-	<-f
+	a := <-f
 
 	// Clear out for GC
 	c.activeDispatcher = nil
+
+	_, err = a.Type()
+	if err != nil {
+		c.handleAction(&a)
+	}
 }

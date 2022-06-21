@@ -226,7 +226,7 @@
     [[queue.prompt]]
         prompt = { tts = { msg = """Ditt samtal är mycket viktigt för oss.
         Vi behandlar ditt samtal så fort vi kan."""}}
-        weight = 5
+        weight = 4
     
     [[queue.prompt]]
         prompt = { tts = { msg = """Du vet väl om att du även kan hitta oss på webben?
@@ -242,9 +242,13 @@
         prompt = { tts = { msg = """Vi utför en kvalitetsundersökning.
          Efter att samtalet är slut ber vi dig att inte lägga på luren, 
          undersökningen består av 5 frågor och tar mindre än en minut."""}}
-        weight = 1
+        weight = 2
 
     [[queue.prompt]]
         prompt = { tts = { msg = """Alla våra medarbetare är just nu upptagna med andra kunder.
         Vi besvarar ditt samtal så fort vi kan."""}}
-        weight = 1
+        weight = 4
+
+    [[queue.prompt]]
+        empty = true
+        weight = 5

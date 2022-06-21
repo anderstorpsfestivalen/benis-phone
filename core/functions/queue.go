@@ -37,13 +37,15 @@ type Queue struct {
 
 	queueSpot int
 
-	rm           *wr.Chooser
-	lastPos      int
-	streamer     beep.StreamSeekCloser
-	a            *audio.Audio
-	p            polly.Polly
-	kill         chan bool
-	finish       chan bool
+	rm       *wr.Chooser
+	lastPos  int
+	streamer beep.StreamSeekCloser
+	a        *audio.Audio
+	p        polly.Polly
+	kill     chan bool
+	finish   chan Action
+
+	qt           *time.Timer
 	promptTicker *time.Ticker
 }
 
@@ -83,6 +85,7 @@ func (q *Queue) setDefaults() {
 
 type QueuePrompt struct {
 	Prompt Playable `toml:"prompt"`
+	Empty  bool
 	Weight int
 }
 
@@ -93,7 +96,7 @@ func (q *Queue) Load() error {
 	var ch []wr.Choice
 
 	for _, c := range q.Prompts {
-		ch = append(ch, wr.NewChoice(c.Prompt, uint(c.Weight)))
+		ch = append(ch, wr.NewChoice(c, uint(c.Weight)))
 	}
 
 	chooser, err := wr.NewChooser(ch...)
@@ -107,11 +110,11 @@ func (q *Queue) Load() error {
 	return nil
 }
 
-func (q *Queue) Start(audio *audio.Audio, polly polly.Polly) <-chan bool {
+func (q *Queue) Start(audio *audio.Audio, polly polly.Polly) <-chan Action {
 	q.a = audio
 	q.p = polly
 	q.kill = make(chan bool)
-	q.finish = make(chan bool)
+	q.finish = make(chan Action)
 
 	ttmpl, err := template.New("queueposition").Parse(q.CurrentPositionTemplate.Message)
 	if err != nil {
@@ -141,7 +144,7 @@ func (q *Queue) loop() {
 	q.queueSpot = rand.Intn(
 		rand.Intn(q.MaxQueuePositon-q.MinQueuePosition) + q.MinQueuePosition)
 
-	qTimer := q.queueTimer()
+	q.qt = q.queueTimer()
 	q.promptTicker = time.NewTicker(4)
 
 	// Main queue loop
@@ -149,18 +152,23 @@ func (q *Queue) loop() {
 		select {
 		// Stop the queue (hangup etc)
 		case <-q.kill:
-			qTimer.Stop()
+			q.qt.Stop()
 			q.promptTicker.Stop()
+			q.finish <- Action{}
 
-			q.finish <- true
 			return
 
 		// Decrease the queue
-		case <-qTimer.C:
+		case <-q.qt.C:
 
 			q.queueSpot = q.queueSpot - 1
 
-			qTimer = q.queueTimer()
+			if q.queueSpot < 1 {
+				go q.EndOfLine()
+				return
+			}
+
+			q.qt = q.queueTimer()
 
 		case <-q.promptTicker.C:
 
@@ -238,6 +246,11 @@ func (q *Queue) prompt() {
 	qt.Play(q.a, q.p)
 
 	// Get random message to read out
+	p := q.rm.Pick().(QueuePrompt)
+	if !p.Empty {
+		p.Prompt.Wait = true
+		p.Prompt.Play(q.a, q.p)
+	}
 
 	q.startBackground()
 
@@ -246,5 +259,7 @@ func (q *Queue) prompt() {
 
 // If you get here hahaha WHAT A WASTE
 func (q *Queue) EndOfLine() {
-
+	q.qt.Stop()
+	q.promptTicker.Stop()
+	q.finish <- q.End
 }

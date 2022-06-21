@@ -6,6 +6,6 @@ import (
 )
 
 type Dispatcher interface {
-	Start(audio *audio.Audio, polly polly.Polly) <-chan bool
+	Start(audio *audio.Audio, polly polly.Polly) <-chan Action
 	Stop()
 }
