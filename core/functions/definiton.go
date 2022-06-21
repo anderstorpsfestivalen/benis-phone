@@ -1,6 +1,7 @@
 package functions
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/BurntSushi/toml"
@@ -37,6 +38,11 @@ type Definition struct {
 }
 
 func (d *Definition) Prepare() {
+
+	// This was a bad design decision btw.
+	// The right way is prob for the controller to keep certain "globals"
+	// and pass around that object rather than pre-hydrate all unset variables
+
 	// Hydrate prefixes
 	for i, f := range d.UnsortedFunctions {
 		f.IndexActions()
@@ -67,8 +73,23 @@ func (d *Definition) Prepare() {
 				d.Queues[i].Prompts[n].Prompt.TTS.SetDefault(d.General.DefaultTTSVoice, d.General.DefaultTTSLanguage)
 			}
 		}
+
+		t, _ := q.EntryMessage.Type()
+		if t == "tts" {
+			d.Queues[i].EntryMessage.TTS.SetDefault(d.General.DefaultTTSVoice, d.General.DefaultTTSLanguage)
+		}
 	}
 
+}
+
+func (d *Definition) ResolveQueue(name string) (Queue, error) {
+	for _, q := range d.Queues {
+		if q.Name == name {
+			return q, nil
+		}
+	}
+
+	return Queue{}, fmt.Errorf("could not find queue %v", name)
 }
 
 type General struct {

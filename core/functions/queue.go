@@ -1,16 +1,28 @@
 package functions
 
-import wr "github.com/mroth/weightedrand"
+import (
+	"fmt"
+	"os"
+
+	"github.com/anderstorpsfestivalen/benis-phone/core/audio"
+	"github.com/faiface/beep"
+	"github.com/faiface/beep/mp3"
+	wr "github.com/mroth/weightedrand"
+)
 
 type Queue struct {
-	EntryMessage    string `toml:"entrymsg"`
+	Name string
+
+	EntryMessage    Playable `toml:"entrymsg"`
 	Min             int
 	Max             int
 	Prompts         []QueuePrompt `toml:"prompt"`
 	BackgroundMusic File          `toml:"bgmusic"`
 	End             Action
 
-	rm *wr.Chooser
+	rm       *wr.Chooser
+	lastPos  int
+	streamer beep.StreamSeekCloser
 }
 
 type QueuePrompt struct {
@@ -20,19 +32,19 @@ type QueuePrompt struct {
 
 func (q *Queue) Load() error {
 
-	// var ch []wr.Choice
+	var ch []wr.Choice
 
-	// for _, c := range q.Messages {
-	// 	ch = append(ch, wr.NewChoice(c.Text, uint(c.Weight)))
-	// }
+	for _, c := range q.Prompts {
+		ch = append(ch, wr.NewChoice(c.Prompt, uint(c.Weight)))
+	}
 
-	// chooser, err := wr.NewChooser(ch...)
+	chooser, err := wr.NewChooser(ch...)
 
-	// if err != nil {
-	// 	return err
-	// }
+	if err != nil {
+		return err
+	}
 
-	// q.rm = chooser
+	q.rm = chooser
 
 	return nil
 }
@@ -43,5 +55,19 @@ func (q *Queue) Start() {
 }
 
 func (q *Queue) Stop() {
+
+}
+
+func (q *Queue) StartBackground(a *audio.Audio) {
+	f, _ := os.Open(q.BackgroundMusic.Source)
+
+	streamer, format, err := mp3.Decode(f)
+	if err != nil {
+		fmt.Println("penis")
+	}
+	q.streamer = streamer
+	q.streamer.Seek(q.lastPos)
+
+	go a.ExternalPlayback(q.streamer, format)
 
 }

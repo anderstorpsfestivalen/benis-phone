@@ -162,7 +162,11 @@ func (c *Controller) handleKey(key string) {
 		err := c.runService(action.Service, nil)
 		c.checkError(err)
 	case "queue":
-		log.Info("QUEUE TIME")
+		q, err := c.Definition.ResolveQueue(action.Queue)
+		c.checkError(err)
+		if err == nil {
+			c.handleQueue(q)
+		}
 	case "clear":
 		c.Audio.Clear()
 	}
