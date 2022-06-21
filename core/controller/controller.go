@@ -23,7 +23,9 @@ type Controller struct {
 	Callstack []string
 	HookState bool
 
-	collector    *Collector
+	collector        *Collector
+	activeDispatcher functions.Dispatcher
+
 	hs           sync.Mutex
 	prefixSignal chan bool
 }
@@ -271,6 +273,10 @@ func (c *Controller) slamHook() {
 	c.Callstack = c.Callstack[:0]
 	c.collector = nil
 
+	if c.activeDispatcher != nil {
+		c.activeDispatcher.Stop()
+	}
+
 	log.Info("Hook is slammed")
 	c.hs.Unlock()
 }
@@ -297,6 +303,13 @@ func (c *Controller) handleQueue(q functions.Queue) {
 	err := q.Load()
 	c.checkError(err)
 
-	f := q.Start(c.Audio, c.Polly)
+	c.activeDispatcher = &q
+
+	f := c.activeDispatcher.Start(c.Audio, c.Polly)
+
+	// Wait for dispatcher to finish
 	<-f
+
+	// Clear out for GC
+	c.activeDispatcher = nil
 }

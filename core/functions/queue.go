@@ -135,6 +135,9 @@ func (q *Queue) loop() {
 			qTimer.Stop()
 			q.rTick.Stop()
 
+			q.finish <- true
+			return
+
 		// Decrease the queue
 		case <-qTimer.C:
 

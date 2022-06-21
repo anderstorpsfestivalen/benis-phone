@@ -28,7 +28,7 @@
         Till {{.To.AdvertisedLocationName}},  
         avgår från spår: {{.K.TrackAtLocation}}, 
         klockan {{.Hour}} och {{.Minute}}""", args = { station = "Reftele" } } },
-        { num = 9, dst = "extramenu" },
+        { num = 9, queue = "kundtjanst" },
         # announce
         { num = 10, clear = true },
     ]
