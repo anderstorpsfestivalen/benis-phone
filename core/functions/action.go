@@ -23,6 +23,8 @@ type Action struct {
 	TTS TTS `toml:"tts"`
 	// Calls a service
 	Service Service `toml:"srv"`
+	// Redirects to a queue
+	Queue string `toml:"queue"`
 }
 
 func (a *Action) Type() (string, error) {
@@ -44,6 +46,10 @@ func (a *Action) Type() (string, error) {
 
 	if a.Service.Destination != "" {
 		return "srv", nil
+	}
+
+	if a.Queue != "" {
+		return "queue", nil
 	}
 
 	if a.Clear {

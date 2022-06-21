@@ -62,6 +62,18 @@ func (p *Playable) Play(a *audio.Audio, polly polly.Polly) error {
 	return fmt.Errorf("Playable type not defined")
 }
 
+func (p *Playable) Type() (string, error) {
+	if p.File != (File{}) {
+		return "file", nil
+	}
+
+	if p.TTS != (TTS{}) {
+		return "tts", nil
+	}
+
+	return "", fmt.Errorf("could not determine type of playable")
+}
+
 type PlayGenerator interface {
 	GetPlayable() (Playable, error)
 }

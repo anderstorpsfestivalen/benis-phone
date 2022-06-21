@@ -28,7 +28,7 @@
         Till {{.To.AdvertisedLocationName}},  
         avgår från spår: {{.K.TrackAtLocation}}, 
         klockan {{.Hour}} och {{.Minute}}""", args = { station = "Reftele" } } },
-        { num = 9, dst = "extramenu" },
+        { num = 9, queue = "kundtjanst" },
         # announce
         { num = 10, clear = true },
     ]
@@ -221,23 +221,23 @@
     currentpos = "Din plats i cön är: {{.Position}}"
     end = { tts = { msg = "DENIS"}}
 
-    [[queue.msg]]
-        text = """Ditt samtal är mycket viktigt för oss.
-        Vi behandlar ditt samtal så fort vi kan."""
+    [[queue.prompt]]
+        prompt = { tts = { msg = """Ditt samtal är mycket viktigt för oss.
+        Vi behandlar ditt samtal så fort vi kan."""}}
         weight = 5
     
-    [[queue.msg]]
-        text = """Du vet väl om att du även kan hitta oss på webben?
-         w w w. PUNKT anderstorps festivalen. PUNKT . s. e."""
+    [[queue.prompt]]
+        prompt = { tts = { msg = """Du vet väl om att du även kan hitta oss på webben?
+         w w w. PUNKT anderstorps festivalen. PUNKT . s. e."""}}
         weight = 1
     
-    [[queue.msg]]
-        text = """Visste du att du kan få svar på många frågor genom att besöka vår hemsida?
-        w w w. PUNKT anderstorps festivalen. PUNKT . s. e."""
+    [[queue.prompt]]
+        prompt = { tts = { msg = """Visste du att du kan få svar på många frågor genom att besöka vår hemsida?
+        w w w. PUNKT anderstorps festivalen. PUNKT . s. e."""}}
         weight = 1
     
-    [[queue.msg]]
-        text = """Vi utför en kvalitetsundersökning.
+    [[queue.prompt]]
+        prompt = { tts = { msg = """Vi utför en kvalitetsundersökning.
          Efter att samtalet är slut ber vi dig att inte lägga på luren, 
-         undersökningen består av 5 frågor och tar mindre än en minut."""
+         undersökningen består av 5 frågor och tar mindre än en minut."""}}
         weight = 1

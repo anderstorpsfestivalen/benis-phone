@@ -6,33 +6,33 @@ type Queue struct {
 	EntryMessage    string `toml:"entrymsg"`
 	Min             int
 	Max             int
-	Messages        []QueueMessage `toml:"msg"`
-	BackgroundMusic File           `toml:"bgmusic"`
+	Prompts         []QueuePrompt `toml:"prompt"`
+	BackgroundMusic File          `toml:"bgmusic"`
 	End             Action
 
 	rm *wr.Chooser
 }
 
-type QueueMessage struct {
-	Text   string
+type QueuePrompt struct {
+	Prompt Playable `toml:"prompt"`
 	Weight int
 }
 
 func (q *Queue) Load() error {
 
-	var ch []wr.Choice
+	// var ch []wr.Choice
 
-	for _, c := range q.Messages {
-		ch = append(ch, wr.NewChoice(c.Text, uint(c.Weight)))
-	}
+	// for _, c := range q.Messages {
+	// 	ch = append(ch, wr.NewChoice(c.Text, uint(c.Weight)))
+	// }
 
-	chooser, err := wr.NewChooser(ch...)
+	// chooser, err := wr.NewChooser(ch...)
 
-	if err != nil {
-		return err
-	}
+	// if err != nil {
+	// 	return err
+	// }
 
-	q.rm = chooser
+	// q.rm = chooser
 
 	return nil
 }

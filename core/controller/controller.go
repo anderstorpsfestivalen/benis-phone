@@ -161,6 +161,8 @@ func (c *Controller) handleKey(key string) {
 	case "srv":
 		err := c.runService(action.Service, nil)
 		c.checkError(err)
+	case "queue":
+		log.Info("QUEUE TIME")
 	case "clear":
 		c.Audio.Clear()
 	}
