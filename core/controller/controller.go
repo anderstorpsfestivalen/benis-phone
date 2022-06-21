@@ -291,3 +291,12 @@ func (c *Controller) checkError(e error) {
 
 	}
 }
+
+func (c *Controller) handleQueue(q functions.Queue) {
+
+	err := q.Load()
+	c.checkError(err)
+
+	f := q.Start(c.Audio, c.Polly)
+	<-f
+}

@@ -28,7 +28,7 @@
         Till {{.To.AdvertisedLocationName}},  
         avgår från spår: {{.K.TrackAtLocation}}, 
         klockan {{.Hour}} och {{.Minute}}""", args = { station = "Reftele" } } },
-        { num = 9, queue = "kundtjanst" },
+        { num = 9, dst = "extramenu" },
         # announce
         { num = 10, clear = true },
     ]
@@ -240,4 +240,9 @@
         prompt = { tts = { msg = """Vi utför en kvalitetsundersökning.
          Efter att samtalet är slut ber vi dig att inte lägga på luren, 
          undersökningen består av 5 frågor och tar mindre än en minut."""}}
+        weight = 1
+
+    [[queue.prompt]]
+        prompt = { tts = { msg = """Alla våra medarbetare är just nu upptagna med andra kunder.
+        Vi besvarar ditt samtal så fort vi kan."""}}
         weight = 1
