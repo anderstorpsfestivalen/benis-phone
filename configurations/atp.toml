@@ -212,13 +212,15 @@
 
 [[queue]]
     name = "kundtjanst"
-    min = 20
-    max = 60
+
+    minpos = 20
+    maxpos = 60
+
     entrymsg = { tts = { msg = """Just nu är det många som ringer till oss.
     Ditt samtal är placerat i kö.
     Vi besvarar ditt samtal så fort vi kan.""" }, wait = true }
     bgmusic = { src = "files/hold.mp3" }
-    currentpos = "Din plats i cön är: {{.Position}}"
+    currentpos = { msg = "Din plats i cön är: {{.Position}}"} 
     end = { tts = { msg = "DENIS"}}
 
     [[queue.prompt]]

@@ -1,8 +1,10 @@
 package functions
 
 import (
+	"bytes"
 	"math/rand"
 	"os"
+	"text/template"
 	"time"
 
 	"github.com/anderstorpsfestivalen/benis-phone/core/audio"
@@ -25,20 +27,28 @@ type Queue struct {
 	MinPromptTime int `toml:"minprompt"`
 	MaxPromptTime int `toml:"maxprompt"`
 
+	//Templates
+	CurrentPositionTemplate TTS `toml:"currentpos"`
+	curPosTmpl              *template.Template
+
 	Prompts         []QueuePrompt `toml:"prompt"`
 	BackgroundMusic File          `toml:"bgmusic"`
 	End             Action
 
 	queueSpot int
 
-	rm       *wr.Chooser
-	lastPos  int
-	streamer beep.StreamSeekCloser
-	a        *audio.Audio
-	p        polly.Polly
-	kill     chan bool
-	finish   chan bool
-	rTick    *time.Ticker
+	rm           *wr.Chooser
+	lastPos      int
+	streamer     beep.StreamSeekCloser
+	a            *audio.Audio
+	p            polly.Polly
+	kill         chan bool
+	finish       chan bool
+	promptTicker *time.Ticker
+}
+
+type QueuePositionTemplate struct {
+	Position int
 }
 
 // I miss rust :( Traits, esp the Default trait is so OP
@@ -102,6 +112,13 @@ func (q *Queue) Start(audio *audio.Audio, polly polly.Polly) <-chan bool {
 	q.p = polly
 	q.kill = make(chan bool)
 	q.finish = make(chan bool)
+
+	ttmpl, err := template.New("queueposition").Parse(q.CurrentPositionTemplate.Message)
+	if err != nil {
+		log.Error(err)
+	}
+	q.curPosTmpl = ttmpl
+
 	// fmt.Println(rand.Intn(max - min) + min)
 	go q.loop()
 
@@ -118,14 +135,14 @@ func (q *Queue) loop() {
 	q.EntryMessage.Play(q.a, q.p)
 
 	// start background audio
-	q.StartBackground(q.a)
+	q.startBackground()
 
 	// prep for main queue loop
 	q.queueSpot = rand.Intn(
 		rand.Intn(q.MaxQueuePositon-q.MinQueuePosition) + q.MinQueuePosition)
 
 	qTimer := q.queueTimer()
-	q.rTick = time.NewTicker(4)
+	q.promptTicker = time.NewTicker(4)
 
 	// Main queue loop
 	for {
@@ -133,7 +150,7 @@ func (q *Queue) loop() {
 		// Stop the queue (hangup etc)
 		case <-q.kill:
 			qTimer.Stop()
-			q.rTick.Stop()
+			q.promptTicker.Stop()
 
 			q.finish <- true
 			return
@@ -145,13 +162,14 @@ func (q *Queue) loop() {
 
 			qTimer = q.queueTimer()
 
-		case <-q.rTick.C:
+		case <-q.promptTicker.C:
 
+			q.prompt()
 		}
 	}
 }
 
-func (q *Queue) StartBackground(a *audio.Audio) {
+func (q *Queue) startBackground() {
 	f, _ := os.Open(q.BackgroundMusic.Source)
 
 	streamer, format, err := mp3.Decode(f)
@@ -161,8 +179,20 @@ func (q *Queue) StartBackground(a *audio.Audio) {
 	q.streamer = streamer
 	q.streamer.Seek(q.lastPos)
 
-	go a.ExternalPlayback(q.streamer, format)
+	go q.a.ExternalPlayback(q.streamer, format)
 
+}
+
+func (q *Queue) pauseBackground() {
+
+	if q.streamer != nil {
+		if q.streamer.Position()-40 >= q.streamer.Len() {
+			q.lastPos = 0
+		} else {
+			q.lastPos = q.streamer.Position()
+		}
+		q.a.Clear()
+	}
 }
 
 func (q *Queue) queueTimer() *time.Timer {
@@ -177,6 +207,41 @@ func (q *Queue) readTicker(oldTimer *time.Ticker) *time.Ticker {
 	return time.NewTicker(
 		time.Second * time.Duration(
 			rand.Intn(q.MaxPromptTime-q.MinPromptTime)+q.MinPromptTime))
+}
+
+func (q *Queue) prompt() {
+
+	// Pause background music
+	q.pauseBackground()
+
+	// Read current position
+	// Generate message from template
+	ds := QueuePositionTemplate{
+		Position: q.queueSpot,
+	}
+
+	posMsg := new(bytes.Buffer)
+	err := q.curPosTmpl.Execute(posMsg, ds)
+	if err != nil {
+		log.Error(err)
+	}
+
+	// Read it out with tts
+	qt, _ := TTS{
+		Message:  posMsg.String(),
+		Voice:    q.CurrentPositionTemplate.Voice,
+		Language: q.CurrentPositionTemplate.Language,
+	}.GetPlayable()
+
+	qt.Wait = true
+
+	qt.Play(q.a, q.p)
+
+	// Get random message to read out
+
+	q.startBackground()
+
+	q.promptTicker = q.readTicker(q.promptTicker)
 }
 
 // If you get here hahaha WHAT A WASTE

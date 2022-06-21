@@ -273,6 +273,8 @@ func (c *Controller) slamHook() {
 	c.Callstack = c.Callstack[:0]
 	c.collector = nil
 
+	// Check if we're currently in dispatch mode
+	// If so, ask dispatcher to exit
 	if c.activeDispatcher != nil {
 		c.activeDispatcher.Stop()
 	}
@@ -303,6 +305,7 @@ func (c *Controller) handleQueue(q functions.Queue) {
 	err := q.Load()
 	c.checkError(err)
 
+	// Store pointer to queue as dispatcher
 	c.activeDispatcher = &q
 
 	f := c.activeDispatcher.Start(c.Audio, c.Polly)

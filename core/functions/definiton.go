@@ -78,6 +78,9 @@ func (d *Definition) Prepare() {
 		if t == "tts" {
 			d.Queues[i].EntryMessage.TTS.SetDefault(d.General.DefaultTTSVoice, d.General.DefaultTTSLanguage)
 		}
+
+		d.Queues[i].CurrentPositionTemplate.SetDefault(d.General.DefaultTTSVoice, d.General.DefaultTTSLanguage)
+
 	}
 
 }
