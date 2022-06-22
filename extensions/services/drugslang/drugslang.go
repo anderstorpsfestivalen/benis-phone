@@ -3,7 +3,6 @@ package drugslang
 import (
 	"bytes"
 	"encoding/csv"
-	"fmt"
 	"math/rand"
 	"strings"
 	"text/template"
@@ -28,17 +27,35 @@ func (f *Drugslang) Get(input string, tmpl string, arguments map[string]string) 
 
 	sl := d[rand.Intn(len(d)-1)]
 
-	fmt.Println(sl)
+	// Pick 7 words
 
-	//var random []int
-	//for i, _
+	slangs := strings.Split(sl[1], ";")
+
+	var vr []string
+	num := 7
+	if len(slangs) < num {
+		num = len(slangs) - 1
+	}
+
+	for i := 1; i < num; i++ {
+		rd := rand.Intn(len(slangs))
+		vr = append(vr, slangs[rd])
+	}
+
+	mr := ""
+
+	for _, w := range vr {
+		mr = mr + " " + w + ","
+	}
 
 	type DS struct {
+		Drug  string
 		Slang string
 	}
 
 	ds := DS{
-		Slang: "brexit",
+		Drug:  sl[0],
+		Slang: mr,
 	}
 
 	buf := new(bytes.Buffer)

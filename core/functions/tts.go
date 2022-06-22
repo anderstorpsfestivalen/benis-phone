@@ -34,6 +34,7 @@ func (t *Definition) StandardTTS(message string) TTS {
 		Message:  message,
 		Voice:    t.General.DefaultTTSVoice,
 		Language: t.General.DefaultTTSLanguage,
+		Engine:   t.General.DefaultTTSEngine,
 	}
 }
 
@@ -42,5 +43,6 @@ func (t *Definition) EnglishTTS(message string) TTS {
 		Message:  message,
 		Voice:    "Kendra",
 		Language: "en-US",
+		Engine:   "neural",
 	}
 }

@@ -45,7 +45,10 @@ func (p *Playable) Play(a *audio.Audio, polly polly.Polly) error {
 			return err
 		}
 
-		log.WithFields(log.Fields{"message": p.TTS.Message, "lang": p.TTS.Language, "voice": p.TTS.Voice}).Info("Playing TTS")
+		log.WithFields(log.Fields{"message": p.TTS.Message,
+			"lang":   p.TTS.Language,
+			"voice":  p.TTS.Voice,
+			"engine": p.TTS.Engine}).Info("Playing TTS")
 
 		if p.Wait {
 			return a.PlayMP3FromStream(ttsData)

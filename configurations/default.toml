@@ -16,7 +16,8 @@
     name = "main"
     prefix = { tts = { msg = "WELCOME TO THE PHONE SYSTEM" } }
     actions = [
-        { num = 6, srv = { dst = "drugslang", tmpl = """Do you have koll on the drug slang? {{.Slang}}""" } },
+        { num = 6, srv = { dst = "drugslang", tmpl = """Do you know your drug slang?
+        {{.Drug}} is also known as {{.Slang}}""" } },
         { num = 7, dst = "uganda" },
         { num = 8, dst = "syralotto" },
         { num = 9, queue = "customerservice" },
