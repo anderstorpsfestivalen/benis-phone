@@ -40,7 +40,7 @@ func (p *Playable) Play(a *audio.Audio, polly polly.Polly) error {
 		}
 
 	} else if p.TTS != (TTS{}) {
-		ttsData, err := polly.TTSLang(p.TTS.Message, p.TTS.Language, p.TTS.Voice)
+		ttsData, err := polly.TTSLang(p.TTS.Message, p.TTS.Language, p.TTS.Voice, p.TTS.Engine)
 		if err != nil {
 			return err
 		}

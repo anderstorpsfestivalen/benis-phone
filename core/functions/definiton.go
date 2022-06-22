@@ -46,7 +46,11 @@ func (d *Definition) Prepare() {
 	// Hydrate prefixes
 	for i, f := range d.UnsortedFunctions {
 		f.IndexActions()
-		d.UnsortedFunctions[i].Prefix.TTS.SetDefault(d.General.DefaultTTSVoice, d.General.DefaultTTSLanguage)
+		d.UnsortedFunctions[i].Prefix.TTS.SetDefault(
+			d.General.DefaultTTSVoice,
+			d.General.DefaultTTSLanguage,
+			d.General.DefaultTTSEngine,
+		)
 
 	}
 
@@ -60,7 +64,11 @@ func (d *Definition) Prepare() {
 		for n, a := range v.Actions {
 			t, _ := a.Type()
 			if t == "tts" {
-				d.UnsortedFunctions[i].Actions[n].TTS.SetDefault(d.General.DefaultTTSVoice, d.General.DefaultTTSLanguage)
+				d.UnsortedFunctions[i].Actions[n].TTS.SetDefault(
+					d.General.DefaultTTSVoice,
+					d.General.DefaultTTSLanguage,
+					d.General.DefaultTTSEngine,
+				)
 			}
 		}
 	}
@@ -70,16 +78,28 @@ func (d *Definition) Prepare() {
 		for n, m := range q.Prompts {
 			t, _ := m.Prompt.Type()
 			if t == "tts" {
-				d.Queues[i].Prompts[n].Prompt.TTS.SetDefault(d.General.DefaultTTSVoice, d.General.DefaultTTSLanguage)
+				d.Queues[i].Prompts[n].Prompt.TTS.SetDefault(
+					d.General.DefaultTTSVoice,
+					d.General.DefaultTTSLanguage,
+					d.General.DefaultTTSEngine,
+				)
 			}
 		}
 
 		t, _ := q.EntryMessage.Type()
 		if t == "tts" {
-			d.Queues[i].EntryMessage.TTS.SetDefault(d.General.DefaultTTSVoice, d.General.DefaultTTSLanguage)
+			d.Queues[i].EntryMessage.TTS.SetDefault(
+				d.General.DefaultTTSVoice,
+				d.General.DefaultTTSLanguage,
+				d.General.DefaultTTSEngine,
+			)
 		}
 
-		d.Queues[i].CurrentPositionTemplate.SetDefault(d.General.DefaultTTSVoice, d.General.DefaultTTSLanguage)
+		d.Queues[i].CurrentPositionTemplate.SetDefault(
+			d.General.DefaultTTSVoice,
+			d.General.DefaultTTSLanguage,
+			d.General.DefaultTTSEngine,
+		)
 
 	}
 
@@ -103,4 +123,7 @@ type General struct {
 
 	// https://docs.aws.amazon.com/polly/latest/dg/SupportedLanguage.html
 	DefaultTTSLanguage string `toml:"default_tts_lang"`
+
+	// standard, neural
+	DefaultTTSEngine string `toml:"default_tts_engine"`
 }

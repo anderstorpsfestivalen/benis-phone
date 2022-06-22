@@ -4,9 +4,10 @@ type TTS struct {
 	Message  string `toml:"msg"`
 	Voice    string
 	Language string `toml:"lang"`
+	Engine   string
 }
 
-func (t *TTS) SetDefault(dv string, dl string) {
+func (t *TTS) SetDefault(dv string, dl string, de string) {
 	if t.Message != "" {
 		if t.Voice == "" {
 			t.Voice = dv
@@ -14,6 +15,10 @@ func (t *TTS) SetDefault(dv string, dl string) {
 
 		if t.Language == "" {
 			t.Language = dl
+		}
+
+		if t.Engine == "" {
+			t.Engine = de
 		}
 	}
 }

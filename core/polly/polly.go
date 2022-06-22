@@ -8,7 +8,7 @@ import (
 	"os"
 	"path"
 
-	golang_tts "github.com/leprosus/golang-tts"
+	golang_tts "github.com/anderstorpsfestivalen/go-tts"
 )
 
 type AWS struct {
@@ -43,25 +43,32 @@ func New(key string, secret string, haschcache string) (Polly, error) {
 //TTS generates a message in Swedish
 func (p *Polly) TTS(message string, voice string) ([]byte, error) {
 
-	return p.internalTTS(message, "sv-SE", voice)
+	return p.internalTTS(message, "sv-SE", voice, "standard")
 }
 
 //TTSLang allows you to define the speaking language in addition to voice.
 // Yes we are quite lazy.
-func (p *Polly) TTSLang(message string, language string, voice string) ([]byte, error) {
+func (p *Polly) TTSLang(message string, language string, voice string, engine string) ([]byte, error) {
 
-	return p.internalTTS(message, language, voice)
+	return p.internalTTS(message, language, voice, engine)
 }
 
-func (p *Polly) internalTTS(message string, language string, voice string) ([]byte, error) {
+func (p *Polly) internalTTS(message string, language string, voice string, engine string) ([]byte, error) {
 
 	cached, err := p.checkHaschCache(message, language, voice)
 	if err == nil {
 		return cached, nil
 	}
 
+	e := golang_tts.STANDARD
+
+	if engine == "neural" {
+		e = golang_tts.NEURAL
+	}
+
 	polly := golang_tts.New(p.credentials.aws_key, p.credentials.aws_secret)
 	polly.Language(language)
+	polly.Engine(e)
 	polly.Format(golang_tts.MP3)
 	polly.Voice(voice)
 

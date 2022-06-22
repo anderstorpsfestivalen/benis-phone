@@ -321,7 +321,7 @@ func (c *Controller) handleQueue(q functions.Queue) {
 	c.activeDispatcher = nil
 
 	_, err = a.Type()
-	if err != nil {
+	if err == nil {
 		c.handleAction(&a)
 	}
 }

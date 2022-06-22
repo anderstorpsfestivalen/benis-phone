@@ -2,6 +2,7 @@ package services
 
 import (
 	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/drogslang"
+	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/drugslang"
 	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/flacornot"
 	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/idiom"
 	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/train"
@@ -23,6 +24,7 @@ var ServiceRegistry = map[string]Service{
 	"idiom":      &idiom.Idiom{},
 	"traintimes": &train.Train{},
 	"drogslang":  &drogslang.Drogslang{},
+	"drugslang":  &drugslang.Drugslang{},
 }
 
 func AddService(name string, s Service) {

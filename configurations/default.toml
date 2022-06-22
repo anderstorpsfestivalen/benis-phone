@@ -8,22 +8,65 @@
     # en-US , sv-SE
     # https://docs.aws.amazon.com/polly/latest/dg/SupportedLanguage.html
     default_tts_lang = "en-US"
+    # standard, neural
+    default_tts_engine = "neural"
 
 # main
 [[fn]]
     name = "main"
     prefix = { tts = { msg = "WELCOME TO THE PHONE SYSTEM" } }
     actions = [
-        # 1 ) Personlig meny
-        { num = 1, queue = "customerservice" },
-        { num = 9, dst = "extramenu" },
+        { num = 6, srv = { dst = "drugslang", tmpl = """Do you have koll on the drug slang? {{.Slang}}""" } },
+        { num = 7, dst = "uganda" },
+        { num = 8, dst = "syralotto" },
+        { num = 9, queue = "customerservice" },
         # announce
         { num = 10, clear = true },
     ]
 
+# uganda
+[[fn]]
+    name = "uganda"
+    prefix = { tts = { voice = "Mads", msg = """TRYCK, ETT, till FYRKANT, 
+    NOLL FÖR ATT GÅ TILLBAKA""", lang = "da-DK" } }
+
+    actions = [
+        { randomfile = { folder = "./files/ugandan/" } },
+        { file = { src = "files/ugandan/Commando-1.ogg" } },
+        { file = { src = "files/ugandan/Gwe-Gwe-Gwe.ogg" } },
+        { file = { src = "files/ugandan/One-hell-of-a-movie.ogg" } },
+        { file = { src = "files/ugandan/WHAT-THE-FU.ogg" } },
+        { file = { src = "files/ugandan/Tough-Commando-on-da-Mission.ogg" } },
+        { file = { src = "files/ugandan/UGAANDA.ogg" } },
+        { file = { src = "files/ugandan/HELLO-2.ogg" } },
+        { file = { src = "files/ugandan/SUPA-MAFIA-ON-THE-RUN.ogg" } },
+        { file = { src = "files/ugandan/Warrior.ogg" } },
+    ]
+
+# syralotto
+[[fn]]
+    name = "syralotto"
+    prefix = { tts = { msg = """TRYCK ETT FÖR RANDOM, 
+    TVÅ till FYRKANT FÖR FASTA ALTERNATIV,
+    NOLL FÖR ATT GÅ TILLBAKA""" } }
+
+    actions = [
+        { file = { src = "files/lasse-liten/e.ogg" } },
+        { file = { src = "files/lasse-liten/lsd.ogg" } },
+        { file = { src = "files/lasse-liten/acid-house.ogg" } },
+        { file = { src = "files/lasse-liten/goa-trance.ogg" } },
+        { file = { src = "files/lasse-liten/electro.ogg" } },
+        { file = { src = "files/lasse-liten/garage.ogg" } },
+        { file = { src = "files/lasse-liten/deep-house.ogg" } },
+        { file = { src = "files/lasse-liten/e-type.ogg" } },
+        { file = { src = "files/lasse-liten/allt-snurrar.ogg" } },
+        { file = { src = "files/lasse-liten/torr-i-munnen.ogg" } },
+        { file = { src = "files/lasse-liten/josses-vad-det-gar-igang.ogg" } },
+    ]
+
+
 [[queue]]
     name = "customerservice"
-
     entrymsg = { tts = { msg = """Please wait while we try to connect you to one
     of our customer service representatives""" }, wait = true }
     bgmusic = { src = "files/hold.mp3" }
