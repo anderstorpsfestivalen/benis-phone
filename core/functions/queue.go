@@ -132,7 +132,6 @@ func (q *Queue) Start(audio *audio.Audio, polly polly.Polly) <-chan Action {
 	}
 	q.curPosTmpl = ttmpl
 
-	// fmt.Println(rand.Intn(max - min) + min)
 	go q.loop()
 
 	return q.finish
@@ -151,13 +150,11 @@ func (q *Queue) loop() {
 		t:        "play",
 		playable: q.EntryMessage,
 	}
-	//q.EntryMessage.Play(q.a, q.p)
 
 	// start background audio
 	q.actionQueue <- QueueAction{
 		t: "startbg",
 	}
-	//q.startBackground()
 
 	// prep for main queue loop
 	q.queueSpot = rand.Intn(
@@ -272,7 +269,6 @@ func (q *Queue) prompt() {
 	q.actionQueue <- QueueAction{
 		t: "pausebg",
 	}
-	//q.pauseBackground()
 
 	// Read current position
 	// Generate message from template
@@ -300,8 +296,6 @@ func (q *Queue) prompt() {
 		playable: qt,
 	}
 
-	//qt.Play(q.a, q.p)
-
 	// Get random message to read out
 	p := q.rm.Pick().(QueuePrompt)
 	if !p.Empty {
@@ -316,7 +310,6 @@ func (q *Queue) prompt() {
 	q.actionQueue <- QueueAction{
 		t: "startbg",
 	}
-	//q.startBackground()
 
 	q.promptTicker = q.readTicker(q.promptTicker)
 }
