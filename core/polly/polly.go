@@ -8,6 +8,8 @@ import (
 	"os"
 	"path"
 
+	log "github.com/sirupsen/logrus"
+
 	golang_tts "github.com/anderstorpsfestivalen/go-tts"
 )
 
@@ -55,10 +57,13 @@ func (p *Polly) TTSLang(message string, language string, voice string, engine st
 
 func (p *Polly) internalTTS(message string, language string, voice string, engine string) ([]byte, error) {
 
-	cached, err := p.checkHaschCache(message, language, voice)
+	cached, err := p.checkHaschCache(message, language, voice, engine)
 	if err == nil {
+		log.Trace("Haschcache hit, returning cached")
 		return cached, nil
 	}
+
+	log.Trace("Haschcache miss, requesting from Polly")
 
 	e := golang_tts.STANDARD
 
@@ -77,7 +82,7 @@ func (p *Polly) internalTTS(message string, language string, voice string, engin
 		return nil, err
 	}
 
-	err = p.writeHaschCache(p.haschRequest(message, language, voice), bytes)
+	err = p.writeHaschCache(p.haschRequest(message, language, voice, engine), bytes)
 	if err != nil {
 		return nil, err
 	}
@@ -85,9 +90,9 @@ func (p *Polly) internalTTS(message string, language string, voice string, engin
 	return bytes, nil
 }
 
-func (p *Polly) checkHaschCache(message string, language string, voice string) ([]byte, error) {
+func (p *Polly) checkHaschCache(message string, language string, voice string, engine string) ([]byte, error) {
 
-	hasch := p.haschRequest(message, language, voice)
+	hasch := p.haschRequest(message, language, voice, engine)
 
 	_, err := os.Stat(path.Join(p.haschcache, hasch))
 	if os.IsNotExist(err) {
@@ -103,8 +108,8 @@ func (p *Polly) writeHaschCache(hasch string, data []byte) error {
 	return err
 }
 
-func (p *Polly) haschRequest(message string, language string, voice string) string {
+func (p *Polly) haschRequest(message string, language string, voice string, engine string) string {
 	nc := sha1.New()
-	io.WriteString(nc, message+language+voice)
+	io.WriteString(nc, message+language+voice+engine)
 	return fmt.Sprintf("%x", nc.Sum(nil))
 }

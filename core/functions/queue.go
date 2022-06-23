@@ -47,10 +47,18 @@ type Queue struct {
 
 	qt           *time.Timer
 	promptTicker *time.Ticker
+
+	actionQueue       chan QueueAction
+	cancelActionQueue chan bool
 }
 
 type QueuePositionTemplate struct {
 	Position int
+}
+
+type QueueAction struct {
+	t        string
+	playable Playable
 }
 
 // I miss rust :( Traits, esp the Default trait is so OP
@@ -115,6 +123,8 @@ func (q *Queue) Start(audio *audio.Audio, polly polly.Polly) <-chan Action {
 	q.p = polly
 	q.kill = make(chan bool)
 	q.finish = make(chan Action)
+	q.actionQueue = make(chan QueueAction, 200)
+	q.cancelActionQueue = make(chan bool)
 
 	ttmpl, err := template.New("queueposition").Parse(q.CurrentPositionTemplate.Message)
 	if err != nil {
@@ -134,11 +144,20 @@ func (q *Queue) Stop() {
 
 func (q *Queue) loop() {
 
+	go q.handleQueue()
+
 	// play entry message
-	q.EntryMessage.Play(q.a, q.p)
+	q.actionQueue <- QueueAction{
+		t:        "play",
+		playable: q.EntryMessage,
+	}
+	//q.EntryMessage.Play(q.a, q.p)
 
 	// start background audio
-	q.startBackground()
+	q.actionQueue <- QueueAction{
+		t: "startbg",
+	}
+	//q.startBackground()
 
 	// prep for main queue loop
 	q.queueSpot = rand.Intn(
@@ -152,8 +171,14 @@ func (q *Queue) loop() {
 		select {
 		// Stop the queue (hangup etc)
 		case <-q.kill:
+			//drain action queue
+			for len(q.actionQueue) > 0 {
+				<-q.actionQueue
+			}
+
 			q.qt.Stop()
 			q.promptTicker.Stop()
+			q.cancelActionQueue <- true
 			q.finish <- Action{}
 
 			return
@@ -173,7 +198,30 @@ func (q *Queue) loop() {
 		case <-q.promptTicker.C:
 
 			q.prompt()
+
 		}
+	}
+}
+
+func (q *Queue) handleQueue() {
+	for {
+		select {
+		case aq := <-q.actionQueue:
+			q.handleAction(aq)
+		case <-q.cancelActionQueue:
+			return
+		}
+	}
+}
+
+func (q *Queue) handleAction(a QueueAction) {
+	switch a.t {
+	case "play":
+		a.playable.Play(q.a, q.p)
+	case "startbg":
+		q.startBackground()
+	case "pausebg":
+		q.pauseBackground()
 	}
 }
 
@@ -220,7 +268,11 @@ func (q *Queue) readTicker(oldTimer *time.Ticker) *time.Ticker {
 func (q *Queue) prompt() {
 
 	// Pause background music
-	q.pauseBackground()
+
+	q.actionQueue <- QueueAction{
+		t: "pausebg",
+	}
+	//q.pauseBackground()
 
 	// Read current position
 	// Generate message from template
@@ -243,16 +295,28 @@ func (q *Queue) prompt() {
 
 	qt.Wait = true
 
-	qt.Play(q.a, q.p)
+	q.actionQueue <- QueueAction{
+		t:        "play",
+		playable: qt,
+	}
+
+	//qt.Play(q.a, q.p)
 
 	// Get random message to read out
 	p := q.rm.Pick().(QueuePrompt)
 	if !p.Empty {
 		p.Prompt.Wait = true
-		p.Prompt.Play(q.a, q.p)
+		//p.Prompt.Play(q.a, q.p)
+		q.actionQueue <- QueueAction{
+			t:        "play",
+			playable: p.Prompt,
+		}
 	}
 
-	q.startBackground()
+	q.actionQueue <- QueueAction{
+		t: "startbg",
+	}
+	//q.startBackground()
 
 	q.promptTicker = q.readTicker(q.promptTicker)
 }
