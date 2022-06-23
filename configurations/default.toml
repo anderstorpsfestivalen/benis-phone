@@ -68,6 +68,10 @@
 
 [[queue]]
     name = "customerservice"
+    
+    minpos = 20
+    maxpos = 45
+
     entrymsg = { tts = { msg = """Please wait while we try to connect you to one
     of our customer service representatives""" }, wait = true }
     bgmusic = { src = "files/hold.mp3" }
@@ -81,7 +85,7 @@
     
     [[queue.prompt]]
         prompt = { tts = { msg = """"You may find answers to your questions by visiting
-        w w w . anderstorpsfestivalen . s e"""}}
+        w w w dot anderstorpsfestivalen dot s e"""}}
         weight = 1
 
     [[queue.prompt]]

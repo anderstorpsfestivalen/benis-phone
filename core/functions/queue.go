@@ -264,8 +264,7 @@ func (q *Queue) readTicker(oldTimer *time.Ticker) *time.Ticker {
 
 func (q *Queue) prompt() {
 
-	// Pause background music
-
+	// Pause background musi
 	q.actionQueue <- QueueAction{
 		t: "pausebg",
 	}
