@@ -253,6 +253,15 @@ func (c *Controller) runService(srv functions.Service, collector *string) error 
 
 // Gets the most recent added function from the callstack
 func (c *Controller) getCurrent() *functions.Fn {
+
+	// Fix race condition
+	if len(c.Callstack) == 0 {
+		if c.activeDispatcher != nil {
+			c.activeDispatcher.Stop()
+		}
+		return c.Definition.Functions[c.Definition.General.Entrypoint]
+	}
+
 	current := c.Callstack[len(c.Callstack)-1]
 	return c.Definition.Functions[current]
 }
