@@ -16,13 +16,14 @@
     name = "main"
     prefix = { tts = { msg = "WELCOME TO THE PHONE SYSTEM" } }
     actions = [
+        { num = 5, prefix =  { tts = { msg = "Getting the latest kernelmessage" }}, srv = { dst = "kernelmessage", tmpl = """From {{.From}} Text {{.Filtered}}"""}},
         { num = 6, srv = { dst = "drugslang", tmpl = """Do you know your drug slang?
         {{.Drug}} is also known as {{.Slang}}""" } },
         { num = 7, dst = "uganda" },
         { num = 8, dst = "syralotto" },
         { num = 9, queue = "customerservice" },
         # announce
-        { num = 10, clear = true },
+        { num = 10, clear = true }
     ]
 
 # uganda

@@ -70,6 +70,14 @@ func (d *Definition) Prepare() {
 					d.General.DefaultTTSEngine,
 				)
 			}
+
+			if a.Prefix != (Prefix{}) {
+				a.Prefix.TTS.SetDefault(
+					d.General.DefaultTTSVoice,
+					d.General.DefaultTTSLanguage,
+					d.General.DefaultTTSEngine,
+				)
+			}
 		}
 	}
 

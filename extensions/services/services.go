@@ -5,6 +5,7 @@ import (
 	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/drugslang"
 	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/flacornot"
 	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/idiom"
+	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/kernelmessage"
 	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/train"
 )
 
@@ -21,10 +22,11 @@ type ServiceResponse struct {
 var ServiceRegistry = map[string]Service{
 	"flacornot": &flacornot.FlacOrNot{},
 	// "barclosing": &barclosing.BarClosing{},
-	"idiom":      &idiom.Idiom{},
-	"traintimes": &train.Train{},
-	"drogslang":  &drogslang.Drogslang{},
-	"drugslang":  &drugslang.Drugslang{},
+	"idiom":         &idiom.Idiom{},
+	"traintimes":    &train.Train{},
+	"drogslang":     &drogslang.Drogslang{},
+	"drugslang":     &drugslang.Drugslang{},
+	"kernelmessage": &kernelmessage.KernelMessage{},
 }
 
 func AddService(name string, s Service) {
