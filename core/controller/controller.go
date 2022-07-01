@@ -268,6 +268,10 @@ func (c *Controller) getCurrent() *functions.Fn {
 
 func (c *Controller) liftHook() {
 	c.hs.Lock()
+	defer c.hs.Unlock()
+	if c.HookState {
+		return
+	}
 	c.HookState = true
 	c.Audio.Clear()
 	c.Callstack = append(c.Callstack, c.Definition.General.Entrypoint)
@@ -275,11 +279,11 @@ func (c *Controller) liftHook() {
 	c.prefixSignal <- true
 
 	log.Info("Hook is lifted")
-	c.hs.Unlock()
 }
 
 func (c *Controller) slamHook() {
 	c.hs.Lock()
+	defer c.hs.Unlock()
 	c.HookState = false
 	c.Audio.Clear()
 
@@ -293,7 +297,6 @@ func (c *Controller) slamHook() {
 	}
 
 	log.Info("Hook is slammed")
-	c.hs.Unlock()
 }
 
 func (c *Controller) play(pl functions.PlayGenerator) {
