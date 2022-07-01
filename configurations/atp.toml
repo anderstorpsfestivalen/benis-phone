@@ -15,7 +15,7 @@
         # 1 ) Personlig meny
         { num = 1, dst = "personalmenu" },
         { num = 2, dst = "uganda" },
-        { num = 3, tts = { msg = "DENIS"}},
+        { num = 3, tts = { msg = "DENIS" } },
         { num = 4, dst = "systemetmenu" },
         { num = 5, srv = { dst = "flacornot", tts = { voice = "Kendra", lang = "en-US" } } },
         { num = 6, srv = { dst = "idiom" } },
@@ -220,35 +220,35 @@
     Ditt samtal är placerat i kö.
     Vi besvarar ditt samtal så fort vi kan.""" }, wait = true }
     bgmusic = { src = "files/hold.mp3" }
-    currentpos = { msg = "Din plats i cön är: {{.Position}}"} 
-    end = { tts = { msg = "DENIS"}}
+    currentpos = { msg = "Din plats i cön är: {{.Position}}" }
+    end = { tts = { msg = "DENIS" } }
 
-    [[queue.prompt]]
-        prompt = { tts = { msg = """Ditt samtal är mycket viktigt för oss.
-        Vi behandlar ditt samtal så fort vi kan."""}}
-        weight = 4
-    
-    [[queue.prompt]]
-        prompt = { tts = { msg = """Du vet väl om att du även kan hitta oss på webben?
-         w w w. PUNKT anderstorps festivalen. PUNKT . s. e."""}}
-        weight = 1
-    
-    [[queue.prompt]]
-        prompt = { tts = { msg = """Visste du att du kan få svar på många frågor genom att besöka vår hemsida?
-        w w w. PUNKT anderstorps festivalen. PUNKT . s. e."""}}
-        weight = 1
-    
-    [[queue.prompt]]
-        prompt = { tts = { msg = """Vi utför en kvalitetsundersökning.
+[[queue.prompt]]
+    prompt = { tts = { msg = """Ditt samtal är mycket viktigt för oss.
+        Vi behandlar ditt samtal så fort vi kan.""" } }
+    weight = 4
+
+[[queue.prompt]]
+    prompt = { tts = { msg = """Du vet väl om att du även kan hitta oss på webben?
+         w w w. PUNKT anderstorps festivalen. PUNKT . s. e.""" } }
+    weight = 1
+
+[[queue.prompt]]
+    prompt = { tts = { msg = """Visste du att du kan få svar på många frågor genom att besöka vår hemsida?
+        w w w. PUNKT anderstorps festivalen. PUNKT . s. e.""" } }
+    weight = 1
+
+[[queue.prompt]]
+    prompt = { tts = { msg = """Vi utför en kvalitetsundersökning.
          Efter att samtalet är slut ber vi dig att inte lägga på luren, 
-         undersökningen består av 5 frågor och tar mindre än en minut."""}}
-        weight = 2
+         undersökningen består av 5 frågor och tar mindre än en minut.""" } }
+    weight = 2
 
-    [[queue.prompt]]
-        prompt = { tts = { msg = """Alla våra medarbetare är just nu upptagna med andra kunder.
-        Vi besvarar ditt samtal så fort vi kan."""}}
-        weight = 4
+[[queue.prompt]]
+    prompt = { tts = { msg = """Alla våra medarbetare är just nu upptagna med andra kunder.
+        Vi besvarar ditt samtal så fort vi kan.""" } }
+    weight = 4
 
-    [[queue.prompt]]
-        empty = true
-        weight = 5
+[[queue.prompt]]
+    empty  = true
+    weight = 5

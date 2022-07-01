@@ -68,26 +68,26 @@
 
 [[queue]]
     name = "customerservice"
-    
+
     minpos = 20
     maxpos = 45
 
     entrymsg = { tts = { msg = """Please wait while we try to connect you to one
     of our customer service representatives""" }, wait = true }
     bgmusic = { src = "files/hold.mp3" }
-    currentpos = { msg = "Your current place in line is: {{.Position}}"} 
-    end = { tts = { msg = "Technical error, please try again."}}
+    currentpos = { msg = "Your current place in line is: {{.Position}}" }
+    end = { tts = { msg = "Technical error, please try again." } }
 
-    [[queue.prompt]]
-        prompt = { tts = { msg = """"We are currently experiencing high call volumes.
-    Your call will be answered as soon as possible by one of our agents."""}}
-        weight = 4
-    
-    [[queue.prompt]]
-        prompt = { tts = { msg = """"You may find answers to your questions by visiting
-        w w w dot anderstorpsfestivalen dot s e"""}}
-        weight = 1
+[[queue.prompt]]
+    prompt = { tts = { msg = """"We are currently experiencing high call volumes.
+    Your call will be answered as soon as possible by one of our agents.""" } }
+    weight = 4
 
-    [[queue.prompt]]
-        empty = true
-        weight = 3
+[[queue.prompt]]
+    prompt = { tts = { msg = """"You may find answers to your questions by visiting
+        w w w dot anderstorpsfestivalen dot s e""" } }
+    weight = 1
+
+[[queue.prompt]]
+    empty  = true
+    weight = 3
