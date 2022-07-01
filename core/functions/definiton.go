@@ -72,7 +72,7 @@ func (d *Definition) Prepare() {
 			}
 
 			if a.Prefix != (Prefix{}) {
-				a.Prefix.TTS.SetDefault(
+				d.UnsortedFunctions[i].Actions[n].Prefix.TTS.SetDefault(
 					d.General.DefaultTTSVoice,
 					d.General.DefaultTTSLanguage,
 					d.General.DefaultTTSEngine,
