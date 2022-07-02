@@ -24,6 +24,42 @@ type Polly struct {
 	fp          string
 }
 
+var Neural = map[string]bool{
+	"Arlet":     true,
+	"Olivia":    true,
+	"Amy":       true,
+	"Emma":      true,
+	"Brian":     true,
+	"Arthur":    true,
+	"Aria":      true,
+	"Ayanda":    true,
+	"Ivy":       true,
+	"Joanna":    true,
+	"Kendra":    true,
+	"Kimberly":  true,
+	"Salli":     true,
+	"Joey":      true,
+	"Justin":    true,
+	"Kevin":     true,
+	"Matthew":   true,
+	"Léa":       true,
+	"Gabrielle": true,
+	"Liam":      true,
+	"Vicki":     true,
+	"Daniel":    true,
+	"Hannah":    true,
+	"Bianca":    true,
+	"Takumi":    true,
+	"Seoyeon":   true,
+	"Camila":    true,
+	"Vitoria":   true,
+	"Ines":      true,
+	"Lucia":     true,
+	"Mia":       true,
+	"Lupe":      true,
+	"Pedro":     true,
+}
+
 func New(key string, secret string, haschcache string) (Polly, error) {
 
 	os.MkdirAll(haschcache, os.ModePerm)
@@ -67,7 +103,7 @@ func (p *Polly) internalTTS(message string, language string, voice string, engin
 
 	e := golang_tts.STANDARD
 
-	if engine == "neural" {
+	if engine == "neural" && p.isNeural(voice) {
 		e = golang_tts.NEURAL
 	}
 
@@ -88,6 +124,13 @@ func (p *Polly) internalTTS(message string, language string, voice string, engin
 	}
 
 	return bytes, nil
+}
+
+func (p *Polly) isNeural(voice string) bool {
+	if _, ok := Neural[voice]; ok {
+		return true
+	}
+	return false
 }
 
 func (p *Polly) checkHaschCache(message string, language string, voice string, engine string) ([]byte, error) {
