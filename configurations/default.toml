@@ -16,14 +16,15 @@
     name = "main"
     prefix = { tts = { msg = "WELCOME TO THE PHONE SYSTEM" } }
     actions = [
-        { num = 5, prefix =  { tts = { msg = "Getting the latest kernelmessage" }}, srv = { dst = "kernelmessage", tmpl = """From {{.From}} Text {{.Filtered}}"""}},
+        { num = 4, dst = "syralotto" },
+        { num = 5, prefix = { tts = { msg = "Getting the latest kernelmessage" } }, srv = { dst = "kernelmessage", tmpl = """From {{.From}} Text {{.Filtered}}""" } },
         { num = 6, srv = { dst = "drugslang", tmpl = """Do you know your drug slang?
         {{.Drug}} is also known as {{.Slang}}""" } },
         { num = 7, dst = "uganda" },
-        { num = 8, dst = "syralotto" },
+        { num = 8, dst = "gammeldanskmode" },
         { num = 9, queue = "customerservice" },
         # announce
-        { num = 10, clear = true }
+        { num = 10, clear = true },
     ]
 
 # uganda
@@ -66,6 +67,27 @@
         { file = { src = "files/lasse-liten/josses-vad-det-gar-igang.ogg" } },
     ]
 
+###################################
+# GAMMEL DANSK MODE MODE
+###################################
+[[fn]]
+    name = "gammeldanskmode"
+    prefix = { tts = { voice = "Mads", msg = """tak fordi du kalder os din dumme fand,
+     tid til at drikke øl, her er dine menumuligheder,
+     tryk en for tuborg""", lang = "da-DK" } }
+
+    actions = [
+        { randomfile = { folder = "./files/ugandan/" } },
+        { file = { src = "files/ugandan/Commando-1.ogg" } },
+        { file = { src = "files/ugandan/Gwe-Gwe-Gwe.ogg" } },
+        { file = { src = "files/ugandan/One-hell-of-a-movie.ogg" } },
+        { file = { src = "files/ugandan/WHAT-THE-FU.ogg" } },
+        { file = { src = "files/ugandan/Tough-Commando-on-da-Mission.ogg" } },
+        { file = { src = "files/ugandan/UGAANDA.ogg" } },
+        { file = { src = "files/ugandan/HELLO-2.ogg" } },
+        { file = { src = "files/ugandan/SUPA-MAFIA-ON-THE-RUN.ogg" } },
+        { file = { src = "files/ugandan/Warrior.ogg" } },
+    ]
 
 [[queue]]
     name = "customerservice"
