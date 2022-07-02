@@ -77,16 +77,9 @@
      tryk en for tuborg""", lang = "da-DK" } }
 
     actions = [
-        { randomfile = { folder = "./files/ugandan/" } },
-        { file = { src = "files/ugandan/Commando-1.ogg" } },
-        { file = { src = "files/ugandan/Gwe-Gwe-Gwe.ogg" } },
-        { file = { src = "files/ugandan/One-hell-of-a-movie.ogg" } },
-        { file = { src = "files/ugandan/WHAT-THE-FU.ogg" } },
-        { file = { src = "files/ugandan/Tough-Commando-on-da-Mission.ogg" } },
-        { file = { src = "files/ugandan/UGAANDA.ogg" } },
-        { file = { src = "files/ugandan/HELLO-2.ogg" } },
-        { file = { src = "files/ugandan/SUPA-MAFIA-ON-THE-RUN.ogg" } },
-        { file = { src = "files/ugandan/Warrior.ogg" } },
+        { file = { src = "files/dk/dk1.flac" } },
+        { file = { src = "files/dk/dk2.flac" } },
+        { file = { src = "files/dk/dk3.flac" } },
     ]
 
 [[queue]]
