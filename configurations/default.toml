@@ -77,6 +77,13 @@
      tryk en for tuborg""", lang = "da-DK" } }
 
     actions = [
+        { srv = { dst = "traintimes", tmpl = """{{.K.InformationOwner}}, 
+        {{index .K.ProductInformation 0}},
+        {{.K.TechnicalTrainIdent}}, 
+        fra {{.From.AdvertisedLocationName}},  
+        til {{.To.AdvertisedLocationName}},  
+        afgår fra sporet: {{.K.TrackAtLocation}}, 
+        pad {{.Hour}} oh {{.Minute}}""", args = { station = "Köpenhamn H" }, tts = { voice = "Mads", lang = "da-DK" } } },
         { file = { src = "files/dk/dk1.flac" } },
         { file = { src = "files/dk/dk2.flac" } },
         { file = { src = "files/dk/dk3.flac" } },
