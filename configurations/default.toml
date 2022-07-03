@@ -87,6 +87,13 @@
         { file = { src = "files/dk/dk1.flac" } },
         { file = { src = "files/dk/dk2.flac" } },
         { file = { src = "files/dk/dk3.flac" } },
+        { file = { src = "files/dk/winerbrod-med-chokolade.ogg" } },
+        { file = { src = "files/dk/chokolade.ogg" } },
+        { file = { src = "files/dk/han-ar-dansk.ogg" } },
+        { file = { src = "files/dk/dansk-javlar.ogg" } },
+        { file = { src = "files/dk/vi-spiser-hos-mei.ogg" } },
+        { file = { src = "files/dk/dansk-tv.ogg" } },
+        { file = { src = "files/dk/galaxen-winerbrod.ogg" } },
     ]
 
 [[queue]]
