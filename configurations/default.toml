@@ -11,23 +11,26 @@
     # standard, neural
     default_tts_engine = "neural"
 
-# main
+############################
+# MAIN
+############################
 [[fn]]
     name = "main"
     prefix = { tts = { msg = "WELCOME TO THE PHONE SYSTEM" } }
     actions = [
+        { num = 1, queue = "customerservice" },
         { num = 4, dst = "syralotto" },
         { num = 5, prefix = { tts = { msg = "Getting the latest kernelmessage" } }, srv = { dst = "kernelmessage", tmpl = """From {{.From}} Text {{.Filtered}}""" } },
-        { num = 6, srv = { dst = "drugslang", tmpl = """Do you know your drug slang?
-        {{.Drug}} is also known as {{.Slang}}""" } },
+        { num = 6, srv = { dst = "drugslang", tmpl = """Do you know your drug slang? {{.Drug}} is also known as {{.Slang}}""" } },
         { num = 7, dst = "uganda" },
         { num = 8, dst = "gammeldanskmode" },
-        { num = 9, queue = "customerservice" },
-        # announce
+        # Announce - set clear
         { num = 10, clear = true },
     ]
 
-# uganda
+############################
+# UGANDA
+############################
 [[fn]]
     name = "uganda"
     prefix = { tts = { voice = "Mads", msg = """TRYCK, ETT, till FYRKANT, 
@@ -41,12 +44,14 @@
         { file = { src = "files/ugandan/WHAT-THE-FU.ogg" } },
         { file = { src = "files/ugandan/Tough-Commando-on-da-Mission.ogg" } },
         { file = { src = "files/ugandan/UGAANDA.ogg" } },
-        { file = { src = "files/ugandan/HELLO-2.ogg" } },
+        { file = { src = "files/ugandan/Hello-2.ogg" } },
         { file = { src = "files/ugandan/SUPA-MAFIA-ON-THE-RUN.ogg" } },
         { file = { src = "files/ugandan/Warrior.ogg" } },
     ]
 
-# syralotto
+############################
+# SYRALOTTO
+############################
 [[fn]]
     name = "syralotto"
     prefix = { tts = { msg = """TRYCK ETT FÖR RANDOM, 
@@ -67,9 +72,9 @@
         { file = { src = "files/lasse-liten/josses-vad-det-gar-igang.ogg" } },
     ]
 
-###################################
-# GAMMEL DANSK MODE MODE
-###################################
+############################
+# GAMMEL DANSK MODE
+############################
 [[fn]]
     name = "gammeldanskmode"
     prefix = { tts = { voice = "Mads", msg = """tak fordi du kalder os din dumme fand,
@@ -91,11 +96,14 @@
         { file = { src = "files/dk/chokolade.ogg" } },
         { file = { src = "files/dk/han-ar-dansk.ogg" } },
         { file = { src = "files/dk/dansk-javlar.ogg" } },
-        { file = { src = "files/dk/vi-spiser-hos-mei.ogg" } },
         { file = { src = "files/dk/dansk-tv.ogg" } },
+        { file = { src = "files/dk/vi-spiser-hos-mei.ogg" } },
         { file = { src = "files/dk/galaxen-winerbrod.ogg" } },
     ]
 
+############################
+# QUEUE MODE
+############################
 [[queue]]
     name = "customerservice"
 
