@@ -23,8 +23,8 @@ type Action struct {
 	TTS TTS `toml:"tts"`
 	// Calls a service
 	Service Service `toml:"srv"`
-	// Redirects to a queue
-	Queue string `toml:"queue"`
+	// Redirects to a custom dispatcher
+	CustomDispatcher string `toml:"dispatcher"`
 }
 
 func (a *Action) Type() (string, error) {
@@ -48,8 +48,8 @@ func (a *Action) Type() (string, error) {
 		return "srv", nil
 	}
 
-	if a.Queue != "" {
-		return "queue", nil
+	if a.CustomDispatcher != "" {
+		return "dispatcher", nil
 	}
 
 	if a.Clear {

@@ -16,14 +16,12 @@ type Recorder struct {
 	recordpath  string
 	instance    *exec.Cmd
 	logger      *logrus.Logger
-	alsaDevice  string
 }
 
-func NewRecorder(alsaDevice string, recordpath string, logger *logrus.Logger) Recorder {
+func NewRecorder(recordpath string, logger *logrus.Logger) Recorder {
 	return Recorder{
 		recordpath: recordpath,
 		logger:     logger,
-		alsaDevice: alsaDevice,
 	}
 }
 

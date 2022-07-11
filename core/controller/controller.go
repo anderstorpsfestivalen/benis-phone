@@ -16,7 +16,7 @@ import (
 type Controller struct {
 	Phone      phone.FlowPhone
 	Audio      *audio.Audio
-	Recorder   audio.Recorder
+	Recorder   *audio.Recorder
 	Polly      polly.Polly
 	Definition functions.Definition
 
@@ -30,7 +30,7 @@ type Controller struct {
 	prefixSignal chan bool
 }
 
-func New(ph phone.FlowPhone, audio *audio.Audio, rec audio.Recorder, polly polly.Polly, def functions.Definition) Controller {
+func New(ph phone.FlowPhone, audio *audio.Audio, rec *audio.Recorder, polly polly.Polly, def functions.Definition) Controller {
 	return Controller{
 		Phone:      ph,
 		Audio:      audio,
@@ -324,7 +324,7 @@ func (c *Controller) handleQueue(q functions.Queue) {
 	// Store pointer to queue as dispatcher
 	c.activeDispatcher = &q
 
-	f := c.activeDispatcher.Start(c.Audio, c.Polly)
+	f := c.activeDispatcher.Start(c.Audio, c.Recorder, c.Polly)
 
 	// Wait for dispatcher to finish
 	a := <-f

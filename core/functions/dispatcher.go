@@ -6,6 +6,9 @@ import (
 )
 
 type Dispatcher interface {
-	Start(audio *audio.Audio, polly polly.Polly) <-chan Action
+	Load() error
+	Start(audio *audio.Audio, rec *audio.Recorder, polly polly.Polly) <-chan Action
 	Stop()
 }
+
+var Dispatchers = map[string]Dispatcher{}
