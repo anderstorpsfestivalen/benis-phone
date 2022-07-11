@@ -19,6 +19,7 @@
     prefix = { tts = { msg = "WELCOME TO THE PHONE SYSTEM" } }
     actions = [
         { num = 1, queue = "customerservice" },
+        { num = 3, dst = "ritard" },
         { num = 4, dst = "syralotto" },
         { num = 5, prefix = { tts = { msg = "Getting the latest kernelmessage" } }, srv = { dst = "kernelmessage", tmpl = """From {{.From}} Text {{.Filtered}}""" } },
         { num = 6, srv = { dst = "drugslang", tmpl = """Do you know your drug slang? {{.Drug}} is also known as {{.Slang}}""" } },
@@ -27,6 +28,27 @@
         # Announce - set clear
         { num = 10, clear = true },
     ]
+
+############################
+# BIG RITARD MODE
+############################
+[[fn]]
+    name = "ritard"
+    prefix = { tts = { msg = """Press one for random, two to hashtag for fixed alternatives, 0 to go back to the main menu.""" } }
+    actions = [
+        { randomfile = { folder = "./files/ritard/" } },
+        { file = { src = "files/ritard/big-retard.ogg" } },
+        { file = { src = "files/ritard/cry-bc-noob.ogg" } },
+        { file = { src = "files/ritard/done-bc-trash.ogg" } },
+        { file = { src = "files/ritard/fking-noob2.ogg" } },
+        { file = { src = "files/ritard/fking-useless.ogg" } },
+        { file = { src = "files/ritard/good-job-ritard.ogg" } },
+        { file = { src = "files/ritard/im-retard.ogg" } },
+        { file = { src = "files/ritard/i-play-dota-with-ritard.ogg" } },
+        { file = { src = "files/ritard/no-feed.ogg" } },
+        { file = { src = "files/ritard/peak-nature-prophet.ogg" } },
+    ]
+
 
 ############################
 # UGANDA
