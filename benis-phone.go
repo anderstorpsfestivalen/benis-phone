@@ -65,7 +65,7 @@ func main() {
 	}
 
 	// Set recording device, usually a second sound card if using a RPI
-	rec := audio.NewRecorder("hw:0,0", "files/recording", log)
+	rec := audio.NewRecorder("files/recording", log)
 
 	// Setup Polly
 	polly, err := polly.New(credentials.Polly.Key, credentials.Polly.Secret, "haschcache")
@@ -86,7 +86,7 @@ func main() {
 	// Start controller
 	log.Info("Starting Controller")
 	log.SetLevel(logrus.DebugLevel)
-	ctrl := controller.New(ctrlPhone, ad, rec, polly, def)
+	ctrl := controller.New(ctrlPhone, ad, &rec, polly, def)
 
 	var waitgroup sync.WaitGroup
 

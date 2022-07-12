@@ -118,7 +118,7 @@ func (q *Queue) Load() error {
 	return nil
 }
 
-func (q *Queue) Start(audio *audio.Audio, polly polly.Polly) <-chan Action {
+func (q *Queue) Start(audio *audio.Audio, rec *audio.Recorder, polly polly.Polly) <-chan Action {
 	q.a = audio
 	q.p = polly
 	q.kill = make(chan bool)
