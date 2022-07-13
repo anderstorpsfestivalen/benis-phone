@@ -16,7 +16,7 @@
 ############################
 [[fn]]
     name = "main"
-    prefix = { tts = { msg = "WELCOME TO THE ANDERSTORPSFESTIVALEN PHONE SYSTEM. Press 1 for customer service, Press 2 to leave a message, Press 3 if you are a ritard, Press 4 for acid lottery, Press 5 for the latest kernel message, Press 6 for drug slang, Press 7 for Ugandan knuckles, Press 8 for Gammel dansk mode" } }
+    prefix = { tts = { msg = "WELCOME TO ANDERSTORPSFESTIVALENS phone system. Press 1 for customer service, Press 2 to leave a message, Press 3 if you are a ritard, Press 4 for acid lottery, Press 5 for the latest kernel message, Press 6 for drug slang, Press 7 for Ugandan knuckles, Press 8 for Gammel dansk mode" } }
         actions = [
         { num = 1, queue = "customerservice" },
         { num = 2, dst = "recording" },
