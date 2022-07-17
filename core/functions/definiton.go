@@ -119,14 +119,14 @@ func (d *Definition) Prepare() {
 
 }
 
-func (d *Definition) ResolveQueue(name string) (Queue, error) {
+func (d *Definition) ResolveDispatcher(name string) (Dispatcher, error) {
 	for _, q := range d.Queues {
 		if q.Name == name {
-			return q, nil
+			return &q, nil
 		}
 	}
 
-	return Queue{}, fmt.Errorf("could not find queue %v", name)
+	return &EmptyDispatcher{}, fmt.Errorf("could not find queue %v", name)
 }
 
 type General struct {

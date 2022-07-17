@@ -177,11 +177,11 @@ func (c *Controller) handleAction(action *functions.Action) {
 	case "srv":
 		err := c.runService(action.Service, nil)
 		c.checkError(err)
-	case "queue":
-		q, err := c.Definition.ResolveQueue(action.Queue)
+	case "dispatcher":
+		q, err := c.Definition.ResolveDispatcher(action.CustomDispatcher)
 		c.checkError(err)
 		if err == nil {
-			c.handleQueue(q)
+			c.handleDispatcher(q)
 		}
 	case "clear":
 		c.Audio.Clear()
@@ -316,13 +316,13 @@ func (c *Controller) checkError(e error) {
 	}
 }
 
-func (c *Controller) handleQueue(q functions.Queue) {
+func (c *Controller) handleDispatcher(q functions.Dispatcher) {
 
 	err := q.Load()
 	c.checkError(err)
 
 	// Store pointer to queue as dispatcher
-	c.activeDispatcher = &q
+	c.activeDispatcher = q
 
 	f := c.activeDispatcher.Start(c.Audio, c.Recorder, c.Polly)
 

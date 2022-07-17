@@ -12,3 +12,18 @@ type Dispatcher interface {
 }
 
 var Dispatchers = map[string]Dispatcher{}
+
+type EmptyDispatcher struct {
+}
+
+func (e *EmptyDispatcher) Load() error {
+	return nil
+}
+
+func (q *EmptyDispatcher) Start(audio *audio.Audio, rec *audio.Recorder, polly polly.Polly) <-chan Action {
+	return make(<-chan Action)
+}
+
+func (q *EmptyDispatcher) Stop() {
+
+}

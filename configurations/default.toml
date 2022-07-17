@@ -26,7 +26,7 @@
      Press 7 for Ugandan knuckles, 
      Press 8 for Gammel dansk mode""" } }
         actions = [
-        { num = 1, queue = "customerservice" },
+        { num = 1, dispatcher = "customerservice" },
         { num = 2, dst = "recording" },
         { num = 3, dst = "ritard" },
         { num = 4, dst = "syralotto" },
