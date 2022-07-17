@@ -31,8 +31,10 @@
         { num = 2, dst = "voicemail" },
         { num = 3, dst = "ritard" },
         { num = 4, dst = "syralotto" },
-        { num = 5, prefix = { tts = { msg = "Getting the latest kernelmessage" } }, srv = { dst = "kernelmessage", tmpl = """From {{.From}} Text {{.Filtered}}""" } },
-        { num = 6, srv = { dst = "drugslang", tmpl = """Do you know your drug slang? {{.Drug}} is also known as {{.Slang}}""" } },
+        { num = 5, prefix = { tts = { msg = "Getting the latest kernelmessage" } }, srv = { dst = "kernelmessage", tmpl = """
+        From {{.From}} Text {{.Filtered}}""" } },
+        { num = 6, srv = { dst = "drugslang", tmpl = """
+        Do you know your drug slang? {{.Drug}} is also known as {{.Slang}}""" } },
         { num = 7, dst = "uganda" },
         { num = 8, dst = "gammeldanskmode" },
         # Announce - set clear
