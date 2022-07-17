@@ -42,7 +42,7 @@ func (f *Recorder) Record(subfolder string) {
 
 		c := []string{"-y", "-f", "alsa", "-i", "hw:0,0", "-af", "pan=mono|c0=c0", path.Join(f.recordpath, subfolder, recTime+".flac")}
 		if runtime.GOOS == "darwin" {
-			c = []string{"-y", "-f", "avfoundation", "-i", ":0", "-af", "pan=mono|c0=c0", path.Join(f.recordpath, subfolder, recTime+".flac")}
+			c = []string{"-y", "-f", "avfoundation", "-i", ":2", "-af", "pan=mono|c0=c0", path.Join(f.recordpath, subfolder, recTime+".flac")}
 		}
 
 		f.instance = exec.Command("ffmpeg", c...)
