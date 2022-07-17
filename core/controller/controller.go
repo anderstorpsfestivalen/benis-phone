@@ -193,6 +193,14 @@ func (c *Controller) enterFunction(dst string) error {
 	if newFn, ok := c.Definition.Functions[dst]; ok {
 		c.Callstack = append(c.Callstack, newFn.Name)
 		c.prefixSignal <- true
+
+		fmt.Println(newFn.Recording)
+		if newFn.Recording != (functions.Recording{}) {
+			fmt.Println("riga black," + newFn.Recording.Destination)
+			c.Recorder.Stop()
+			c.Recorder.Record(newFn.Recording.Destination)
+		}
+
 		return nil
 	}
 	return fmt.Errorf("could not find dst function: %v", dst)
@@ -274,9 +282,8 @@ func (c *Controller) liftHook() {
 	}
 	c.HookState = true
 	c.Audio.Clear()
-	c.Callstack = append(c.Callstack, c.Definition.General.Entrypoint)
 	c.collector = nil
-	c.prefixSignal <- true
+	c.enterFunction(c.Definition.General.Entrypoint)
 
 	log.Info("Hook is lifted")
 }
@@ -286,6 +293,8 @@ func (c *Controller) slamHook() {
 	defer c.hs.Unlock()
 	c.HookState = false
 	c.Audio.Clear()
+
+	c.Recorder.Stop()
 
 	c.Callstack = c.Callstack[:0]
 	c.collector = nil

@@ -7,6 +7,7 @@ import (
 	"path"
 	"runtime"
 	"syscall"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -25,7 +26,7 @@ func NewRecorder(recordpath string, logger *logrus.Logger) Recorder {
 	}
 }
 
-func (f *Recorder) Record(filename string) {
+func (f *Recorder) Record(subfolder string) {
 
 	go func() {
 
@@ -33,9 +34,15 @@ func (f *Recorder) Record(filename string) {
 			f.Stop()
 		}
 
-		c := []string{"-y", "-f", "alsa", "-i", "hw:0,0", "-af", "pan=mono|c0=c0", path.Join(f.recordpath, filename+".flac")}
+		os.MkdirAll(f.recordpath, os.ModePerm)
+		os.MkdirAll(path.Join(f.recordpath, subfolder), os.ModePerm)
+
+		tm := time.Now()
+		recTime := tm.Format("2006-01-02_15-04-05")
+
+		c := []string{"-y", "-f", "alsa", "-i", "hw:0,0", "-af", "pan=mono|c0=c0", path.Join(f.recordpath, subfolder, recTime+".flac")}
 		if runtime.GOOS == "darwin" {
-			c = []string{"-y", "-f", "avfoundation", "-i", ":0", "-af", "pan=mono|c0=c0", path.Join(f.recordpath, filename+".flac")}
+			c = []string{"-y", "-f", "avfoundation", "-i", ":0", "-af", "pan=mono|c0=c0", path.Join(f.recordpath, subfolder, recTime+".flac")}
 		}
 
 		f.instance = exec.Command("ffmpeg", c...)

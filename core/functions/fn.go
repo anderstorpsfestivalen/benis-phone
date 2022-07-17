@@ -7,6 +7,7 @@ import (
 
 type Fn struct {
 	Name           string
+	Recording      Recording `toml:"recording"`
 	Prefix         Prefix
 	Gate           Gate `toml:"gate"`
 	ClearCallstack bool `toml:"clear_callstack"`

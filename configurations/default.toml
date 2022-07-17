@@ -16,6 +16,7 @@
 ############################
 [[fn]]
     name = "main"
+    recording = { path = "random" }
     prefix = { tts = { msg = """WELCOME TO ANDERSTORPSFESTIVALENS phone system.
      Press 1 for customer service,
      Press 2 to leave a message, 
@@ -27,7 +28,7 @@
      Press 8 for Gammel dansk mode""" } }
         actions = [
         { num = 1, dispatcher = "customerservice" },
-        { num = 2, dst = "recording" },
+        { num = 2, dst = "voicemail" },
         { num = 3, dst = "ritard" },
         { num = 4, dst = "syralotto" },
         { num = 5, prefix = { tts = { msg = "Getting the latest kernelmessage" } }, srv = { dst = "kernelmessage", tmpl = """From {{.From}} Text {{.Filtered}}""" } },
@@ -37,6 +38,16 @@
         # Announce - set clear
         { num = 10, clear = true },
     ]
+
+############################
+# VOICEMAIL
+############################
+[[fn]]
+    name = "voicemail"
+    recording = { path = "voicemail" }
+    prefix = { tts = { msg = """Please leave a message after the beep: BEEP""" } }
+    actions = []
+
 
 ############################
 # BIG RITARD MODE
