@@ -16,7 +16,15 @@
 ############################
 [[fn]]
     name = "main"
-    prefix = { tts = { msg = "WELCOME TO ANDERSTORPSFESTIVALENS phone system. Press 1 for customer service, Press 2 to leave a message, Press 3 if you are a ritard, Press 4 for acid lottery, Press 5 for the latest kernel message, Press 6 for drug slang, Press 7 for Ugandan knuckles, Press 8 for Gammel dansk mode" } }
+    prefix = { tts = { msg = """WELCOME TO ANDERSTORPSFESTIVALENS phone system.
+     Press 1 for customer service,
+     Press 2 to leave a message, 
+     Press 3 if you are a dota player, 
+     Press 4 for acid lottery, 
+     Press 5 for the latest kernel message, 
+     Press 6 for drug slang, 
+     Press 7 for Ugandan knuckles, 
+     Press 8 for Gammel dansk mode""" } }
         actions = [
         { num = 1, queue = "customerservice" },
         { num = 2, dst = "recording" },
@@ -35,7 +43,9 @@
 ############################
 [[fn]]
     name = "ritard"
-    prefix = { tts = { msg = """Press one for random, two to hashtag for fixed alternatives, 0 to go back to the main menu.""" } }
+    prefix = { tts = { msg = """Press one for random, 
+    two to hashtag for fixed alternatives, 
+    0 to go back to the main menu.""" } }
     actions = [
         { randomfile = { folder = "./files/ritard/" } },
         { file = { src = "files/ritard/big-retard.ogg" } },
@@ -56,7 +66,9 @@
 ############################
 [[fn]]
     name = "uganda"
-    prefix = { tts = { msg = """Press one for random, two to hashtag for fixed alternatives, 0 to go back to the main menu.""" } }
+    prefix = { tts = { msg = """Press one for random, 
+    two to hashtag for fixed alternatives, 
+    0 to go back to the main menu.""" } }
 
     actions = [
         { randomfile = { folder = "./files/ugandan/" } },
@@ -76,7 +88,9 @@
 ############################
 [[fn]]
     name = "syralotto"
-    prefix = { tts = { msg = """Press one for random, two to hashtag for fixed alternatives, 0 to go back to the main menu.""" } }
+    prefix = { tts = { msg = """Press one for random, 
+    two to hashtag for fixed alternatives, 
+    0 to go back to the main menu.""" } }
 
     actions = [
         { file = { src = "files/lasse-liten/e.ogg" } },
@@ -97,7 +111,10 @@
 ############################
 [[fn]]
     name = "gammeldanskmode"
-    prefix = { tts = { voice = "Mads", msg = """tak fordi du kalder os din dumme fand, tid til at drikke øl, her er dine menumuligheder, tryk ett for at firkante """, lang = "da-DK" } }
+    prefix = { tts = { voice = "Mads", msg = """tak fordi du kalder os din dumme fand, 
+    tid til at drikke øl, 
+    her er dine menumuligheder, 
+    tryk ett for at firkante """, lang = "da-DK" } }
 
     actions = [
         { srv = { dst = "traintimes", tmpl = """{{.K.InformationOwner}}, 
@@ -140,7 +157,8 @@
     weight = 4
 
 [[queue.prompt]]
-    prompt = { tts = { msg = """"Your call is very important to us, please stay on the line.""" } }
+    prompt = { tts = { msg = """"Your call is very important to us, 
+    please stay on the line.""" } }
     weight = 3
 
 [[queue.prompt]]

@@ -101,6 +101,12 @@ func (d *Definition) Prepare() {
 				d.General.DefaultTTSLanguage,
 				d.General.DefaultTTSEngine,
 			)
+
+			d.Queues[i].End.TTS.SetDefault(
+				d.General.DefaultTTSVoice,
+				d.General.DefaultTTSLanguage,
+				d.General.DefaultTTSEngine,
+			)
 		}
 
 		d.Queues[i].CurrentPositionTemplate.SetDefault(
