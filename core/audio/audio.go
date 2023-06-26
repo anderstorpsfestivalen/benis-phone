@@ -62,7 +62,7 @@ func (a *Audio) PlayMP3FromStream(data []byte) error {
 	return nil
 }
 
-//PlayFromFile playes a MP3, WAV, FLAC or OGG file from disk.
+// PlayFromFile playes a MP3, WAV, FLAC or OGG file from disk.
 func (a *Audio) PlayFromFile(filename string) error {
 
 	a.Clear()
