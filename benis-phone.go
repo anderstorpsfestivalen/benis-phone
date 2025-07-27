@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"sync"
+	"fmt"
 
 	"github.com/sirupsen/logrus"
 
@@ -23,6 +24,7 @@ func main() {
 	enableS3 := flag.Bool("s3", true, "s3 sync")
 	enableHttp := flag.Bool("http", true, "http server")
 	enablePhone := flag.Bool("phone", false, "Enable GPIO for physical phone")
+	enableRecording := flag.Bool("record", true, "record audio")
 	definition := flag.String("def",
 		"configurations/default.toml",
 		"Set a custom definition file, standard is configurations/default.toml")
@@ -63,9 +65,10 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	
 	// Set recording device, usually a second sound card if using a RPI
 	rec := audio.NewRecorder("files/recording", log)
+	
 
 	// Setup Polly
 	polly, err := polly.New(credentials.Polly.Key, credentials.Polly.Secret, "haschcache")
@@ -75,7 +78,7 @@ func main() {
 
 	// Setup Systemet
 	// This is an ugly hack
-	systemet.InitalizeServices()
+	//systemet.InitalizeServices()
 
 	// Load definition
 	def, err := functions.LoadFromFile(*definition)
