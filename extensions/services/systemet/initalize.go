@@ -19,7 +19,7 @@ func InitalizeServices() {
 	key, err := GetKey()
 	if err != nil {
 		log.Error(err)
-		log.Panic("Could not get systembolaget key")
+		//log.Panic("Could not get systembolaget key")
 	}
 
 	api := New(key)
