@@ -171,8 +171,24 @@ func (r *RTPAudioSink) PlayFromStream(data []byte) error {
 		"playback_bit_depth":   r.playback.BitDepth,
 	}).Debug("Playback codec configuration")
 
-	reader := bytes.NewReader(wavData)
-	written, err := r.playback.Play(reader, "audio/wav")
+	// Try using PlayFile directly with a temp file - this bypasses potential bytes.Reader issues
+	tmpFile, terr := os.CreateTemp("", "tts-*.wav")
+	if terr != nil {
+		log.WithError(terr).Error("Failed to create temp file for audio")
+		return terr
+	}
+	tmpPath := tmpFile.Name()
+	defer os.Remove(tmpPath)
+
+	if _, werr := tmpFile.Write(wavData); werr != nil {
+		tmpFile.Close()
+		log.WithError(werr).Error("Failed to write WAV to temp file")
+		return werr
+	}
+	tmpFile.Close()
+
+	log.WithField("temp_file", tmpPath).Debug("Playing audio via temp file")
+	written, err := r.playback.PlayFile(tmpPath)
 	if err != nil {
 		log.WithError(err).Error("Failed to play audio to RTP")
 	} else {
@@ -181,24 +197,6 @@ func (r *RTPAudioSink) PlayFromStream(data []byte) error {
 			"reader_len":     len(wavData),
 			"writer_present": writer != nil,
 		}).Debug("Audio playback completed")
-	}
-
-	// If playback returned 0 bytes but no error, try PlayFile with temp file as workaround
-	if written == 0 && err == nil {
-		log.Debug("Playback returned 0 bytes, trying file-based playback")
-		// Write WAV to temp file and use PlayFile
-		tmpFile, terr := os.CreateTemp("", "tts-*.wav")
-		if terr == nil {
-			tmpFile.Write(wavData)
-			tmpFile.Close()
-			defer os.Remove(tmpFile.Name())
-
-			written2, err2 := r.playback.PlayFile(tmpFile.Name())
-			log.WithFields(log.Fields{
-				"file_written": written2,
-				"file_error":   err2,
-			}).Debug("File-based playback result")
-		}
 	}
 
 	return err
