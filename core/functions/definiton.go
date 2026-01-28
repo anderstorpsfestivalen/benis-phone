@@ -30,11 +30,47 @@ func LoadFromFile(path string) (Definition, error) {
 
 type Definition struct {
 	General           General
-	UnsortedFunctions []Fn `toml:"fn"`
+	SIP               SIPConfig `toml:"sip"`
+	UnsortedFunctions []Fn      `toml:"fn"`
 
 	Functions map[string]*Fn
 
 	Queues []Queue `toml:"queue"`
+}
+
+// SIPConfig holds SIP client configuration for registering with a PBX.
+type SIPConfig struct {
+	// Enabled enables the SIP client (default: false)
+	Enabled bool `toml:"enabled"`
+
+	// Server is the SIP server/PBX address (e.g., "pbx.example.com" or "192.168.1.100:5060")
+	Server string `toml:"server"`
+
+	// Extension is the extension number to register as (e.g., "100")
+	Extension string `toml:"extension"`
+
+	// Username for SIP authentication (often same as extension)
+	Username string `toml:"username"`
+
+	// Domain is the SIP domain (often same as server, e.g., "pbx.example.com")
+	Domain string `toml:"domain"`
+
+	// Transport is the SIP transport: udp, tcp, ws, wss (default: "udp")
+	Transport string `toml:"transport"`
+
+	// LocalPort is the local port to bind to (default: 5060)
+	LocalPort int `toml:"local_port"`
+
+	// MaxConcurrentCalls limits concurrent calls (default: 10)
+	MaxConcurrentCalls int `toml:"max_concurrent_calls"`
+
+	// RecordPath is the base directory for call recordings
+	RecordPath string `toml:"record_path"`
+
+	// ExpirySeconds is the registration expiry time (default: 300)
+	ExpirySeconds int `toml:"expiry_seconds"`
+
+	// Password should be in creds.json under SIP.Password for security
 }
 
 func (d *Definition) Prepare() {

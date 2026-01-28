@@ -7,6 +7,12 @@ import (
 	"github.com/anderstorpsfestivalen/benis-phone/core/functions"
 )
 
+// ServiceRunner is implemented by both Controller and Session
+// to allow Collector to finish service calls.
+type ServiceRunner interface {
+	runService(srv functions.Service, collector *string) error
+}
+
 type Collector struct {
 	MaxLength int
 	buffer    []string
@@ -31,10 +37,10 @@ func (c *Collector) GetBuffer() string {
 	return strings.Join(c.buffer, "")
 }
 
-func (c *Collector) Finish(ctrl *Controller) error {
+func (c *Collector) Finish(runner ServiceRunner) error {
 	buf := c.GetBuffer()
 	if c.service != nil {
-		return ctrl.runService(*c.service, &buf)
+		return runner.runService(*c.service, &buf)
 	}
 
 	return fmt.Errorf("collector could not dispatch")

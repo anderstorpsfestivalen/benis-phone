@@ -12,7 +12,7 @@ type TrainMenu struct {
 func (m *TrainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 
 	tr := train.Train{}
-	message, err := tr.Get("")
+	message, err := tr.Get("", "", nil)
 	if err != nil {
 		panic(err)
 	}
@@ -24,7 +24,7 @@ func (m *TrainMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 			NextFunction: "error",
 		}
 	}
-	c.Audio.PlayMP3FromStream(ttsData)
+	c.Audio.PlayFromStream(ttsData)
 
 	return MenuReturn{
 		NextFunction: "mainmenu",

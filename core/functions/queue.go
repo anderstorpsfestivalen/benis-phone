@@ -40,7 +40,7 @@ type Queue struct {
 	rm       *wr.Chooser
 	lastPos  int
 	streamer beep.StreamSeekCloser
-	a        *audio.Audio
+	a        audio.AudioSink
 	p        polly.Polly
 	kill     chan bool
 	finish   chan Action
@@ -118,8 +118,8 @@ func (q *Queue) Load() error {
 	return nil
 }
 
-func (q *Queue) Start(audio *audio.Audio, rec *audio.Recorder, polly polly.Polly) <-chan Action {
-	q.a = audio
+func (q *Queue) Start(audioSink audio.AudioSink, rec audio.AudioSource, polly polly.Polly) <-chan Action {
+	q.a = audioSink
 	q.p = polly
 	q.kill = make(chan bool)
 	q.finish = make(chan Action)

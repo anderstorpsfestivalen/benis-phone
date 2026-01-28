@@ -24,7 +24,7 @@ func (m *Queue) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 	if err != nil {
 		log.Error(err)
 	}
-	c.Audio.PlayMP3FromStream(ttsData)
+	c.Audio.PlayFromStream(ttsData)
 
 	//keychan := c.Phone.GetKeyChannel()
 	sub := c.Subscribe(m.Name())
@@ -53,7 +53,7 @@ func (m *Queue) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 				if err != nil {
 					log.Error(err)
 				}
-				c.Audio.PlayMP3FromStream(ttsData)
+				c.Audio.PlayFromStream(ttsData)
 				return MenuReturn{
 					NextFunction: "mainmenu",
 				}
@@ -70,7 +70,7 @@ func (m *Queue) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 			if err != nil {
 				log.Error(err)
 			}
-			c.Audio.PlayMP3FromStream(ttsData)
+			c.Audio.PlayFromStream(ttsData)
 
 			// Random messages for customer in queue
 			switch behv := rand.Intn(100); {
@@ -80,28 +80,28 @@ func (m *Queue) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 				if err != nil {
 					log.Error(err)
 				}
-				c.Audio.PlayMP3FromStream(ttsData)
+				c.Audio.PlayFromStream(ttsData)
 			case behv < 10:
 				message := "Du vet väl om att du även kan hitta oss på webben? w w w. PUNKT anderstorps festivalen. PUNKT . s. e."
 				ttsData, err := c.Polly.TTS(message, "Astrid")
 				if err != nil {
 					log.Error(err)
 				}
-				c.Audio.PlayMP3FromStream(ttsData)
+				c.Audio.PlayFromStream(ttsData)
 			case behv > 10 && behv < 20:
 				message := "Visste du att du kan få svar på många frågor genom att besöka vår hemsida? w w w. PUNKT anderstorps festivalen. PUNKT . s. e."
 				ttsData, err := c.Polly.TTS(message, "Astrid")
 				if err != nil {
 					log.Error(err)
 				}
-				c.Audio.PlayMP3FromStream(ttsData)
+				c.Audio.PlayFromStream(ttsData)
 			case behv > 30 && behv < 60:
 				message := "Vi utför en kvalitetsundersökning. Efter att samtalet är slut ber vi dig att inte lägga på luren, undersökningen består av 5 frågor och tar mindre än en minut."
 				ttsData, err := c.Polly.TTS(message, "Astrid")
 				if err != nil {
 					log.Error(err)
 				}
-				c.Audio.PlayMP3FromStream(ttsData)
+				c.Audio.PlayFromStream(ttsData)
 			}
 
 			m.startBackground(c)

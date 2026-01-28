@@ -24,6 +24,9 @@ type Credentials struct {
 
 	HTTPServerAuth PWCombo
 	MediaServer    string
+
+	// SIP credentials for SIP trunk authentication
+	SIP PWCombo
 }
 
 var Loaded Credentials

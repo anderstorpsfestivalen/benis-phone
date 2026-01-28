@@ -57,7 +57,7 @@ func (m *Idiom) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 						NextFunction: "error",
 					}
 				}
-				c.Audio.PlayMP3FromStream(ttsData)
+				c.Audio.PlayFromStream(ttsData)
 
 			}
 		}
@@ -79,6 +79,6 @@ func (m *Idiom) Prefix(c *Controller) {
 	if err != nil {
 		log.Error(err)
 	}
-	c.Audio.PlayMP3FromStream(ttsData)
+	c.Audio.PlayFromStream(ttsData)
 
 }

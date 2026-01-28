@@ -26,7 +26,7 @@ func CreatePlayable(p PlayGenerator) Playable {
 	return pl
 }
 
-func (p *Playable) Play(a *audio.Audio, polly polly.Polly) error {
+func (p *Playable) Play(a audio.AudioSink, polly polly.Polly) error {
 	if p.Clear {
 		a.Clear()
 	}
@@ -51,9 +51,9 @@ func (p *Playable) Play(a *audio.Audio, polly polly.Polly) error {
 			"engine": p.TTS.Engine}).Info("Playing TTS")
 
 		if p.Wait {
-			return a.PlayMP3FromStream(ttsData)
+			return a.PlayFromStream(ttsData)
 		} else {
-			go a.PlayMP3FromStream(ttsData)
+			go a.PlayFromStream(ttsData)
 		}
 		return nil
 	}

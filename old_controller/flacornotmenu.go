@@ -1,4 +1,4 @@
-// package controller
+package controller
 
 // import (
 // 	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/flacornot"
@@ -23,7 +23,7 @@
 // 			NextFunction: "error",
 // 		}
 // 	}
-// 	c.Audio.PlayMP3FromStream(ttsData)
+// 	c.Audio.PlayFromStream(ttsData)
 
 // 	return MenuReturn{
 // 		NextFunction: "mainmenu",

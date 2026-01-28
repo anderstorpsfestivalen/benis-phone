@@ -11,6 +11,17 @@
     # standard, neural
     default_tts_engine = "neural"
 
+# SIP Configuration
+[sip]
+    enabled = true
+    server = "sip.wberg.com:5060"
+    extension = "3002"
+    username = "3002"
+    transport = "udp"
+    max_concurrent_calls = 10
+    record_path = "files/recording"
+    # Password stored in creds/creds.json under "SIP.Password"
+
 ############################
 # MAIN
 ############################

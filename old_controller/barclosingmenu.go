@@ -17,7 +17,7 @@ func (m *BarClosingMenu) Run(c *Controller, k string, menu MenuReturn) MenuRetur
 			NextFunction: "error",
 		}
 	}
-	c.Audio.PlayMP3FromStream(ttsData)
+	c.Audio.PlayFromStream(ttsData)
 
 	return MenuReturn{
 		NextFunction: "mainmenu",

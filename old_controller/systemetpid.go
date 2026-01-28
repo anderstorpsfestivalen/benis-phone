@@ -24,7 +24,7 @@ func (m *SystemetPid) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 				log.Error(err)
 			}
 
-			c.Audio.PlayMP3FromStream(ttsData)
+			c.Audio.PlayFromStream(ttsData)
 			return MenuReturn{
 				NextFunction: "mainmenu",
 			}
@@ -67,7 +67,7 @@ func (m *SystemetPid) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		log.Error(err)
 	}
 
-	c.Audio.PlayMP3FromStream(ttsData)
+	c.Audio.PlayFromStream(ttsData)
 
 	return MenuReturn{
 		NextFunction: "mainmenu",
@@ -91,7 +91,7 @@ func (m *SystemetPid) Prefix(c *Controller) {
 		log.Error(err)
 	}
 
-	go c.Audio.PlayMP3FromStream(ttsData)
+	go c.Audio.PlayFromStream(ttsData)
 }
 
 // func replace(input, from, to string) string {

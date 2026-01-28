@@ -45,5 +45,5 @@ func (m *ExtraMenu) Prefix(c *Controller) {
 	if err != nil {
 		log.Error(err)
 	}
-	c.Audio.PlayMP3FromStream(ttsData)
+	c.Audio.PlayFromStream(ttsData)
 }

@@ -42,7 +42,8 @@ func (a *Audio) Init() error {
 	return nil
 }
 
-func (a *Audio) PlayMP3FromStream(data []byte) error {
+// PlayFromStream plays MP3 audio from a byte slice (implements AudioSink)
+func (a *Audio) PlayFromStream(data []byte) error {
 	a.ctrl.Lock()
 	defer a.ctrl.Unlock()
 

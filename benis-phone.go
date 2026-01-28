@@ -2,8 +2,10 @@ package main
 
 import (
 	"flag"
+	"os"
+	"os/signal"
 	"sync"
-	"fmt"
+	"syscall"
 
 	"github.com/sirupsen/logrus"
 
@@ -16,15 +18,15 @@ import (
 	"github.com/anderstorpsfestivalen/benis-phone/core/phone"
 	"github.com/anderstorpsfestivalen/benis-phone/core/polly"
 	"github.com/anderstorpsfestivalen/benis-phone/core/secrets"
+	"github.com/anderstorpsfestivalen/benis-phone/core/sip"
 	"github.com/anderstorpsfestivalen/benis-phone/core/virtual"
-	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/systemet"
 )
 
 func main() {
 	enableS3 := flag.Bool("s3", true, "s3 sync")
 	enableHttp := flag.Bool("http", true, "http server")
 	enablePhone := flag.Bool("phone", false, "Enable GPIO for physical phone")
-	enableRecording := flag.Bool("record", true, "record audio")
+	_ = flag.Bool("record", true, "record audio") // TODO: wire up recording toggle
 	definition := flag.String("def",
 		"configurations/default.toml",
 		"Set a custom definition file, standard is configurations/default.toml")
@@ -86,28 +88,100 @@ func main() {
 		panic(err)
 	}
 
-	// Start controller
-	log.Info("Starting Controller")
 	log.SetLevel(logrus.DebugLevel)
-	ctrl := controller.New(ctrlPhone, ad, &rec, polly, def)
 
 	var waitgroup sync.WaitGroup
 
-	//Phone
-	waitgroup.Add(1)
-	err = ctrlPhone.Init()
-	if err != nil {
-		log.Panic(err)
-	}
+	// Check if SIP mode is enabled
+	if def.SIP.Enabled {
+		log.Info("Starting in SIP client mode")
 
-	go ctrl.Start(&waitgroup)
+		// Validate required SIP config
+		if def.SIP.Server == "" {
+			log.Fatal("SIP server address is required when SIP is enabled")
+		}
+		if def.SIP.Extension == "" {
+			log.Fatal("SIP extension is required when SIP is enabled")
+		}
 
-	if *enableHttp {
+		// Configure SIP client
+		sipConfig := sip.ClientConfig{
+			Server:        def.SIP.Server,
+			Extension:     def.SIP.Extension,
+			Username:      def.SIP.Username,
+			Password:      credentials.SIP.Password,
+			Domain:        def.SIP.Domain,
+			Transport:     def.SIP.Transport,
+			LocalPort:     def.SIP.LocalPort,
+			ExpirySeconds: def.SIP.ExpirySeconds,
+			RecordPath:    def.SIP.RecordPath,
+		}
+
+		// Set defaults
+		if sipConfig.Transport == "" {
+			sipConfig.Transport = "udp"
+		}
+		if sipConfig.RecordPath == "" {
+			sipConfig.RecordPath = "files/recording"
+		}
+
+		maxCalls := def.SIP.MaxConcurrentCalls
+		if maxCalls <= 0 {
+			maxCalls = 10
+		}
+
+		sipClient, err := sip.NewClient(sipConfig, polly, def, maxCalls)
+		if err != nil {
+			log.Fatal("Failed to create SIP client: ", err)
+		}
+
+		if err := sipClient.Start(); err != nil {
+			log.Fatal("Failed to start SIP client: ", err)
+		}
+
+		log.WithFields(logrus.Fields{
+			"server":    sipConfig.Server,
+			"extension": sipConfig.Extension,
+			"max_calls": maxCalls,
+		}).Info("SIP client started, registering with PBX...")
+
+		// Handle shutdown gracefully
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+		if *enableHttp {
+			waitgroup.Add(1)
+			// Note: API server needs to be updated to work with SIP mode
+			// For now, just start it for compatibility
+			srv := api.Server{}
+			go srv.Start(&waitgroup, nil)
+		}
+
+		// Wait for shutdown signal
+		<-sigChan
+		log.Info("Shutting down SIP client...")
+		sipClient.Stop()
+
+	} else {
+		// Legacy mode: local phone with speaker/mic
+		log.Info("Starting in local phone mode")
+
+		ctrl := controller.New(ctrlPhone, ad, &rec, polly, def)
+
 		waitgroup.Add(1)
-		srv := api.Server{}
-		srv.Start(&waitgroup, &ctrl)
+		err = ctrlPhone.Init()
+		if err != nil {
+			log.Panic(err)
+		}
+
+		go ctrl.Start(&waitgroup)
+
+		if *enableHttp {
+			waitgroup.Add(1)
+			srv := api.Server{}
+			srv.Start(&waitgroup, &ctrl)
+		}
+
+		waitgroup.Wait()
 	}
-
-	waitgroup.Wait()
-
 }

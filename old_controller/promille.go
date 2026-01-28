@@ -22,7 +22,7 @@ func (m *Promille) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 			if err != nil {
 				log.Error(err)
 			}
-			c.Audio.PlayMP3FromStream(ttsData)
+			c.Audio.PlayFromStream(ttsData)
 
 			return MenuReturn{
 				NextFunction: menu.Caller,
@@ -32,7 +32,7 @@ func (m *Promille) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		if err != nil {
 			log.Error(err)
 		}
-		c.Audio.PlayMP3FromStream(ttsData)
+		c.Audio.PlayFromStream(ttsData)
 
 		return MenuReturn{
 			NextFunction: "mainmenu",
@@ -51,7 +51,7 @@ func (m *Promille) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 			NextFunction: "error",
 		}
 	}
-	c.Audio.PlayMP3FromStream(ttsData)
+	c.Audio.PlayFromStream(ttsData)
 
 	return MenuReturn{
 		NextFunction: "mainmenu",
@@ -74,5 +74,5 @@ func (m *Promille) Prefix(c *Controller) {
 		log.Error(err)
 	}
 
-	go c.Audio.PlayMP3FromStream(ttsData)
+	go c.Audio.PlayFromStream(ttsData)
 }

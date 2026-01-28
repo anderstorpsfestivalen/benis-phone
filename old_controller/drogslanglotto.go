@@ -16,7 +16,7 @@ func (m *DrogSlangLotto) Run(c *Controller, k string, menu MenuReturn) MenuRetur
 	if err != nil {
 		log.Error(err)
 	}
-	c.Audio.PlayMP3FromStream(ttsData)
+	c.Audio.PlayFromStream(ttsData)
 
 	rand.Seed(time.Now().UnixNano())
 	min := 1
@@ -66,7 +66,7 @@ func (m *DrogSlangLotto) Run(c *Controller, k string, menu MenuReturn) MenuRetur
 			NextFunction: "error",
 		}
 	}
-	c.Audio.PlayMP3FromStream(ttsData2)
+	c.Audio.PlayFromStream(ttsData2)
 
 	return MenuReturn{
 		NextFunction: "mainmenu",

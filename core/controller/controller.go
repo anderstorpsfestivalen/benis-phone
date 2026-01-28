@@ -15,8 +15,8 @@ import (
 
 type Controller struct {
 	Phone      phone.FlowPhone
-	Audio      *audio.Audio
-	Recorder   *audio.Recorder
+	Audio      audio.AudioSink
+	Recorder   audio.AudioSource
 	Polly      polly.Polly
 	Definition functions.Definition
 
@@ -30,10 +30,10 @@ type Controller struct {
 	prefixSignal chan bool
 }
 
-func New(ph phone.FlowPhone, audio *audio.Audio, rec *audio.Recorder, polly polly.Polly, def functions.Definition) Controller {
+func New(ph phone.FlowPhone, audioSink audio.AudioSink, rec audio.AudioSource, polly polly.Polly, def functions.Definition) Controller {
 	return Controller{
 		Phone:      ph,
-		Audio:      audio,
+		Audio:      audioSink,
 		Recorder:   rec,
 		Polly:      polly,
 		Definition: def,

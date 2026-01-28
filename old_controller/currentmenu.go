@@ -24,7 +24,7 @@ func (m *CurrentMenu) Run(c *Controller, k string, menu MenuReturn) MenuReturn {
 		}
 	}
 
-	c.Audio.PlayMP3FromStream(ttsData)
+	c.Audio.PlayFromStream(ttsData)
 	return MenuReturn{
 		NextFunction: "mainmenu",
 	}

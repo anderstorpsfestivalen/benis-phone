@@ -88,3 +88,8 @@ func (f *Recorder) Stop() {
 	}
 	f.isRecording = false
 }
+
+// IsRecording returns true if currently recording (implements AudioSource)
+func (f *Recorder) IsRecording() bool {
+	return f.isRecording
+}
