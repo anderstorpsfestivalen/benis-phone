@@ -102,9 +102,10 @@ func NewClient(config ClientConfig, polly polly.Polly, def functions.Definition,
 		}
 	}
 
-	// Create user agent with the extension as the name
+	// Create user agent with the extension as the SIP user and domain as hostname
 	ua, err := sipgo.NewUA(
-		sipgo.WithUserAgent(fmt.Sprintf("benis-phone/%s", config.Extension)),
+		sipgo.WithUserAgent(config.Extension),
+		sipgo.WithUserAgentHostname(config.Domain),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create SIP user agent: %w", err)
