@@ -11,6 +11,7 @@ import (
 	"github.com/anderstorpsfestivalen/benis-phone/core/functions"
 	"github.com/anderstorpsfestivalen/benis-phone/core/polly"
 	"github.com/emiago/diago"
+	"github.com/emiago/diago/media"
 	"github.com/emiago/sipgo"
 	"github.com/emiago/sipgo/sip"
 	"github.com/google/uuid"
@@ -45,6 +46,9 @@ type ClientConfig struct {
 
 	// RecordPath is the base path for call recordings
 	RecordPath string
+
+	// ExternalIP is the public IP for NAT traversal (used in SDP for RTP)
+	ExternalIP string
 }
 
 // Client handles SIP registration and incoming calls as a PBX extension.
@@ -120,14 +124,25 @@ func NewClient(config ClientConfig, polly polly.Polly, def functions.Definition,
 	log.WithField("local_ip", localIP).Info("Detected local IP for SIP")
 
 	// Configure transport - bind to the detected local IP directly
+	transport := diago.Transport{
+		Transport: config.Transport,
+		BindHost:  localIP,
+		BindPort:  config.LocalPort,
+	}
+
+	// If external IP is configured, use it for NAT traversal
+	if config.ExternalIP != "" {
+		extIP := net.ParseIP(config.ExternalIP)
+		if extIP == nil {
+			return nil, fmt.Errorf("invalid external IP: %s", config.ExternalIP)
+		}
+		transport.ExternalHost = config.ExternalIP
+		transport.MediaExternalIP = extIP
+		log.WithField("external_ip", config.ExternalIP).Info("Using external IP for NAT traversal")
+	}
+
 	dg := diago.NewDiago(ua,
-		diago.WithTransport(
-			diago.Transport{
-				Transport: config.Transport,
-				BindHost:  localIP,
-				BindPort:  config.LocalPort,
-			},
-		),
+		diago.WithTransport(transport),
 	)
 
 	// Create session manager
@@ -257,13 +272,38 @@ func (c *Client) handleIncomingCall(dialog *diago.DialogServerSession) {
 	// Small delay to simulate ringing
 	time.Sleep(500 * time.Millisecond)
 
-	// Answer the call
-	if err := dialog.Answer(); err != nil {
+	// Answer the call with NAT traversal enabled and explicit codec selection
+	// RTPNATSymetric (1) learns the actual source address from incoming packets
+	// which is essential for NAT traversal scenarios
+	// Explicitly prefer PCMU/PCMA (8kHz) codecs to match our transcoded audio
+	answerOpts := diago.AnswerOptions{
+		RTPNAT: media.RTPNATSymetric,
+		Codecs: []media.Codec{
+			media.CodecAudioUlaw,          // PCMU - 8kHz
+			media.CodecAudioAlaw,          // PCMA - 8kHz
+			media.CodecTelephoneEvent8000, // DTMF
+		},
+	}
+	if err := dialog.AnswerOptions(answerOpts); err != nil {
 		log.WithError(err).Error("Failed to answer call")
 		return
 	}
 
-	log.WithField("call_id", callID).Info("Call answered")
+	log.WithField("call_id", callID).Info("Call answered with RTP NAT symmetric mode")
+
+	// Log media session details for debugging
+	msess := dialog.MediaSession()
+	if msess != nil {
+		log.WithFields(log.Fields{
+			"call_id":     callID,
+			"local_addr":  msess.Laddr.String(),
+			"remote_addr": msess.Raddr.String(),
+			"mode":        msess.Mode,
+			"rtp_nat":     msess.RTPNAT,
+		}).Info("Media session established")
+	} else {
+		log.WithField("call_id", callID).Error("Media session is nil after answer!")
+	}
 
 	// Create per-call components
 	sipPhone := NewSIPPhone(dialog)
@@ -321,14 +361,23 @@ func (c *Client) runSession(callID string, session *controller.Session, dialog *
 }
 
 // monitorDialog monitors the SIP dialog for termination.
+// Instead of using dialog.ListenContext() which would compete with DTMF reader,
+// we wait for the SIPPhone's done channel which signals when the DTMF read loop ends.
 func (c *Client) monitorDialog(callID string, dialog *diago.DialogServerSession, ctx context.Context) {
-	// Listen for media (this blocks until call ends or context is canceled)
-	err := dialog.ListenContext(ctx)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"call_id": callID,
-			"error":   err,
-		}).Debug("Dialog listen ended")
+	c.mu.Lock()
+	cc, exists := c.activeCalls[callID]
+	c.mu.Unlock()
+
+	if !exists {
+		return
+	}
+
+	// Wait for either context cancellation or DTMF loop to end
+	select {
+	case <-ctx.Done():
+		log.WithField("call_id", callID).Debug("Dialog context canceled")
+	case <-cc.sipPhone.Done():
+		log.WithField("call_id", callID).Debug("DTMF read loop ended (call terminated)")
 	}
 
 	// Call ended - cleanup

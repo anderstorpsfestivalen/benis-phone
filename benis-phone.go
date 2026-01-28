@@ -20,9 +20,28 @@ import (
 	"github.com/anderstorpsfestivalen/benis-phone/core/secrets"
 	"github.com/anderstorpsfestivalen/benis-phone/core/sip"
 	"github.com/anderstorpsfestivalen/benis-phone/core/virtual"
+	sipgosip "github.com/emiago/sipgo/sip"
 )
 
+// SIPTracer logs SIP messages for debugging
+type SIPTracer struct{}
+
+func (t *SIPTracer) SIPTraceRead(transport, laddr, raddr string, sipmsg []byte) {
+	logrus.Debugf("SIP READ [%s] %s <- %s:\n%s", transport, laddr, raddr, string(sipmsg))
+}
+
+func (t *SIPTracer) SIPTraceWrite(transport, laddr, raddr string, sipmsg []byte) {
+	logrus.Debugf("SIP WRITE [%s] %s -> %s:\n%s", transport, laddr, raddr, string(sipmsg))
+}
+
 func main() {
+	// Enable debug logging early
+	logrus.SetLevel(logrus.DebugLevel)
+
+	// Enable SIP debug to see SDP negotiation
+	sipgosip.SIPDebug = true
+	sipgosip.SIPDebugTracer(&SIPTracer{})
+
 	enableS3 := flag.Bool("s3", true, "s3 sync")
 	enableHttp := flag.Bool("http", true, "http server")
 	enablePhone := flag.Bool("phone", false, "Enable GPIO for physical phone")
@@ -115,6 +134,7 @@ func main() {
 			LocalPort:     def.SIP.LocalPort,
 			ExpirySeconds: def.SIP.ExpirySeconds,
 			RecordPath:    def.SIP.RecordPath,
+			ExternalIP:    def.SIP.ExternalIP,
 		}
 
 		// Set defaults

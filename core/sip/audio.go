@@ -2,10 +2,10 @@ package sip
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
-	"time"
 
 	"github.com/anderstorpsfestivalen/benis-phone/core/audio"
 	"github.com/emiago/diago"
@@ -42,6 +42,15 @@ func NewRTPAudioSink(dialog *diago.DialogServerSession) (*RTPAudioSink, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Log the negotiated codec for debugging
+	codec := pb.Codec()
+	log.WithFields(log.Fields{
+		"codec_name":        codec.Name,
+		"codec_sample_rate": codec.SampleRate,
+		"codec_channels":    codec.NumChannels,
+		"codec_payload":     codec.PayloadType,
+	}).Info("RTP audio sink created with negotiated codec")
 
 	return &RTPAudioSink{
 		dialog:     dialog,
@@ -102,7 +111,7 @@ func (r *RTPAudioSink) PlayFromStream(data []byte) error {
 	}()
 
 	// Polly returns MP3, transcode to WAV for telephony
-	log.Debug("Transcoding MP3 stream for RTP")
+	log.WithField("mp3_size", len(data)).Debug("Transcoding MP3 stream for RTP")
 
 	wavData, err := r.transcoder.TranscodeMP3ToWav(data)
 	if err != nil {
@@ -110,8 +119,88 @@ func (r *RTPAudioSink) PlayFromStream(data []byte) error {
 		return err
 	}
 
+	// Verify the WAV header is valid
+	if len(wavData) < 44 {
+		log.WithField("wav_size", len(wavData)).Error("WAV data too small")
+		return fmt.Errorf("WAV data too small: %d bytes", len(wavData))
+	}
+
+	// Log WAV header info for debugging
+	log.WithFields(log.Fields{
+		"wav_size":    len(wavData),
+		"riff_magic":  string(wavData[0:4]),
+		"wave_magic":  string(wavData[8:12]),
+		"fmt_chunk":   string(wavData[12:16]),
+		"audio_fmt":   int(wavData[20]) | int(wavData[21])<<8,
+		"channels":    int(wavData[22]) | int(wavData[23])<<8,
+		"sample_rate": int(wavData[24]) | int(wavData[25])<<8 | int(wavData[26])<<16 | int(wavData[27])<<24,
+	}).Debug("Transcoded to WAV, playing to RTP")
+
+	// Debug: Check media session state
+	msess := r.dialog.MediaSession()
+	if msess != nil {
+		log.WithFields(log.Fields{
+			"local_addr":  msess.Laddr.String(),
+			"remote_addr": msess.Raddr.String(),
+			"mode":        msess.Mode,
+		}).Debug("Media session state")
+	} else {
+		log.Error("Media session is nil!")
+	}
+
+	// Debug: Try writing raw PCM directly to AudioWriter to test RTP path
+	writer, werr := r.dialog.AudioWriter()
+	if werr != nil {
+		log.WithError(werr).Error("Failed to get AudioWriter")
+	} else {
+		// Write a test tone (silence) directly - use proper 20ms at 8kHz (160 samples * 2 bytes = 320 bytes)
+		testBuf := make([]byte, 320)
+		n, terr := writer.Write(testBuf)
+		log.WithFields(log.Fields{
+			"test_written": n,
+			"test_error":   terr,
+		}).Debug("Direct AudioWriter test")
+	}
+
+	// Log codec details for debugging
+	codec := r.playback.Codec()
+	log.WithFields(log.Fields{
+		"playback_codec":       codec.Name,
+		"playback_sample_rate": codec.SampleRate,
+		"playback_channels":    codec.NumChannels,
+		"playback_bit_depth":   r.playback.BitDepth,
+	}).Debug("Playback codec configuration")
+
 	reader := bytes.NewReader(wavData)
-	_, err = r.playback.Play(reader, "audio/wav")
+	written, err := r.playback.Play(reader, "audio/wav")
+	if err != nil {
+		log.WithError(err).Error("Failed to play audio to RTP")
+	} else {
+		log.WithFields(log.Fields{
+			"bytes_written":  written,
+			"reader_len":     len(wavData),
+			"writer_present": writer != nil,
+		}).Debug("Audio playback completed")
+	}
+
+	// If playback returned 0 bytes but no error, try PlayFile with temp file as workaround
+	if written == 0 && err == nil {
+		log.Debug("Playback returned 0 bytes, trying file-based playback")
+		// Write WAV to temp file and use PlayFile
+		tmpFile, terr := os.CreateTemp("", "tts-*.wav")
+		if terr == nil {
+			tmpFile.Write(wavData)
+			tmpFile.Close()
+			defer os.Remove(tmpFile.Name())
+
+			written2, err2 := r.playback.PlayFile(tmpFile.Name())
+			log.WithFields(log.Fields{
+				"file_written": written2,
+				"file_error":   err2,
+			}).Debug("File-based playback result")
+		}
+	}
+
 	return err
 }
 
@@ -203,7 +292,13 @@ func NewRTPAudioSource(dialog *diago.DialogServerSession, recordPath string) *RT
 }
 
 // Record starts recording the RTP stream to the specified subfolder.
+// TEMPORARILY DISABLED to debug DTMF/audio issues
 func (r *RTPAudioSource) Record(subfolder string) {
+	log.WithField("subfolder", subfolder).Debug("Recording disabled for debugging")
+	// Recording disabled to avoid RTP stream conflicts with DTMF reader
+	return
+
+	/* Original recording code - disabled for debugging
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -244,6 +339,7 @@ func (r *RTPAudioSource) Record(subfolder string) {
 	r.isRecording = true
 
 	log.WithField("path", fullPath).Info("Started RTP recording")
+	*/
 }
 
 // Stop terminates the current recording.

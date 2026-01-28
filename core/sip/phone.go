@@ -1,19 +1,24 @@
 package sip
 
 import (
+	"context"
+
 	"github.com/anderstorpsfestivalen/benis-phone/core/phone"
 	"github.com/emiago/diago"
+	"github.com/emiago/diago/media"
 	log "github.com/sirupsen/logrus"
 )
 
 // SIPPhone implements phone.FlowPhone for SIP calls.
 // Each SIP call gets its own SIPPhone instance.
 type SIPPhone struct {
-	dialog     *diago.DialogServerSession
-	keyChannel chan string
+	dialog      *diago.DialogServerSession
+	keyChannel  chan string
 	hookChannel chan bool
-	dtmfReader *diago.DTMFReader
-	stopDTMF   func()
+	dtmfReader  *diago.DTMFReader
+	ctx         context.Context
+	cancel      context.CancelFunc
+	done        chan struct{} // Closed when DTMF read loop ends
 }
 
 // Verify SIPPhone implements FlowPhone
@@ -25,11 +30,15 @@ func NewSIPPhone(dialog *diago.DialogServerSession) *SIPPhone {
 		dialog:      dialog,
 		keyChannel:  make(chan string, 100),
 		hookChannel: make(chan bool, 10),
+		done:        make(chan struct{}),
 	}
 }
 
 // Init initializes the SIP phone and starts DTMF listening.
 func (p *SIPPhone) Init() error {
+	// Create context for DTMF reading goroutine
+	p.ctx, p.cancel = context.WithCancel(context.Background())
+
 	// Create DTMF reader for RFC 4733 DTMF detection
 	p.dtmfReader = p.dialog.AudioReaderDTMF()
 
@@ -56,14 +65,80 @@ func (p *SIPPhone) Init() error {
 		return nil
 	})
 
+	// Start DTMF reading goroutine - this is required for DTMF detection to work
+	go p.readDTMFLoop()
+
 	// Signal hook lifted (call answered)
 	p.hookChannel <- true
 
 	return nil
 }
 
+// readDTMFLoop continuously reads from the DTMF reader to detect DTMF tones.
+// DTMF detection in RFC 4733 requires actively reading the RTP stream.
+// This loop also keeps the RTP session alive - when it ends, the call is considered terminated.
+func (p *SIPPhone) readDTMFLoop() {
+	// Log media session info at start
+	msess := p.dialog.MediaSession()
+	if msess != nil {
+		log.WithFields(log.Fields{
+			"local_addr":  msess.Laddr.String(),
+			"remote_addr": msess.Raddr.String(),
+			"mode":        msess.Mode,
+		}).Debug("Starting DTMF read loop with media session")
+	} else {
+		log.Error("DTMF read loop: Media session is nil!")
+	}
+
+	defer close(p.done) // Signal that the loop has ended
+
+	buf := make([]byte, media.RTPBufSize)
+	readCount := 0
+	for {
+		select {
+		case <-p.ctx.Done():
+			log.WithField("reads", readCount).Debug("DTMF read loop stopped (context canceled)")
+			return
+		default:
+			// Read from DTMF reader - this triggers DTMF detection via OnDTMF callback
+			n, err := p.dtmfReader.Read(buf)
+			if err != nil {
+				// Check if context was canceled
+				select {
+				case <-p.ctx.Done():
+					return
+				default:
+					log.WithFields(log.Fields{
+						"error": err,
+						"reads": readCount,
+					}).Debug("DTMF read error, call ended")
+					return
+				}
+			}
+			readCount++
+			if readCount == 1 {
+				log.WithField("bytes", n).Debug("First DTMF read successful - RTP stream active")
+			}
+			// Log every 100 reads to monitor activity
+			if readCount%100 == 0 {
+				log.WithField("reads", readCount).Debug("DTMF read loop active")
+			}
+		}
+	}
+}
+
+// Done returns a channel that is closed when the DTMF read loop ends (call terminated).
+func (p *SIPPhone) Done() <-chan struct{} {
+	return p.done
+}
+
 // Close terminates the SIP phone and signals hook down.
 func (p *SIPPhone) Close() {
+	// Stop DTMF reading goroutine
+	if p.cancel != nil {
+		p.cancel()
+	}
+
 	// Signal hook slammed (call ended)
 	select {
 	case p.hookChannel <- false:

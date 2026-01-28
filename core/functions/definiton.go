@@ -70,6 +70,10 @@ type SIPConfig struct {
 	// ExpirySeconds is the registration expiry time (default: 300)
 	ExpirySeconds int `toml:"expiry_seconds"`
 
+	// ExternalIP is your public IP address for NAT traversal (required if behind NAT)
+	// This IP will be used in SDP for RTP media. If empty, local IP is used.
+	ExternalIP string `toml:"external_ip"`
+
 	// Password should be in creds.json under SIP.Password for security
 }
 
