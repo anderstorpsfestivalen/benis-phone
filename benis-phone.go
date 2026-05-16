@@ -35,21 +35,23 @@ func (t *SIPTracer) SIPTraceWrite(transport, laddr, raddr string, sipmsg []byte)
 }
 
 func main() {
-	// Enable debug logging early
-	logrus.SetLevel(logrus.DebugLevel)
-
-	// Enable SIP debug to see SDP negotiation
-	sipgosip.SIPDebug = true
-	sipgosip.SIPDebugTracer(&SIPTracer{})
-
 	enableS3 := flag.Bool("s3", true, "s3 sync")
 	enableHttp := flag.Bool("http", true, "http server")
 	enablePhone := flag.Bool("phone", false, "Enable GPIO for physical phone")
 	_ = flag.Bool("record", true, "record audio") // TODO: wire up recording toggle
+	debug := flag.Bool("debug", false, "verbose logging (DebugLevel + SIP wire tracing)")
 	definition := flag.String("def",
 		"configurations/default.toml",
 		"Set a custom definition file, standard is configurations/default.toml")
 	flag.Parse()
+
+	if *debug {
+		logrus.SetLevel(logrus.DebugLevel)
+		sipgosip.SIPDebug = true
+		sipgosip.SIPDebugTracer(&SIPTracer{})
+	} else {
+		logrus.SetLevel(logrus.InfoLevel)
+	}
 
 	log := logrus.New()
 
@@ -106,8 +108,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
-	log.SetLevel(logrus.DebugLevel)
 
 	var waitgroup sync.WaitGroup
 

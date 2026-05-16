@@ -117,11 +117,10 @@ func (p *SIPPhone) readDTMFLoop() {
 			}
 			readCount++
 			if readCount == 1 {
-				log.WithField("bytes", n).Debug("First DTMF read successful - RTP stream active")
+				log.WithField("bytes", n).Debug("First DTMF read - RTP stream active")
 			}
-			// Log every 100 reads to monitor activity
 			if readCount%100 == 0 {
-				log.WithField("reads", readCount).Debug("DTMF read loop active")
+				log.WithField("reads", readCount).Trace("DTMF read loop active")
 			}
 		}
 	}
