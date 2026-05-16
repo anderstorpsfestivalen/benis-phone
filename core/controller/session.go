@@ -65,13 +65,25 @@ func (s *Session) Start() {
 		case <-s.done:
 			log.WithField("session", s.ID).Info("Session stopped")
 			return
-		case hook := <-hookchan:
+		case hook, ok := <-hookchan:
+			if !ok {
+				// Phone closed its hook channel — call is over. Stop reading
+				// it (nil channel disables this case) and wait for Stop() to
+				// close s.done. Without this guard a closed channel spins
+				// the loop with zero-value false forever.
+				hookchan = nil
+				continue
+			}
 			if hook {
 				s.liftHook()
 			} else {
 				s.slamHook()
 			}
-		case key := <-keychan:
+		case key, ok := <-keychan:
+			if !ok {
+				keychan = nil
+				continue
+			}
 			log.WithFields(log.Fields{"session": s.ID, "key": key}).Trace("Got key")
 			if s.HookState {
 				s.Audio.Clear()
