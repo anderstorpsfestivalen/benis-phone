@@ -14,14 +14,14 @@
 # SIP Configuration
 [sip]
     enabled = true
-    server = "sip.wberg.com:5060"
-    extension = "3002"
-    username = "3002"
+    server = "sip.anderstorpsfestivalen.se:5060"
+    extension = "3005"
+    username = "3005"
     transport = "udp"
     max_concurrent_calls = 10
     record_path = "files/recording"
     # External/public IP for NAT traversal (required when behind NAT)
-    external_ip = "69.209.4.126"
+    external_ip = "45.154.28.76"
     # Password stored in creds/creds.json under "SIP.Password"
 
 ############################

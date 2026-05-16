@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strconv"
 	"sync"
 	"time"
 
@@ -141,8 +142,31 @@ func NewClient(config ClientConfig, polly polly.Polly, def functions.Definition,
 		log.WithField("external_ip", config.ExternalIP).Info("Using external IP for NAT traversal")
 	}
 
+	// Pre-create the sipgo client bound to the same local addr the listener will use,
+	// so REGISTER and other outbound requests share the listening socket. Without this,
+	// diago creates its per-transport client before the listener starts, falls back to
+	// an ephemeral source port, and PBX responses (sent to Via host:port) can't be
+	// associated with the outbound transaction.
+	clientOpts := []sipgo.ClientOption{
+		sipgo.WithClientNAT(),
+		sipgo.WithClientConnectionAddr(net.JoinHostPort(localIP, strconv.Itoa(config.LocalPort))),
+	}
+	if config.ExternalIP != "" {
+		// Make outgoing Via headers advertise the external IP:port pair.
+		clientOpts = append(clientOpts,
+			sipgo.WithClientHostname(config.ExternalIP),
+			sipgo.WithClientPort(config.LocalPort),
+		)
+	}
+
+	sipClient, err := sipgo.NewClient(ua, clientOpts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create SIP client: %w", err)
+	}
+
 	dg := diago.NewDiago(ua,
 		diago.WithTransport(transport),
+		diago.WithClient(sipClient),
 	)
 
 	// Create session manager
@@ -404,6 +428,10 @@ func (c *Client) cleanupCall(callID string, dialog *diago.DialogServerSession) {
 
 	// Close SIP phone (signals hook down)
 	cc.sipPhone.Close()
+
+	// Stop the output stream goroutine before tearing down RTP. Outstanding
+	// playAndWait callers receive ErrInterrupted from the drained queue.
+	cc.audioSink.Close()
 
 	// Stop recording
 	cc.audioSrc.Stop()
