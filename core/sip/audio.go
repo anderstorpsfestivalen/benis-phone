@@ -54,14 +54,29 @@ func (r *RTPAudioSink) PlayFromStream(data []byte) error {
 	return r.playAndWait(src)
 }
 
-// ExternalPlayback plays from an externally owned beep streamer. Blocks until
-// the source ends or is preempted (Clear), so the Queue can save the
-// streamer's position for later resume.
+// ExternalPlayback submits an externally owned beep streamer to the output
+// queue and returns once the source has been queued in the OutputStream's
+// ctrl channel — it does NOT wait for the audio to finish.
+//
+// This is critical for queue.go's pause/resume pattern: the queue runs
+// startBackground (this method) and then pausebg (Clear) on the same
+// goroutine. With `Submit` being synchronous w.r.t. the ctrl channel, any
+// subsequent Clear is guaranteed to land after this Submit, so the bg
+// source can actually be preempted. Previously the caller spawned a
+// goroutine and the Submit could race with the next Clear, causing bg
+// music to play unpaused while the position TTS got queued behind it.
+//
+// The completion of the source is observed in a goroutine; errors other
+// than ErrInterrupted are logged.
 func (r *RTPAudioSink) ExternalPlayback(stream beep.StreamSeekCloser, format beep.Format) {
 	src := bpaudio.NewBeepSource(stream, format)
-	if err := r.playAndWait(src); err != nil {
-		log.WithError(err).Debug("ExternalPlayback ended")
-	}
+	done := r.os.Submit(src)
+	go func() {
+		err := <-done
+		if err != nil && !errors.Is(err, bpaudio.ErrInterrupted) {
+			log.WithError(err).Debug("ExternalPlayback ended")
+		}
+	}()
 }
 
 // Clear preempts any currently playing source and drops queued sources.

@@ -232,8 +232,11 @@ func (q *Queue) startBackground() {
 	q.streamer = streamer
 	q.streamer.Seek(q.lastPos)
 
-	go q.a.ExternalPlayback(q.streamer, format)
-
+	// Direct call (no `go`): ExternalPlayback is now synchronous-submit,
+	// async-wait. We need the Submit to land in the OutputStream ctrl
+	// channel BEFORE handleQueue moves on to a subsequent pausebg (which
+	// would otherwise race and let the bg music play uninterrupted).
+	q.a.ExternalPlayback(q.streamer, format)
 }
 
 func (q *Queue) pauseBackground() {
