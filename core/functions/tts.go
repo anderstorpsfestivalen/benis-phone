@@ -5,9 +5,14 @@ type TTS struct {
 	Voice    string
 	Language string `toml:"lang"`
 	Engine   string
+
+	// Provider selects the TTS backend ("polly", "elevenlabs", ...). Empty
+	// falls back to the definition's DefaultTTSProvider, which itself falls
+	// back to the registry's default at synthesis time.
+	Provider string `toml:"provider"`
 }
 
-func (t *TTS) SetDefault(dv string, dl string, de string) {
+func (t *TTS) SetDefault(dv, dl, de, dp string) {
 	if t.Message != "" {
 		if t.Voice == "" {
 			t.Voice = dv
@@ -19,6 +24,10 @@ func (t *TTS) SetDefault(dv string, dl string, de string) {
 
 		if t.Engine == "" {
 			t.Engine = de
+		}
+
+		if t.Provider == "" {
+			t.Provider = dp
 		}
 	}
 }
@@ -35,6 +44,7 @@ func (t *Definition) StandardTTS(message string) TTS {
 		Voice:    t.General.DefaultTTSVoice,
 		Language: t.General.DefaultTTSLanguage,
 		Engine:   t.General.DefaultTTSEngine,
+		Provider: t.General.DefaultTTSProvider,
 	}
 }
 
@@ -44,5 +54,6 @@ func (t *Definition) EnglishTTS(message string) TTS {
 		Voice:    "Kendra",
 		Language: "en-US",
 		Engine:   "neural",
+		Provider: t.General.DefaultTTSProvider,
 	}
 }

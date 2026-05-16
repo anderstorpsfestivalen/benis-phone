@@ -8,7 +8,7 @@ import (
 	"github.com/anderstorpsfestivalen/benis-phone/core/audio"
 	"github.com/anderstorpsfestivalen/benis-phone/core/functions"
 	"github.com/anderstorpsfestivalen/benis-phone/core/phone"
-	"github.com/anderstorpsfestivalen/benis-phone/core/polly"
+	"github.com/anderstorpsfestivalen/benis-phone/core/tts"
 	"github.com/anderstorpsfestivalen/benis-phone/extensions/services"
 	log "github.com/sirupsen/logrus"
 )
@@ -17,7 +17,7 @@ type Controller struct {
 	Phone      phone.FlowPhone
 	Audio      audio.AudioSink
 	Recorder   audio.AudioSource
-	Polly      polly.Polly
+	TTS        *tts.Registry
 	Definition functions.Definition
 
 	Callstack []string
@@ -30,12 +30,12 @@ type Controller struct {
 	prefixSignal chan bool
 }
 
-func New(ph phone.FlowPhone, audioSink audio.AudioSink, rec audio.AudioSource, polly polly.Polly, def functions.Definition) Controller {
+func New(ph phone.FlowPhone, audioSink audio.AudioSink, rec audio.AudioSource, ttsReg *tts.Registry, def functions.Definition) Controller {
 	return Controller{
 		Phone:      ph,
 		Audio:      audioSink,
 		Recorder:   rec,
-		Polly:      polly,
+		TTS:        ttsReg,
 		Definition: def,
 
 		prefixSignal: make(chan bool, 100),
@@ -98,7 +98,7 @@ func (c *Controller) handlePrefix() error {
 		return err
 	}
 
-	err = pr.Play(c.Audio, c.Polly)
+	err = pr.Play(c.Audio, c.TTS)
 	if err != nil {
 		return err
 	}
@@ -162,7 +162,7 @@ func (c *Controller) handleAction(action *functions.Action) {
 	prefix, err := action.GetPrefix()
 	if err == nil {
 		pr, _ := prefix.GetPlayable()
-		pr.Play(c.Audio, c.Polly)
+		pr.Play(c.Audio, c.TTS)
 	}
 
 	switch actionType {
@@ -311,7 +311,7 @@ func (c *Controller) slamHook() {
 func (c *Controller) play(pl functions.PlayGenerator) {
 	p := functions.CreatePlayable(pl)
 	log.Trace("Playing %v", p)
-	p.Play(c.Audio, c.Polly)
+	p.Play(c.Audio, c.TTS)
 }
 
 func (c *Controller) checkError(e error) {
@@ -333,7 +333,7 @@ func (c *Controller) handleDispatcher(q functions.Dispatcher) {
 	// Store pointer to queue as dispatcher
 	c.activeDispatcher = q
 
-	f := c.activeDispatcher.Start(c.Audio, c.Recorder, c.Polly)
+	f := c.activeDispatcher.Start(c.Audio, c.Recorder, c.TTS)
 
 	// Wait for dispatcher to finish
 	a := <-f

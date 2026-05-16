@@ -90,6 +90,7 @@ func (d *Definition) Prepare() {
 			d.General.DefaultTTSVoice,
 			d.General.DefaultTTSLanguage,
 			d.General.DefaultTTSEngine,
+			d.General.DefaultTTSProvider,
 		)
 
 	}
@@ -108,6 +109,7 @@ func (d *Definition) Prepare() {
 					d.General.DefaultTTSVoice,
 					d.General.DefaultTTSLanguage,
 					d.General.DefaultTTSEngine,
+					d.General.DefaultTTSProvider,
 				)
 			}
 
@@ -116,6 +118,7 @@ func (d *Definition) Prepare() {
 					d.General.DefaultTTSVoice,
 					d.General.DefaultTTSLanguage,
 					d.General.DefaultTTSEngine,
+					d.General.DefaultTTSProvider,
 				)
 			}
 		}
@@ -130,6 +133,7 @@ func (d *Definition) Prepare() {
 					d.General.DefaultTTSVoice,
 					d.General.DefaultTTSLanguage,
 					d.General.DefaultTTSEngine,
+					d.General.DefaultTTSProvider,
 				)
 			}
 		}
@@ -140,12 +144,14 @@ func (d *Definition) Prepare() {
 				d.General.DefaultTTSVoice,
 				d.General.DefaultTTSLanguage,
 				d.General.DefaultTTSEngine,
+				d.General.DefaultTTSProvider,
 			)
 
 			d.Queues[i].End.TTS.SetDefault(
 				d.General.DefaultTTSVoice,
 				d.General.DefaultTTSLanguage,
 				d.General.DefaultTTSEngine,
+				d.General.DefaultTTSProvider,
 			)
 		}
 
@@ -153,6 +159,7 @@ func (d *Definition) Prepare() {
 			d.General.DefaultTTSVoice,
 			d.General.DefaultTTSLanguage,
 			d.General.DefaultTTSEngine,
+			d.General.DefaultTTSProvider,
 		)
 
 	}
@@ -180,4 +187,8 @@ type General struct {
 
 	// standard, neural
 	DefaultTTSEngine string `toml:"default_tts_engine"`
+
+	// "polly" or "elevenlabs"; falls back to the registry's default when empty.
+	// Individual menus can override per-TTS via `provider = "..."`.
+	DefaultTTSProvider string `toml:"default_tts_provider"`
 }

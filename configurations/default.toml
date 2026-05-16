@@ -2,14 +2,18 @@
 
 [general]
     entrypoint = "main"
+    # TTS backend: "polly" (default) or "elevenlabs". Override per menu/prompt
+    # with `provider = "..."` inside any `tts = { ... }` block.
+    default_tts_provider = "elevenlabs"
     # AWS Polly specific
     # https://docs.aws.amazon.com/polly/latest/dg/voicelist.html
-    default_tts_voice = "Kendra"
+    default_tts_voice = "IKne3meq5aSn9XLyUdCD"
     # en-US , sv-SE
     # https://docs.aws.amazon.com/polly/latest/dg/SupportedLanguage.html
     default_tts_lang = "en-US"
-    # standard, neural
-    default_tts_engine = "neural"
+    # standard, neural (Polly); for ElevenLabs this is the model_id, e.g.
+    # "eleven_multilingual_v2" or "eleven_turbo_v2_5"
+    default_tts_engine = "eleven_multilingual_v2"
 
 # SIP Configuration
 [sip]

@@ -7,14 +7,14 @@ import (
 	"github.com/anderstorpsfestivalen/benis-phone/core/audio"
 	"github.com/anderstorpsfestivalen/benis-phone/core/functions"
 	"github.com/anderstorpsfestivalen/benis-phone/core/phone"
-	"github.com/anderstorpsfestivalen/benis-phone/core/polly"
+	"github.com/anderstorpsfestivalen/benis-phone/core/tts"
 	log "github.com/sirupsen/logrus"
 )
 
 // SessionManager manages multiple concurrent call sessions.
 type SessionManager struct {
 	// Shared resources
-	Polly      polly.Polly
+	TTS        *tts.Registry
 	Definition functions.Definition
 
 	// Configuration
@@ -26,12 +26,12 @@ type SessionManager struct {
 }
 
 // NewSessionManager creates a new session manager with shared resources.
-func NewSessionManager(polly polly.Polly, def functions.Definition, maxCalls int) *SessionManager {
+func NewSessionManager(ttsReg *tts.Registry, def functions.Definition, maxCalls int) *SessionManager {
 	if maxCalls <= 0 {
 		maxCalls = 10 // default
 	}
 	return &SessionManager{
-		Polly:              polly,
+		TTS:                ttsReg,
 		Definition:         def,
 		MaxConcurrentCalls: maxCalls,
 		sessions:           make(map[string]*Session),
@@ -52,7 +52,7 @@ func (m *SessionManager) CreateSession(id string, ph phone.FlowPhone, audioSink 
 		return nil, fmt.Errorf("session %s already exists", id)
 	}
 
-	session := NewSession(id, ph, audioSink, rec, m.Polly, m.Definition)
+	session := NewSession(id, ph, audioSink, rec, m.TTS, m.Definition)
 	m.sessions[id] = session
 
 	log.WithFields(log.Fields{

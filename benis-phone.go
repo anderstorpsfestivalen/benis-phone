@@ -19,6 +19,7 @@ import (
 	"github.com/anderstorpsfestivalen/benis-phone/core/polly"
 	"github.com/anderstorpsfestivalen/benis-phone/core/secrets"
 	"github.com/anderstorpsfestivalen/benis-phone/core/sip"
+	"github.com/anderstorpsfestivalen/benis-phone/core/tts"
 	"github.com/anderstorpsfestivalen/benis-phone/core/virtual"
 	sipgosip "github.com/emiago/sipgo/sip"
 )
@@ -94,7 +95,7 @@ func main() {
 	
 
 	// Setup Polly
-	polly, err := polly.New(credentials.Polly.Key, credentials.Polly.Secret, "haschcache")
+	pollyClient, err := polly.New(credentials.Polly.Key, credentials.Polly.Secret, "haschcache")
 	if err != nil {
 		log.Error(err)
 	}
@@ -107,6 +108,23 @@ func main() {
 	def, err := functions.LoadFromFile(*definition)
 	if err != nil {
 		panic(err)
+	}
+
+	// Build TTS registry. Polly is always registered; ElevenLabs is added
+	// when an API key is present in creds. The TOML's default_tts_provider
+	// chooses the fallback when a TTS block doesn't set provider= explicitly.
+	defaultProvider := def.General.DefaultTTSProvider
+	if defaultProvider == "" {
+		defaultProvider = "polly"
+	}
+	ttsReg := tts.NewRegistry("haschcache", defaultProvider)
+	ttsReg.Register(tts.NewPollyProvider(pollyClient))
+	if credentials.ElevenLabs != "" {
+		ttsReg.Register(tts.NewElevenLabsProvider(credentials.ElevenLabs, ""))
+		log.Info("Registered ElevenLabs TTS provider")
+	}
+	if !ttsReg.Has(defaultProvider) {
+		log.Fatalf("default_tts_provider=%q is not registered (missing credentials?)", defaultProvider)
 	}
 
 	var waitgroup sync.WaitGroup
@@ -150,7 +168,7 @@ func main() {
 			maxCalls = 10
 		}
 
-		sipClient, err := sip.NewClient(sipConfig, polly, def, maxCalls)
+		sipClient, err := sip.NewClient(sipConfig, ttsReg, def, maxCalls)
 		if err != nil {
 			log.Fatal("Failed to create SIP client: ", err)
 		}
@@ -186,7 +204,7 @@ func main() {
 		// Legacy mode: local phone with speaker/mic
 		log.Info("Starting in local phone mode")
 
-		ctrl := controller.New(ctrlPhone, ad, &rec, polly, def)
+		ctrl := controller.New(ctrlPhone, ad, &rec, ttsReg, def)
 
 		waitgroup.Add(1)
 		err = ctrlPhone.Init()

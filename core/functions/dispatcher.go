@@ -2,12 +2,12 @@ package functions
 
 import (
 	"github.com/anderstorpsfestivalen/benis-phone/core/audio"
-	"github.com/anderstorpsfestivalen/benis-phone/core/polly"
+	"github.com/anderstorpsfestivalen/benis-phone/core/tts"
 )
 
 type Dispatcher interface {
 	Load() error
-	Start(audio audio.AudioSink, rec audio.AudioSource, polly polly.Polly) <-chan Action
+	Start(audio audio.AudioSink, rec audio.AudioSource, ttsReg *tts.Registry) <-chan Action
 	Stop()
 }
 
@@ -20,7 +20,7 @@ func (e *EmptyDispatcher) Load() error {
 	return nil
 }
 
-func (q *EmptyDispatcher) Start(audio audio.AudioSink, rec audio.AudioSource, polly polly.Polly) <-chan Action {
+func (q *EmptyDispatcher) Start(audio audio.AudioSink, rec audio.AudioSource, ttsReg *tts.Registry) <-chan Action {
 	return make(<-chan Action)
 }
 

@@ -10,7 +10,7 @@ import (
 
 	"github.com/anderstorpsfestivalen/benis-phone/core/controller"
 	"github.com/anderstorpsfestivalen/benis-phone/core/functions"
-	"github.com/anderstorpsfestivalen/benis-phone/core/polly"
+	"github.com/anderstorpsfestivalen/benis-phone/core/tts"
 	"github.com/emiago/diago"
 	"github.com/emiago/diago/media"
 	"github.com/emiago/sipgo"
@@ -58,7 +58,7 @@ type Client struct {
 	ua      *sipgo.UserAgent
 	diago   *diago.Diago
 	manager *controller.SessionManager
-	polly   polly.Polly
+	tts     *tts.Registry
 	def     functions.Definition
 
 	regTx *diago.RegisterTransaction
@@ -83,7 +83,7 @@ type callContext struct {
 }
 
 // NewClient creates a new SIP client that will register with a PBX.
-func NewClient(config ClientConfig, polly polly.Polly, def functions.Definition, maxCalls int) (*Client, error) {
+func NewClient(config ClientConfig, ttsReg *tts.Registry, def functions.Definition, maxCalls int) (*Client, error) {
 	// Set defaults
 	if config.Transport == "" {
 		config.Transport = "udp"
@@ -170,7 +170,7 @@ func NewClient(config ClientConfig, polly polly.Polly, def functions.Definition,
 	)
 
 	// Create session manager
-	manager := controller.NewSessionManager(polly, def, maxCalls)
+	manager := controller.NewSessionManager(ttsReg, def, maxCalls)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -179,7 +179,7 @@ func NewClient(config ClientConfig, polly polly.Polly, def functions.Definition,
 		ua:          ua,
 		diago:       dg,
 		manager:     manager,
-		polly:       polly,
+		tts:         ttsReg,
 		def:         def,
 		ctx:         ctx,
 		cancel:      cancel,

@@ -7,7 +7,7 @@ import (
 	"github.com/anderstorpsfestivalen/benis-phone/core/audio"
 	"github.com/anderstorpsfestivalen/benis-phone/core/functions"
 	"github.com/anderstorpsfestivalen/benis-phone/core/phone"
-	"github.com/anderstorpsfestivalen/benis-phone/core/polly"
+	"github.com/anderstorpsfestivalen/benis-phone/core/tts"
 	"github.com/anderstorpsfestivalen/benis-phone/extensions/services"
 	log "github.com/sirupsen/logrus"
 )
@@ -23,7 +23,7 @@ type Session struct {
 	Recorder audio.AudioSource
 
 	// Shared components (read-only during session)
-	Polly      polly.Polly
+	TTS        *tts.Registry
 	Definition functions.Definition
 
 	// Per-session state
@@ -39,13 +39,13 @@ type Session struct {
 }
 
 // NewSession creates a new call session with the given components.
-func NewSession(id string, ph phone.FlowPhone, audioSink audio.AudioSink, rec audio.AudioSource, polly polly.Polly, def functions.Definition) *Session {
+func NewSession(id string, ph phone.FlowPhone, audioSink audio.AudioSink, rec audio.AudioSource, ttsReg *tts.Registry, def functions.Definition) *Session {
 	return &Session{
 		ID:           id,
 		Phone:        ph,
 		Audio:        audioSink,
 		Recorder:     rec,
-		Polly:        polly,
+		TTS:          ttsReg,
 		Definition:   def,
 		prefixSignal: make(chan bool, 100),
 		done:         make(chan struct{}),
@@ -115,7 +115,7 @@ func (s *Session) handlePrefix() error {
 	if err != nil {
 		return err
 	}
-	return pr.Play(s.Audio, s.Polly)
+	return pr.Play(s.Audio, s.TTS)
 }
 
 func (s *Session) handleKey(key string) {
@@ -159,7 +159,7 @@ func (s *Session) handleAction(action *functions.Action) {
 	prefix, err := action.GetPrefix()
 	if err == nil {
 		pr, _ := prefix.GetPlayable()
-		pr.Play(s.Audio, s.Polly)
+		pr.Play(s.Audio, s.TTS)
 	}
 
 	switch actionType {
@@ -296,7 +296,7 @@ func (s *Session) slamHook() {
 func (s *Session) play(pl functions.PlayGenerator) {
 	p := functions.CreatePlayable(pl)
 	log.WithField("session", s.ID).Trace("Playing")
-	p.Play(s.Audio, s.Polly)
+	p.Play(s.Audio, s.TTS)
 }
 
 func (s *Session) checkError(e error) {
@@ -312,7 +312,7 @@ func (s *Session) handleDispatcher(q functions.Dispatcher) {
 
 	s.activeDispatcher = q
 
-	f := s.activeDispatcher.Start(s.Audio, s.Recorder, s.Polly)
+	f := s.activeDispatcher.Start(s.Audio, s.Recorder, s.TTS)
 
 	a := <-f
 

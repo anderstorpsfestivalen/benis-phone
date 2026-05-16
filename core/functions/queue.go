@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/anderstorpsfestivalen/benis-phone/core/audio"
-	"github.com/anderstorpsfestivalen/benis-phone/core/polly"
+	"github.com/anderstorpsfestivalen/benis-phone/core/tts"
 	"github.com/faiface/beep"
 	"github.com/faiface/beep/mp3"
 	wr "github.com/mroth/weightedrand"
@@ -41,7 +41,7 @@ type Queue struct {
 	lastPos  int
 	streamer beep.StreamSeekCloser
 	a        audio.AudioSink
-	p        polly.Polly
+	p        *tts.Registry
 	kill     chan bool
 	finish   chan Action
 
@@ -118,9 +118,9 @@ func (q *Queue) Load() error {
 	return nil
 }
 
-func (q *Queue) Start(audioSink audio.AudioSink, rec audio.AudioSource, polly polly.Polly) <-chan Action {
+func (q *Queue) Start(audioSink audio.AudioSink, rec audio.AudioSource, ttsReg *tts.Registry) <-chan Action {
 	q.a = audioSink
-	q.p = polly
+	q.p = ttsReg
 	q.kill = make(chan bool)
 	q.finish = make(chan Action)
 	q.actionQueue = make(chan QueueAction, 200)

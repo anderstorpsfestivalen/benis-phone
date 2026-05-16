@@ -27,6 +27,10 @@ type Credentials struct {
 
 	// SIP credentials for SIP trunk authentication
 	SIP PWCombo
+
+	// ElevenLabs API key (single-key auth). Optional; provider is only
+	// registered when a non-empty value is present.
+	ElevenLabs string
 }
 
 var Loaded Credentials
