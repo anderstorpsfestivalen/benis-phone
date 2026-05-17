@@ -69,6 +69,42 @@
 
 
 ############################
+# DIRECTORY (call control demo - transfer to other extensions)
+############################
+[[fn]]
+    name = "directory"
+    prefix = { tts = { msg = """Directory. Press one for sales, two for support,
+    three for billing. Press zero to go back.""" } }
+    actions = [
+        # Extension shorthand expands to "sip:<ext>@<def.SIP.Domain>".
+        { num = 1, transfer = "201" },
+        { num = 2, transfer = "202" },
+        { num = 3, transfer = "203" },
+    ]
+
+############################
+# GOODBYE (call control demo - hang up)
+############################
+[[fn]]
+    name = "goodbye"
+    prefix = { tts = { msg = "Goodbye." } }
+    actions = [
+        { hangup = true },
+    ]
+
+############################
+# ADHOC RECORDING (call control demo - on-demand record start/stop)
+############################
+[[fn]]
+    name = "adhoc-record"
+    prefix = { tts = { msg = """Press one to start recording, two to stop.""" } }
+    actions = [
+        { num = 1, record = "start", record_to = "adhoc" },
+        { num = 2, record = "stop" },
+    ]
+
+
+############################
 # BIG RITARD MODE
 ############################
 [[fn]]

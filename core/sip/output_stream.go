@@ -63,6 +63,17 @@ type OutputStream struct {
 	doneAck chan struct{} // closed when goroutine exits
 
 	playing atomic.Bool
+
+	// recorder, when non-nil, taps every outbound real-audio frame for
+	// stereo recording. Silence frames are NOT tapped (we don't record
+	// our own silence into the WAV). nil until SetRecorder is called.
+	recorder *recorder
+}
+
+// SetRecorder wires a shared recorder into this stream. Should be called
+// right after NewOutputStream, before any frames are submitted.
+func (os *OutputStream) SetRecorder(r *recorder) {
+	os.recorder = r
 }
 
 // NewOutputStream starts the per-call output goroutine.
@@ -255,6 +266,10 @@ func (os *OutputStream) run() {
 		if cur != nil && !paused {
 			n, err := cur.NextFrame(buf)
 			if n > 0 {
+				// Tap for recording BEFORE encoding. We feed PCM16 so the
+				// WAV is codec-agnostic. Skipped for the silence/idle
+				// branches below — we don't record our own silence.
+				os.recorder.FeedOutbound(buf[:n])
 				if _, werr := os.enc.Write(buf[:n]); werr != nil {
 					log.WithError(werr).Debug("OutputStream write error")
 					finishCurrent(werr)

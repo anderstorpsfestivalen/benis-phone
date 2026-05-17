@@ -19,6 +19,17 @@ type SIPPhone struct {
 	ctx         context.Context
 	cancel      context.CancelFunc
 	done        chan struct{} // Closed when DTMF read loop ends
+
+	// recorder, when non-nil, taps each inbound RTP read for stereo recording.
+	// nil in pre-call setup; set by NewRTPAudioSink wiring before Init().
+	recorder *recorder
+}
+
+// SetRecorder wires a shared recorder into this phone. Must be called before
+// Init() starts the DTMF read loop. Safe to leave nil — FeedInbound on a nil
+// recorder is a no-op.
+func (p *SIPPhone) SetRecorder(r *recorder) {
+	p.recorder = r
 }
 
 // Verify SIPPhone implements FlowPhone
@@ -122,6 +133,10 @@ func (p *SIPPhone) readDTMFLoop() {
 			if readCount%100 == 0 {
 				log.WithField("reads", readCount).Trace("DTMF read loop active")
 			}
+			// Tap for recording. No-op when recorder is nil or inactive.
+			// Hot path: a short mutex on FeedInbound when active, plain nil
+			// check otherwise.
+			p.recorder.FeedInbound(buf[:n])
 		}
 	}
 }

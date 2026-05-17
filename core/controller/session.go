@@ -1,10 +1,13 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/anderstorpsfestivalen/benis-phone/core/audio"
+	"github.com/anderstorpsfestivalen/benis-phone/core/callctl"
 	"github.com/anderstorpsfestivalen/benis-phone/core/functions"
 	"github.com/anderstorpsfestivalen/benis-phone/core/phone"
 	"github.com/anderstorpsfestivalen/benis-phone/core/tts"
@@ -26,6 +29,10 @@ type Session struct {
 	TTS        *tts.Registry
 	Definition functions.Definition
 
+	// CallControl is the per-call SIP control surface (hangup, transfer,
+	// recording, DTMF send). nil in local-audio mode; handlers must check.
+	CallControl callctl.Controller
+
 	// Per-session state
 	Callstack []string
 	HookState bool
@@ -39,7 +46,9 @@ type Session struct {
 }
 
 // NewSession creates a new call session with the given components.
-func NewSession(id string, ph phone.FlowPhone, audioSink audio.AudioSink, rec audio.AudioSource, ttsReg *tts.Registry, def functions.Definition) *Session {
+// callCtl may be nil (e.g. local-audio mode) — call-control handlers will
+// surface a friendly error to the caller.
+func NewSession(id string, ph phone.FlowPhone, audioSink audio.AudioSink, rec audio.AudioSource, ttsReg *tts.Registry, def functions.Definition, callCtl callctl.Controller) *Session {
 	return &Session{
 		ID:           id,
 		Phone:        ph,
@@ -47,6 +56,7 @@ func NewSession(id string, ph phone.FlowPhone, audioSink audio.AudioSink, rec au
 		Recorder:     rec,
 		TTS:          ttsReg,
 		Definition:   def,
+		CallControl:  callCtl,
 		prefixSignal: make(chan bool, 100),
 		done:         make(chan struct{}),
 	}
@@ -182,6 +192,71 @@ func (s *Session) handleAction(action *functions.Action) {
 		}
 	case "clear":
 		s.Audio.Clear()
+	case "transfer":
+		s.handleTransfer(action.Transfer)
+	case "hangup":
+		s.handleHangup()
+	case "record":
+		s.handleRecord(action.Record, action.RecordTo)
+	case "dtmf":
+		s.handleDTMF(action.DTMF)
+	}
+}
+
+func (s *Session) handleTransfer(target string) {
+	if s.CallControl == nil {
+		s.checkError(fmt.Errorf("transfer not available in this mode"))
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := s.CallControl.Transfer(ctx, target); err != nil {
+		s.checkError(fmt.Errorf("transfer to %q failed: %w", target, err))
+	}
+}
+
+func (s *Session) handleHangup() {
+	if s.CallControl == nil {
+		s.checkError(fmt.Errorf("hangup not available in this mode"))
+		return
+	}
+	s.Audio.Clear()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := s.CallControl.Hangup(ctx); err != nil {
+		log.WithFields(log.Fields{"session": s.ID, "err": err}).Warn("Hangup error (best-effort)")
+	}
+}
+
+func (s *Session) handleRecord(op, subfolder string) {
+	if s.CallControl == nil {
+		s.checkError(fmt.Errorf("recording not available in this mode"))
+		return
+	}
+	switch op {
+	case "start":
+		path, err := s.CallControl.StartRecording(subfolder)
+		if err != nil {
+			s.checkError(fmt.Errorf("start recording: %w", err))
+			return
+		}
+		log.WithFields(log.Fields{"session": s.ID, "path": path}).Info("Recording started")
+	case "stop":
+		if err := s.CallControl.StopRecording(); err != nil {
+			s.checkError(fmt.Errorf("stop recording: %w", err))
+		}
+	default:
+		s.checkError(fmt.Errorf("unknown record op %q (want start|stop)", op))
+	}
+}
+
+func (s *Session) handleDTMF(digits string) {
+	if s.CallControl == nil {
+		s.checkError(fmt.Errorf("dtmf send not available in this mode"))
+		return
+	}
+	if err := s.CallControl.SendDTMF(digits); err != nil {
+		s.checkError(fmt.Errorf("send dtmf %q: %w", digits, err))
 	}
 }
 

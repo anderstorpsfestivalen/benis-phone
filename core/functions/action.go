@@ -25,6 +25,24 @@ type Action struct {
 	Service Service `toml:"srv"`
 	// Redirects to a custom dispatcher
 	CustomDispatcher string `toml:"dispatcher"`
+
+	// Call control (SIP mode). Each is mutually exclusive with the audio
+	// actions above; exactly one action type per Action.
+	//
+	// Transfer issues a blind REFER. Value: full SIP URI
+	// ("sip:200@host"), "user@host", or extension shorthand ("200")
+	// which expands using the configured SIP domain.
+	Transfer string `toml:"transfer"`
+	// Hangup terminates the call when true.
+	Hangup bool `toml:"hangup"`
+	// Record controls per-call recording. "start" or "stop".
+	Record string `toml:"record"`
+	// RecordTo is the subfolder under SIP.RecordPath when Record=="start".
+	// Defaults to "adhoc".
+	RecordTo string `toml:"record_to"`
+	// DTMF transmits these digits to the remote party (RFC 4733), with
+	// 200 ms between each.
+	DTMF string `toml:"dtmf"`
 }
 
 func (a *Action) Type() (string, error) {
@@ -50,6 +68,22 @@ func (a *Action) Type() (string, error) {
 
 	if a.CustomDispatcher != "" {
 		return "dispatcher", nil
+	}
+
+	if a.Transfer != "" {
+		return "transfer", nil
+	}
+
+	if a.Hangup {
+		return "hangup", nil
+	}
+
+	if a.Record != "" {
+		return "record", nil
+	}
+
+	if a.DTMF != "" {
+		return "dtmf", nil
 	}
 
 	if a.Clear {

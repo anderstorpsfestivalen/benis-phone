@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/anderstorpsfestivalen/benis-phone/core/audio"
+	"github.com/anderstorpsfestivalen/benis-phone/core/callctl"
 	"github.com/anderstorpsfestivalen/benis-phone/core/functions"
 	"github.com/anderstorpsfestivalen/benis-phone/core/phone"
 	"github.com/anderstorpsfestivalen/benis-phone/core/tts"
@@ -39,8 +40,9 @@ func NewSessionManager(ttsReg *tts.Registry, def functions.Definition, maxCalls 
 }
 
 // CreateSession creates and registers a new session with the given components.
-// Returns an error if the maximum concurrent calls limit is reached.
-func (m *SessionManager) CreateSession(id string, ph phone.FlowPhone, audioSink audio.AudioSink, rec audio.AudioSource) (*Session, error) {
+// callCtl may be nil for backends that don't support call control. Returns an
+// error if the maximum concurrent calls limit is reached.
+func (m *SessionManager) CreateSession(id string, ph phone.FlowPhone, audioSink audio.AudioSink, rec audio.AudioSource, callCtl callctl.Controller) (*Session, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -52,7 +54,7 @@ func (m *SessionManager) CreateSession(id string, ph phone.FlowPhone, audioSink 
 		return nil, fmt.Errorf("session %s already exists", id)
 	}
 
-	session := NewSession(id, ph, audioSink, rec, m.TTS, m.Definition)
+	session := NewSession(id, ph, audioSink, rec, m.TTS, m.Definition, callCtl)
 	m.sessions[id] = session
 
 	log.WithFields(log.Fields{

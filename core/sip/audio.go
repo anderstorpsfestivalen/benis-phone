@@ -16,23 +16,37 @@ import (
 type RTPAudioSink struct {
 	dialog *diago.DialogServerSession
 	os     *OutputStream
+	rec    *recorder
 }
 
 // Verify RTPAudioSink implements AudioSink
 var _ bpaudio.AudioSink = (*RTPAudioSink)(nil)
 
-// NewRTPAudioSink creates a new RTP audio sink for a SIP session.
+// NewRTPAudioSink creates a new RTP audio sink for a SIP session. It also
+// constructs the per-call recorder (inactive until StartRecording) and wires
+// it into the OutputStream so outbound frames are tapped automatically. The
+// SIP server is responsible for also wiring the recorder into the SIPPhone
+// (via SetRecorder) so inbound RTP is tapped too.
 func NewRTPAudioSink(dialog *diago.DialogServerSession) (*RTPAudioSink, error) {
 	os, err := NewOutputStream(dialog)
 	if err != nil {
 		return nil, fmt.Errorf("create output stream: %w", err)
 	}
 
+	rec := newRecorder(os.Codec())
+	os.SetRecorder(rec)
+
 	return &RTPAudioSink{
 		dialog: dialog,
 		os:     os,
+		rec:    rec,
 	}, nil
 }
+
+// Recorder returns the per-call recorder. The caller (typically the SIP
+// server's handleIncomingCall) plumbs this into the SIPPhone and the
+// sipController so all three components share one instance.
+func (r *RTPAudioSink) Recorder() *recorder { return r.rec }
 
 // PlayFromFile plays a local audio file. Blocks until the source ends, is
 // preempted, or the call tears down. ErrInterrupted is swallowed (returned as

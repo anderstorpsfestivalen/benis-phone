@@ -79,6 +79,7 @@ type callContext struct {
 	sipPhone   *SIPPhone
 	audioSink  *RTPAudioSink
 	audioSrc   *RTPAudioSource
+	callCtl    *sipController
 	cancelFunc context.CancelFunc
 }
 
@@ -341,8 +342,16 @@ func (c *Client) handleIncomingCall(dialog *diago.DialogServerSession) {
 
 	audioSrc := NewRTPAudioSource(dialog, c.config.RecordPath)
 
+	// Wire the per-call recorder so SIPPhone taps inbound and OutputStream
+	// (inside audioSink) taps outbound. The sipController also holds a
+	// reference so StartRecording/StopRecording flips the shared state.
+	rec := audioSink.Recorder()
+	sipPhone.SetRecorder(rec)
+
+	callCtl := newSIPController(callID, dialog, c.config.RecordPath, c.config.Domain, rec)
+
 	// Create session via manager
-	session, err := c.manager.CreateSession(callID, sipPhone, audioSink, audioSrc)
+	session, err := c.manager.CreateSession(callID, sipPhone, audioSink, audioSrc, callCtl)
 	if err != nil {
 		log.WithError(err).Error("Failed to create session")
 		dialog.Hangup(c.ctx)
@@ -364,6 +373,7 @@ func (c *Client) handleIncomingCall(dialog *diago.DialogServerSession) {
 		sipPhone:   sipPhone,
 		audioSink:  audioSink,
 		audioSrc:   audioSrc,
+		callCtl:    callCtl,
 		cancelFunc: cancelFunc,
 	}
 
@@ -428,6 +438,13 @@ func (c *Client) cleanupCall(callID string, dialog *diago.DialogServerSession) {
 
 	// Close SIP phone (signals hook down)
 	cc.sipPhone.Close()
+
+	// Flush any in-progress recording before the OutputStream goroutine exits
+	// (it owns the FeedOutbound tap). StopRecording is idempotent and returns
+	// ErrNotRecording if nothing is active — safe to ignore that.
+	if cc.callCtl != nil {
+		_ = cc.callCtl.StopRecording()
+	}
 
 	// Stop the output stream goroutine before tearing down RTP. Outstanding
 	// playAndWait callers receive ErrInterrupted from the drained queue.
