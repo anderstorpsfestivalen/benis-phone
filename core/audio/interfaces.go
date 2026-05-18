@@ -21,6 +21,12 @@ type AudioSink interface {
 	// Used by Queue for background music with pause/resume capability.
 	// RTP implementations may provide a no-op or different implementation.
 	ExternalPlayback(stream beep.StreamSeekCloser, format beep.Format)
+
+	// PlaySource submits an arbitrary Source for playback. Non-blocking —
+	// returns once the source is queued; the sink consumes frames on its own
+	// goroutine. Used for live (never-ending) sources such as the livefeed
+	// capture, which rely on Clear() for termination.
+	PlaySource(src Source) error
 }
 
 // AudioSource represents an audio input source for recording.

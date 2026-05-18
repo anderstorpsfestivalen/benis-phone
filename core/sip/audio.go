@@ -93,6 +93,23 @@ func (r *RTPAudioSink) ExternalPlayback(stream beep.StreamSeekCloser, format bee
 	}()
 }
 
+// PlaySource submits an arbitrary Source and returns immediately. The
+// OutputStream's goroutine consumes frames; preemption is via Clear().
+// Used for live, never-ending sources (e.g. capture from a local audio
+// device — see core/audio/capture.go). Completion is logged in the
+// background; ErrInterrupted is swallowed.
+func (r *RTPAudioSink) PlaySource(src bpaudio.Source) error {
+	done := r.os.Submit(src)
+	go func() {
+		err := <-done
+		if err != nil && !errors.Is(err, bpaudio.ErrInterrupted) {
+			log.WithError(err).Debug("PlaySource ended")
+		}
+		_ = src.Close()
+	}()
+	return nil
+}
+
 // Clear preempts any currently playing source and drops queued sources.
 // Returns immediately; audio stops within one frame (~20 ms).
 func (r *RTPAudioSink) Clear() {

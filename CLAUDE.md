@@ -43,7 +43,7 @@ Each inbound SIP call gets its own `Session` (in `core/controller/`) driven by a
 - **Gates** (`extensions/gates/`): Validation/gating logic for conditional menu access.
 
 ### Configuration
-Menu structure defined in TOML files (`configurations/`). Actions specify destinations (`dst`), services (`srv`), or dispatchers. Files referenced are in `files/` directory. SIP block lives at `[sip]` in the same TOML; the optional `direct = true` toggle (or `-direct` CLI flag) skips PBX registration.
+Menu structure defined in TOML files (`configurations/`). Actions specify destinations (`dst`), services (`srv`), dispatchers, or `livefeed = { device, channel }` to stream a host audio capture device into the call's outbound RTP. Files referenced are in `files/` directory. SIP block lives at `[sip]` in the same TOML; the optional `direct = true` toggle (or `-direct` CLI flag) skips PBX registration. `./benis-phone -list-audio-devices` enumerates capture devices for filling in the livefeed config.
 
 ### Credentials
 Required in `creds/creds.json` with keys for S3, Polly, Backend, Trafiklab, Systemet, HTTPServerAuth, SIP, and optionally ElevenLabs.

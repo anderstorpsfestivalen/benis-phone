@@ -34,23 +34,39 @@
     recording = { path = "random" }
     prefix = { tts = { msg = """WELCOME TO ANDERSTORPSFESTIVALEN.
      Press 2 to leave a message.
+     Press 3 for directory
      Press 8 for the train times in Reftele.
      To speak with a customer representative, press 9 or wait on the line.""" } }
         actions = [
 
         { num = 2, dst = "voicemail" },
-        { num = 8, srv = { dst = "traintimes", tmpl = """{{.K.InformationOwner}}, 
-        {{index .K.ProductInformation 0}}, 
-        {{.K.TypeOfTraffic}} nummer,  
-        {{.K.TechnicalTrainIdent}}, 
-        Från {{.From.AdvertisedLocationName}},  
-        Till {{.To.AdvertisedLocationName}},  
-        avgår från spår: {{.K.TrackAtLocation}}, 
+        { num = 3, dst = "directory" },
+        { num = 5, dst = "livestream" },
+        { num = 8, srv = { dst = "traintimes", tmpl = """{{.K.InformationOwner}},
+        {{index .K.ProductInformation 0}},
+        {{.K.TypeOfTraffic}} nummer,
+        {{.K.TechnicalTrainIdent}},
+        Från {{.From.AdvertisedLocationName}},
+        Till {{.To.AdvertisedLocationName}},
+        avgår från spår: {{.K.TrackAtLocation}},
         klockan {{.Hour}} och {{.Minute}}""", args = { station = "Reftele" } } },
         { num = 9, dispatcher = "customerservice" },
-        
+
         # Announce - set clear
         { num = 10, clear = true },
+    ]
+
+############################
+# LIVESTREAM (livefeed action demo)
+############################
+[[fn]]
+    name = "livestream"
+    prefix = { tts = { msg = "Live audio. Press 1 for the default mic, press 0 to go back." } }
+    actions = [
+        # Empty device string opens the system default capture device.
+        # Pick a specific interface by substring, e.g. device = "Scarlett",
+        # and a channel within it (0-indexed).
+        { num = 1, livefeed = { device = "", channel = 0 } },
     ]
 
 ############################
@@ -75,126 +91,6 @@
         { num = 1, transfer = "201" },
         { num = 2, transfer = "202" },
         { num = 3, transfer = "203" },
-    ]
-
-############################
-# GOODBYE (call control demo - hang up)
-############################
-[[fn]]
-    name = "goodbye"
-    prefix = { tts = { msg = "Goodbye." } }
-    actions = [
-        { hangup = true },
-    ]
-
-############################
-# ADHOC RECORDING (call control demo - on-demand record start/stop)
-############################
-[[fn]]
-    name = "adhoc-record"
-    prefix = { tts = { msg = """Press one to start recording, two to stop.""" } }
-    actions = [
-        { num = 1, record = "start", record_to = "adhoc" },
-        { num = 2, record = "stop" },
-    ]
-
-
-############################
-# BIG RITARD MODE
-############################
-[[fn]]
-    name = "ritard"
-    prefix = { tts = { msg = """Press one for random, 
-    two to hashtag for fixed alternatives, 
-    0 to go back to the main menu.""" } }
-    actions = [
-        { randomfile = { folder = "./files/ritard/" } },
-        { file = { src = "files/ritard/big-retard.ogg" } },
-        { file = { src = "files/ritard/cry-bc-noob.ogg" } },
-        { file = { src = "files/ritard/done-bc-trash.ogg" } },
-        { file = { src = "files/ritard/fking-noob2.ogg" } },
-        { file = { src = "files/ritard/fking-useless.ogg" } },
-        { file = { src = "files/ritard/good-job-ritard.ogg" } },
-        { file = { src = "files/ritard/im-retard.ogg" } },
-        { file = { src = "files/ritard/i-play-dota-with-ritard.ogg" } },
-        { file = { src = "files/ritard/no-feed.ogg" } },
-        { file = { src = "files/ritard/peak-nature-prophet.ogg" } },
-    ]
-
-
-############################
-# UGANDA
-############################
-[[fn]]
-    name = "uganda"
-    prefix = { tts = { msg = """Press one for random, 
-    two to hashtag for fixed alternatives, 
-    0 to go back to the main menu.""" } }
-
-    actions = [
-        { randomfile = { folder = "./files/ugandan/" } },
-        { file = { src = "files/ugandan/Commando-1.ogg" } },
-        { file = { src = "files/ugandan/Gwe-Gwe-Gwe.ogg" } },
-        { file = { src = "files/ugandan/One-hell-of-a-movie.ogg" } },
-        { file = { src = "files/ugandan/WHAT-THE-FU.ogg" } },
-        { file = { src = "files/ugandan/Tough-Commando-on-da-Mission.ogg" } },
-        { file = { src = "files/ugandan/UGAANDA.ogg" } },
-        { file = { src = "files/ugandan/Hello-2.ogg" } },
-        { file = { src = "files/ugandan/SUPA-MAFIA-ON-THE-RUN.ogg" } },
-        { file = { src = "files/ugandan/Warrior.ogg" } },
-    ]
-
-############################
-# SYRALOTTO
-############################
-[[fn]]
-    name = "syralotto"
-    prefix = { tts = { msg = """Press one for random, 
-    two to hashtag for fixed alternatives, 
-    0 to go back to the main menu.""" } }
-
-    actions = [
-        { file = { src = "files/lasse-liten/e.ogg" } },
-        { file = { src = "files/lasse-liten/lsd.ogg" } },
-        { file = { src = "files/lasse-liten/acid-house.ogg" } },
-        { file = { src = "files/lasse-liten/goa-trance.ogg" } },
-        { file = { src = "files/lasse-liten/electro.ogg" } },
-        { file = { src = "files/lasse-liten/garage.ogg" } },
-        { file = { src = "files/lasse-liten/deep-house.ogg" } },
-        { file = { src = "files/lasse-liten/e-type.ogg" } },
-        { file = { src = "files/lasse-liten/allt-snurrar.ogg" } },
-        { file = { src = "files/lasse-liten/torr-i-munnen.ogg" } },
-        { file = { src = "files/lasse-liten/josses-vad-det-gar-igang.ogg" } },
-    ]
-
-############################
-# GAMMEL DANSK MODE
-############################
-[[fn]]
-    name = "gammeldanskmode"
-    prefix = { tts = { voice = "Mads", msg = """tak fordi du kalder os din dumme fand, 
-    tid til at drikke øl, 
-    her er dine menumuligheder, 
-    tryk ett for at firkante """, lang = "da-DK" } }
-
-    actions = [
-        { srv = { dst = "traintimes", tmpl = """{{.K.InformationOwner}}, 
-        {{index .K.ProductInformation 0}},
-        {{.K.TechnicalTrainIdent}}, 
-        fra {{.From.AdvertisedLocationName}},  
-        til {{.To.AdvertisedLocationName}},  
-        afgår fra sporet: {{.K.TrackAtLocation}}, 
-        pad {{.Hour}} oh {{.Minute}}""", args = { station = "Köpenhamn H" }, tts = { voice = "Mads", lang = "da-DK" } } },
-        { file = { src = "files/dk/dk1.flac" } },
-        { file = { src = "files/dk/dk2.flac" } },
-        { file = { src = "files/dk/dk3.flac" } },
-        { file = { src = "files/dk/winerbrod-med-chokolade.ogg" } },
-        { file = { src = "files/dk/chokolade.ogg" } },
-        { file = { src = "files/dk/han-ar-dansk.ogg" } },
-        { file = { src = "files/dk/dansk-javlar.ogg" } },
-        { file = { src = "files/dk/dansk-tv.ogg" } },
-        { file = { src = "files/dk/vi-spiser-hos-mei.ogg" } },
-        { file = { src = "files/dk/galaxen-winerbrod.ogg" } },
     ]
 
 ############################

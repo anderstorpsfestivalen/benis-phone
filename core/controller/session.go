@@ -200,6 +200,8 @@ func (s *Session) handleAction(action *functions.Action) {
 		s.handleRecord(action.Record, action.RecordTo)
 	case "dtmf":
 		s.handleDTMF(action.DTMF)
+	case "livefeed":
+		s.handleLiveFeed(action.LiveFeed)
 	}
 }
 
@@ -257,6 +259,27 @@ func (s *Session) handleDTMF(digits string) {
 	}
 	if err := s.CallControl.SendDTMF(digits); err != nil {
 		s.checkError(fmt.Errorf("send dtmf %q: %w", digits, err))
+	}
+}
+
+func (s *Session) handleLiveFeed(cfg *functions.LiveFeed) {
+	if cfg == nil {
+		s.checkError(fmt.Errorf("livefeed: missing config"))
+		return
+	}
+	src, err := audio.NewCaptureSource(cfg.Device, cfg.Channel)
+	if err != nil {
+		s.checkError(fmt.Errorf("livefeed: %w", err))
+		return
+	}
+	log.WithFields(log.Fields{
+		"session": s.ID,
+		"device":  cfg.Device,
+		"channel": cfg.Channel,
+	}).Info("Livefeed started")
+	if err := s.Audio.PlaySource(src); err != nil {
+		_ = src.Close()
+		s.checkError(fmt.Errorf("livefeed submit: %w", err))
 	}
 }
 

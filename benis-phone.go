@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"sync"
@@ -10,6 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/anderstorpsfestivalen/benis-phone/core/api"
+	"github.com/anderstorpsfestivalen/benis-phone/core/audio"
 	"github.com/anderstorpsfestivalen/benis-phone/core/filesync"
 	"github.com/anderstorpsfestivalen/benis-phone/core/functions"
 	"github.com/anderstorpsfestivalen/benis-phone/core/polly"
@@ -24,10 +26,23 @@ func main() {
 	debug := flag.Bool("debug", false, "verbose logging (DebugLevel + SIP wire tracing)")
 	direct := flag.Bool("direct", false, "SIP debug mode: skip PBX registration, accept unauthenticated INVITEs")
 	directPort := flag.Int("direct-port", 0, "Override SIP local bind port when -direct is set (default: TOML local_port or 5060)")
+	listAudioDevices := flag.Bool("list-audio-devices", false, "List host audio capture devices (for livefeed config) and exit")
 	definition := flag.String("def",
 		"configurations/default.toml",
 		"Set a custom definition file, standard is configurations/default.toml")
 	flag.Parse()
+
+	if *listAudioDevices {
+		devs, err := audio.EnumerateInputDevices()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			os.Exit(1)
+		}
+		for _, d := range devs {
+			fmt.Printf("%-40s  channels=%d  rate=%dHz\n", d.Name, d.Channels, d.Rate)
+		}
+		os.Exit(0)
+	}
 
 	log := logrus.New()
 	if *debug {

@@ -43,6 +43,24 @@ type Action struct {
 	// DTMF transmits these digits to the remote party (RFC 4733), with
 	// 200 ms between each.
 	DTMF string `toml:"dtmf"`
+
+	// LiveFeed streams audio from a host capture device (microphone, audio
+	// interface input) directly into the call's outbound RTP. Runs until
+	// the caller presses another digit (which Clear()s it). nil means this
+	// action is not a livefeed.
+	LiveFeed *LiveFeed `toml:"livefeed"`
+}
+
+// LiveFeed configures a livefeed action: pick a host capture device by name
+// (substring match, case-insensitive) and choose which input channel of that
+// device to stream.
+type LiveFeed struct {
+	// Device is matched as a case-insensitive substring against the names
+	// returned by the OS. Empty string opens the system default device.
+	Device string `toml:"device"`
+	// Channel is the 0-indexed channel within the device to stream. For a
+	// stereo interface, 0 = left/input-1, 1 = right/input-2.
+	Channel int `toml:"channel"`
 }
 
 func (a *Action) Type() (string, error) {
@@ -84,6 +102,10 @@ func (a *Action) Type() (string, error) {
 
 	if a.DTMF != "" {
 		return "dtmf", nil
+	}
+
+	if a.LiveFeed != nil {
+		return "livefeed", nil
 	}
 
 	if a.Clear {
