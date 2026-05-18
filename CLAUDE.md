@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-benis-phone (Best Enterprise Network Integrated Soft-phone) is a Go-based IVR telephone system for the Anderstorpsfestivalen cultural event. It runs on Linux systems and Raspberry Pi with GPIO-connected DTMF phones.
+benis-phone (Best Enterprise Network Integrated Soft-phone) is a Go-based IVR telephone system for the Anderstorpsfestivalen cultural event. It registers with a SIP PBX (or accepts unauthenticated direct INVITEs in debug mode) and runs an IVR per inbound call.
 
 ## Build and Run Commands
 
@@ -12,44 +12,38 @@ benis-phone (Best Enterprise Network Integrated Soft-phone) is a Go-based IVR te
 # Build
 go build benis-phone.go
 
-# Run in virtual mode (keyboard input for testing)
+# Run against the SIP server configured in the default TOML
 ./benis-phone
 
-# Run with physical phone (GPIO/DTMF)
-./benis-phone -phone
-
-# Use custom configuration
+# Custom configuration
 ./benis-phone -def configurations/atp.toml
 
+# Direct mode: skip PBX registration, accept unauthenticated INVITEs
+# (point a softphone at sip:anything@<host>:5060)
+./benis-phone -direct -debug
+
 # Disable optional features
-./benis-phone -s3=false -http=false -record=false
+./benis-phone -s3=false -http=false
 ```
 
 ## Architecture
 
-### State Machine Call Flow
-The system uses a call stack for menu navigation. Users press keys (0-9, *, #) to navigate menus defined as "Functions" (Fn). Key "0" exits the current menu or returns to main.
+### Call Flow
+Each inbound SIP call gets its own `Session` (in `core/controller/`) driven by a `SessionManager`. Users navigate menus via DTMF — menus are "Functions" (Fn) defined in the TOML. Key "0" exits the current menu or returns to main.
 
 ### Core Components
-- **Controller** (`core/controller/`): Central hub managing call stack, hook events, DTMF input, and routing actions to handlers
-- **FlowPhone Interface**: Strategy pattern allowing swappable input sources - GPIO phone, virtual keyboard, or muxed combination
-- **Audio** (`core/audio/`): Playback (MP3, OGG, FLAC, WAV) and recording via beep library
-- **Polly** (`core/polly/`): AWS Polly TTS with caching in `haschcache/`
+- **SIP** (`core/sip/`): `Client` registers with the PBX (or listens in direct mode), accepts INVITEs, and constructs per-call `SIPPhone` / `RTPAudioSink` / `RTPAudioSource` / `sipController`. Wire tracing lives in `core/sip/logging.go` (`EnableWireTrace`).
+- **Controller** (`core/controller/`): `SessionManager` + per-call `Session` + DTMF `Collector`. Drives the IVR state machine.
+- **FlowPhone Interface** (`core/phone/flow.go`): Contract a per-call keypad/hook source presents to the controller — implemented by `core/sip/SIPPhone`.
+- **Audio** (`core/audio/`): Shared `AudioSink`/`AudioSource` interfaces, PCM helpers, and `Source` (20ms frame) abstraction. RTP implementations live in `core/sip/`.
+- **TTS** (`core/tts/`, `core/polly/`): Pluggable TTS providers (Polly, ElevenLabs) with caching under `haschcache/`.
 
 ### Extension System
-- **Services** (`extensions/services/`): Plugin-style services (drugslang, traintimes, systemet, etc.) implementing `Service` interface with `Get(input, template, args) string`
-- **Gates** (`extensions/gates/`): Validation/gating logic for conditional menu access
+- **Services** (`extensions/services/`): Plugin-style services (drugslang, traintimes, systemet, etc.) implementing `Service` interface with `Get(input, template, args) string`.
+- **Gates** (`extensions/gates/`): Validation/gating logic for conditional menu access.
 
 ### Configuration
-Menu structure defined in TOML files (`configurations/`). Actions specify destinations (`dst`), services (`srv`), or dispatchers. Files referenced are in `files/` directory.
+Menu structure defined in TOML files (`configurations/`). Actions specify destinations (`dst`), services (`srv`), or dispatchers. Files referenced are in `files/` directory. SIP block lives at `[sip]` in the same TOML; the optional `direct = true` toggle (or `-direct` CLI flag) skips PBX registration.
 
 ### Credentials
-Required in `creds/creds.json` with keys for S3, Polly, Backend, Trafiklab, Systemet, and HTTPServerAuth.
-
-## System Requirements (Linux/RPI)
-
-```bash
-apt install pkg-config libasound2-dev build-essential
-```
-
-For Raspberry Pi with USB sound card: install PulseAudio and blacklist onboard `snd_bcm2835`.
+Required in `creds/creds.json` with keys for S3, Polly, Backend, Trafiklab, Systemet, HTTPServerAuth, SIP, and optionally ElevenLabs.

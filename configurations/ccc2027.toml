@@ -23,7 +23,6 @@
     transport = "udp"
     max_concurrent_calls = 10
     record_path = "files/recording"
-    # External/public IP for NAT traversal (required when behind NAT)
     external_ip = "45.154.28.76"
     # Password stored in creds/creds.json under "SIP.Password"
 
@@ -33,26 +32,23 @@
 [[fn]]
     name = "main"
     recording = { path = "random" }
-    prefix = { tts = { msg = """WELCOME TO ANDERSTORPSFESTIVALENS phone system.
-     Press 1 for customer service,
-     Press 2 to leave a message, 
-     Press 3 if you are a dota player, 
-     Press 4 for acid lottery, 
-     Press 5 for the latest kernel message, 
-     Press 6 for drug slang, 
-     Press 7 for Ugandan knuckles, 
-     Press 8 for Gammel dansk mode""" } }
+    prefix = { tts = { msg = """WELCOME TO ANDERSTORPSFESTIVALEN.
+     Press 2 to leave a message.
+     Press 8 for the train times in Reftele.
+     To speak with a customer representative, press 9 or wait on the line.""" } }
         actions = [
-        { num = 1, dispatcher = "customerservice" },
+
         { num = 2, dst = "voicemail" },
-        { num = 3, dst = "ritard" },
-        { num = 4, dst = "syralotto" },
-        { num = 5, prefix = { tts = { msg = "Getting the latest kernelmessage" } }, srv = { dst = "kernelmessage", tmpl = """
-        From {{.From}} Text {{.Filtered}}""" } },
-        { num = 6, srv = { dst = "drugslang", tmpl = """
-        Do you know your drug slang? {{.Drug}} is also known as {{.Slang}}""" } },
-        { num = 7, dst = "uganda" },
-        { num = 8, dst = "gammeldanskmode" },
+        { num = 8, srv = { dst = "traintimes", tmpl = """{{.K.InformationOwner}}, 
+        {{index .K.ProductInformation 0}}, 
+        {{.K.TypeOfTraffic}} nummer,  
+        {{.K.TechnicalTrainIdent}}, 
+        Från {{.From.AdvertisedLocationName}},  
+        Till {{.To.AdvertisedLocationName}},  
+        avgår från spår: {{.K.TrackAtLocation}}, 
+        klockan {{.Hour}} och {{.Minute}}""", args = { station = "Reftele" } } },
+        { num = 9, dispatcher = "customerservice" },
+        
         # Announce - set clear
         { num = 10, clear = true },
     ]

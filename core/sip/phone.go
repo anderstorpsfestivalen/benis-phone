@@ -15,7 +15,8 @@ type SIPPhone struct {
 	dialog      *diago.DialogServerSession
 	keyChannel  chan string
 	hookChannel chan bool
-	dtmfReader  *diago.DTMFReader
+	dtmfReader  *media.RTPDtmfReader
+	onDTMF      func(rune)
 	ctx         context.Context
 	cancel      context.CancelFunc
 	done        chan struct{} // Closed when DTMF read loop ends
@@ -50,11 +51,34 @@ func (p *SIPPhone) Init() error {
 	// Create context for DTMF reading goroutine
 	p.ctx, p.cancel = context.WithCancel(context.Background())
 
-	// Create DTMF reader for RFC 4733 DTMF detection
-	p.dtmfReader = p.dialog.AudioReaderDTMF()
+	// Build the DTMF reader using whichever telephone-event payload type was
+	// actually negotiated. diago's dialog.AudioReaderDTMF() hardcodes PT 101,
+	// which breaks DTMF for clients like Linphone that use PT 100. We pick
+	// the codec out of the common-codec list and feed it to the lower-level
+	// media.NewRTPDTMFReader directly.
+	teCodec := media.CodecTelephoneEvent8000
+	if ms := p.dialog.MediaSession(); ms != nil {
+		for _, c := range ms.CommonCodecs() {
+			if c.Name == "telephone-event" {
+				teCodec = c
+				break
+			}
+		}
+	}
+	log.WithFields(log.Fields{
+		"pt":          teCodec.PayloadType,
+		"sample_rate": teCodec.SampleRate,
+	}).Debug("DTMF reader using negotiated telephone-event codec")
 
-	// Set up DTMF callback
-	p.dtmfReader.OnDTMF(func(dtmf rune) error {
+	audioReader, err := p.dialog.AudioReader()
+	if err != nil {
+		return err
+	}
+	p.dtmfReader = media.NewRTPDTMFReader(teCodec, p.dialog.RTPPacketReader, audioReader)
+
+	// Callback (formerly OnDTMF on diago's wrapper) — kept inline since the
+	// lower-level reader exposes ReadDTMF() polling instead of a callback.
+	p.onDTMF = func(dtmf rune) {
 		key := string(dtmf)
 		// Convert * and # to match existing system expectations
 		if dtmf == '*' {
@@ -73,8 +97,7 @@ func (p *SIPPhone) Init() error {
 		default:
 			log.Warn("Key channel full, dropping DTMF")
 		}
-		return nil
-	})
+	}
 
 	// Start DTMF reading goroutine - this is required for DTMF detection to work
 	go p.readDTMFLoop()
@@ -111,7 +134,8 @@ func (p *SIPPhone) readDTMFLoop() {
 			log.WithField("reads", readCount).Debug("DTMF read loop stopped (context canceled)")
 			return
 		default:
-			// Read from DTMF reader - this triggers DTMF detection via OnDTMF callback
+			// Read from DTMF reader. RTPDtmfReader.Read inspects the RTP
+			// header on each packet and stashes any DTMF event for ReadDTMF.
 			n, err := p.dtmfReader.Read(buf)
 			if err != nil {
 				// Check if context was canceled
@@ -125,6 +149,9 @@ func (p *SIPPhone) readDTMFLoop() {
 					}).Debug("DTMF read error, call ended")
 					return
 				}
+			}
+			if dtmf, ok := p.dtmfReader.ReadDTMF(); ok {
+				p.onDTMF(dtmf)
 			}
 			readCount++
 			if readCount == 1 {

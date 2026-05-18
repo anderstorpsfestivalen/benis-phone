@@ -19,6 +19,18 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// telephoneEventPT100 is Linphone's payload-type assignment for 8 kHz
+// telephone-event DTMF. diago only ships a PT-101 variant; we add this so
+// negotiation accepts Linphone (and similar clients) and our SDP answer
+// echoes the PT they offered.
+var telephoneEventPT100 = media.Codec{
+	PayloadType: 100,
+	SampleRate:  8000,
+	SampleDur:   20 * time.Millisecond,
+	NumChannels: 1,
+	Name:        "telephone-event",
+}
+
 // ClientConfig holds SIP client configuration for registering with a PBX.
 type ClientConfig struct {
 	// Server is the SIP server/PBX address (e.g., "pbx.example.com:5060")
@@ -50,6 +62,10 @@ type ClientConfig struct {
 
 	// ExternalIP is the public IP for NAT traversal (used in SDP for RTP)
 	ExternalIP string
+
+	// Direct enables server-less debug mode: skip REGISTER and just listen on
+	// LocalPort for unauthenticated INVITEs. Server can be empty.
+	Direct bool
 }
 
 // Client handles SIP registration and incoming calls as a PBX extension.
@@ -95,16 +111,33 @@ func NewClient(config ClientConfig, ttsReg *tts.Registry, def functions.Definiti
 	if config.ExpirySeconds == 0 {
 		config.ExpirySeconds = 300
 	}
+	if config.Direct {
+		// Production NAT settings would leak the public IP into Contact/SDP
+		// and break local routing. Wipe them so the listener advertises the
+		// LAN IP we actually bound to.
+		config.ExternalIP = ""
+		config.Server = ""
+	}
 	if config.Username == "" {
 		config.Username = config.Extension
 	}
+	if config.Extension == "" {
+		// Direct mode doesn't need a real extension — any URI user works.
+		config.Extension = "debug"
+	}
 	if config.Domain == "" {
-		// Extract domain from server address
-		host, _, err := net.SplitHostPort(config.Server)
-		if err != nil {
-			config.Domain = config.Server
+		if config.Direct {
+			// No PBX to derive a domain from. Use the bind IP if we know it,
+			// otherwise a placeholder — softphones don't care for direct calls.
+			config.Domain = "local"
 		} else {
-			config.Domain = host
+			// Extract domain from server address
+			host, _, err := net.SplitHostPort(config.Server)
+			if err != nil {
+				config.Domain = config.Server
+			} else {
+				config.Domain = host
+			}
 		}
 	}
 
@@ -117,10 +150,19 @@ func NewClient(config ClientConfig, ttsReg *tts.Registry, def functions.Definiti
 		return nil, fmt.Errorf("failed to create SIP user agent: %w", err)
 	}
 
-	// Detect local IP that can reach the SIP server
-	localIP, err := getOutboundIP(config.Server)
-	if err != nil {
-		return nil, fmt.Errorf("failed to detect local IP: %w", err)
+	// Detect local IP for binding/SDP. In direct mode there's no server to
+	// route towards, so we just discover a reasonable LAN IP.
+	var localIP string
+	if config.Direct {
+		localIP, err = getLANIP()
+		if err != nil {
+			return nil, fmt.Errorf("failed to detect local IP: %w", err)
+		}
+	} else {
+		localIP, err = getOutboundIP(config.Server)
+		if err != nil {
+			return nil, fmt.Errorf("failed to detect local IP: %w", err)
+		}
 	}
 
 	log.WithField("local_ip", localIP).Info("Detected local IP for SIP")
@@ -188,14 +230,35 @@ func NewClient(config ClientConfig, ttsReg *tts.Registry, def functions.Definiti
 	}, nil
 }
 
-// Start registers with the PBX and begins listening for calls.
+// Start registers with the PBX (or, in Direct mode, just listens) and begins
+// accepting calls.
 func (c *Client) Start() error {
 	log.WithFields(log.Fields{
 		"server":    c.config.Server,
 		"extension": c.config.Extension,
 		"domain":    c.config.Domain,
 		"transport": c.config.Transport,
+		"direct":    c.config.Direct,
 	}).Info("Starting SIP client")
+
+	// Start serving incoming calls first (this sets up the transport).
+	// ServeBackground waits for the listener to be ready before returning.
+	if err := c.diago.ServeBackground(c.ctx, c.handleIncomingCall); err != nil {
+		return fmt.Errorf("failed to start SIP server: %w", err)
+	}
+
+	if c.config.Direct {
+		// Server-less debug mode: skip REGISTER, just accept INVITEs.
+		c.regMu.Lock()
+		c.registered = true
+		c.regMu.Unlock()
+		log.WithFields(log.Fields{
+			"bind_port": c.config.LocalPort,
+			"transport": c.config.Transport,
+			"call_uri":  fmt.Sprintf("sip:%s@<host>:%d", c.config.Extension, c.config.LocalPort),
+		}).Info("Direct mode: listening for unauthenticated INVITEs (no PBX registration)")
+		return nil
+	}
 
 	// Build the registrar URI
 	registrarURI := sip.Uri{
@@ -217,12 +280,6 @@ func (c *Client) Start() error {
 				"server":    c.config.Server,
 			}).Info("Successfully registered with PBX")
 		},
-	}
-
-	// Start serving incoming calls first (this sets up the transport)
-	// ServeBackground waits for the listener to be ready before returning
-	if err := c.diago.ServeBackground(c.ctx, c.handleIncomingCall); err != nil {
-		return fmt.Errorf("failed to start SIP server: %w", err)
 	}
 
 	// Now start registration (transport is ready)
@@ -288,26 +345,35 @@ func (c *Client) handleIncomingCall(dialog *diago.DialogServerSession) {
 		return
 	}
 
-	// Send 180 Ringing
-	if err := dialog.Ringing(); err != nil {
-		log.WithError(err).Error("Failed to send Ringing")
-		return
+	if !c.config.Direct {
+		// Send 180 Ringing only when behind a real PBX. Some softphones in
+		// direct-call mode CANCEL during the provisional window, which races
+		// the 200 OK and produces "transaction terminated" on Answer.
+		if err := dialog.Ringing(); err != nil {
+			log.WithError(err).Error("Failed to send Ringing")
+			return
+		}
+		time.Sleep(500 * time.Millisecond)
 	}
 
-	// Small delay to simulate ringing
-	time.Sleep(500 * time.Millisecond)
-
-	// Answer the call with NAT traversal enabled and explicit codec selection
-	// RTPNATSymetric (1) learns the actual source address from incoming packets
-	// which is essential for NAT traversal scenarios
-	// Explicitly prefer PCMU/PCMA (8kHz) codecs to match our transcoded audio
+	// Explicitly prefer PCMU/PCMA (8kHz) codecs to match our transcoded audio.
+	// We offer telephone-event/8000 at both PT 101 (the IANA-recommended
+	// default that most PBXes use) and PT 100 (what Linphone offers).
+	// diago's negotiation does strict struct-equality on codecs, so without
+	// the second entry Linphone's offer is silently dropped and DTMF is dead.
 	answerOpts := diago.AnswerOptions{
-		RTPNAT: media.RTPNATSymetric,
 		Codecs: []media.Codec{
 			media.CodecAudioUlaw,          // PCMU - 8kHz
 			media.CodecAudioAlaw,          // PCMA - 8kHz
-			media.CodecTelephoneEvent8000, // DTMF
+			media.CodecTelephoneEvent8000, // DTMF — PT 101
+			telephoneEventPT100,           // DTMF — PT 100 (Linphone)
 		},
+	}
+	if !c.config.Direct {
+		// RTPNATSymetric learns the remote RTP source from incoming packets —
+		// essential behind NAT, harmful on a flat LAN where the offered SDP
+		// already points at a reachable address.
+		answerOpts.RTPNAT = media.RTPNATSymetric
 	}
 	if err := dialog.AnswerOptions(answerOpts); err != nil {
 		log.WithError(err).Error("Failed to answer call")
@@ -497,4 +563,16 @@ func getOutboundIP(dest string) (string, error) {
 
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
 	return localAddr.IP.String(), nil
+}
+
+// getLANIP returns a plausible LAN IP for SDP/binding when there's no SIP
+// server destination to probe against. Falls back to 127.0.0.1 if nothing
+// routable is found.
+func getLANIP() (string, error) {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		return "127.0.0.1", nil
+	}
+	defer conn.Close()
+	return conn.LocalAddr().(*net.UDPAddr).IP.String(), nil
 }

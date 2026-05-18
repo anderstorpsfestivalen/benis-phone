@@ -40,9 +40,6 @@ type Definition struct {
 
 // SIPConfig holds SIP client configuration for registering with a PBX.
 type SIPConfig struct {
-	// Enabled enables the SIP client (default: false)
-	Enabled bool `toml:"enabled"`
-
 	// Server is the SIP server/PBX address (e.g., "pbx.example.com" or "192.168.1.100:5060")
 	Server string `toml:"server"`
 
@@ -73,6 +70,12 @@ type SIPConfig struct {
 	// ExternalIP is your public IP address for NAT traversal (required if behind NAT)
 	// This IP will be used in SDP for RTP media. If empty, local IP is used.
 	ExternalIP string `toml:"external_ip"`
+
+	// Direct enables server-less debug mode: bind a listener and accept any
+	// unauthenticated INVITE without registering with a PBX. Server and
+	// Password are ignored in this mode. Intended for local softphone testing
+	// (call sip:anything@<host>:<port>).
+	Direct bool `toml:"direct"`
 
 	// Password should be in creds.json under SIP.Password for security
 }

@@ -4,18 +4,14 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/anderstorpsfestivalen/benis-phone/core/controller"
 	"github.com/anderstorpsfestivalen/benis-phone/core/secrets"
 	"github.com/gin-gonic/gin"
 )
 
-type Server struct {
-	state *controller.Controller
-}
+type Server struct{}
 
-func (s *Server) Start(wg *sync.WaitGroup, ctrl *controller.Controller) {
+func (s *Server) Start(wg *sync.WaitGroup) {
 	credentials := secrets.Loaded
-	s.state = ctrl
 
 	r := gin.Default()
 
