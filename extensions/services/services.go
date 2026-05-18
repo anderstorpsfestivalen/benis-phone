@@ -7,6 +7,7 @@ import (
 	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/idiom"
 	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/kernelmessage"
 	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/train"
+	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/weather"
 )
 
 type Service interface {
@@ -27,6 +28,7 @@ var ServiceRegistry = map[string]Service{
 	"drogslang":     &drogslang.Drogslang{},
 	"drugslang":     &drugslang.Drugslang{},
 	"kernelmessage": &kernelmessage.KernelMessage{},
+	"weather":       &weather.Weather{},
 }
 
 func AddService(name string, s Service) {

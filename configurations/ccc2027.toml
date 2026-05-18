@@ -41,6 +41,11 @@
 
         { num = 2, dst = "voicemail" },
         { num = 3, dst = "directory" },
+        { num = 4, srv = { dst = "weather",
+            args = { latitude = "57.18", longitude = "13.59", timezone = "Europe/Stockholm", name = "Reftele" },
+            tmpl = """The forecast for {{.Place}}: currently {{.Current.Condition}}, {{.Current.TempC}} degrees.
+            Today's high {{.Today.HighC}}, low {{.Today.LowC}}.
+            {{if .Today.RainSoon}}Rain expected around {{.Today.RainSoon}}.{{end}}""" } },
         { num = 5, dst = "livestream" },
         { num = 8, srv = { dst = "traintimes", tmpl = """{{.K.InformationOwner}},
         {{index .K.ProductInformation 0}},
