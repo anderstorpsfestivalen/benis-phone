@@ -1,4 +1,4 @@
-# MCH 2022
+# Simonstorp
 
 [general]
     entrypoint = "main"
@@ -32,22 +32,22 @@
 [[fn]]
     name = "main"
     recording = { path = "random" }
-    prefix = { tts = { msg = """WELCOME TO ANDERSTORPSFESTIVALEN.
-     Press 2 to leave a message.
-     Press 3 for directory
-     Press 8 for the train times in Reftele.
+    prefix = { tts = { msg = """Välkommen till Simonstorp!
+     Tryck 1 för väderrapporten i Simonstorp.
+     Tryck 2 för telefonbok.
+     Tryck 5 för tågtiderna i Reftele.
+     Tryck 6 för livestream av köket.
+     Tryck 8 för att lämna ett meddelande
      To speak with a customer representative, press 9 or wait on the line.""" } }
         actions = [
-
-        { num = 2, dst = "voicemail" },
-        { num = 3, dst = "directory" },
-        { num = 4, srv = { dst = "weather",
-            args = { latitude = "57.18", longitude = "13.59", timezone = "Europe/Stockholm", name = "Reftele" },
+        { num = 1, srv = { dst = "weather",
+            args = { latitude = "57.2684", longitude = "13.8358", timezone = "Europe/Stockholm", name = "Simonstorp" },
             tmpl = """The forecast for {{.Place}}: currently {{.Current.Condition}}, {{.Current.TempC}} degrees.
             Today's high {{.Today.HighC}}, low {{.Today.LowC}}.
-            {{if .Today.RainSoon}}Rain expected around {{.Today.RainSoon}}.{{end}}""" } },
-        { num = 5, dst = "livestream" },
-        { num = 8, srv = { dst = "traintimes", tmpl = """{{.K.InformationOwner}},
+            {{if .Today.RainSoon}}Rain expected around {{.Today.RainSoon}}.{{end}}""" } 
+        },
+        { num = 2, dst = "directory" },
+        { num = 5, srv = { dst = "traintimes", tmpl = """{{.K.InformationOwner}},
         {{index .K.ProductInformation 0}},
         {{.K.TypeOfTraffic}} nummer,
         {{.K.TechnicalTrainIdent}},
@@ -55,10 +55,9 @@
         Till {{.To.AdvertisedLocationName}},
         avgår från spår: {{.K.TrackAtLocation}},
         klockan {{.Hour}} och {{.Minute}}""", args = { station = "Reftele" } } },
+        { num = 6, dst = "livestream" },
+        { num = 8, dst = "voicemail" },
         { num = 9, dispatcher = "customerservice" },
-
-        # Announce - set clear
-        { num = 10, clear = true },
     ]
 
 ############################
