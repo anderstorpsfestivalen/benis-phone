@@ -182,7 +182,7 @@ func (s *Session) handleAction(action *functions.Action) {
 	case "tts":
 		s.play(action.TTS)
 	case "srv":
-		err := s.runService(action.Service, nil)
+		err := s.runServiceWithPmsg(action.Service, nil, action.Pmsg)
 		s.checkError(err)
 	case "dispatcher":
 		q, err := s.Definition.ResolveDispatcher(action.CustomDispatcher)
@@ -313,12 +313,29 @@ func (s *Session) clearCallstack() {
 	s.prefixSignal <- true
 }
 
+// runService dispatches a service call with no pmsg. Used by the collector
+// path (digits-then-service) where there's no parallel pmsg to play.
 func (s *Session) runService(srv functions.Service, collector *string) error {
-	if _, ok := services.ServiceRegistry[srv.Destination]; !ok {
+	return s.runServiceWithPmsg(srv, collector, functions.Prefix{})
+}
+
+// runServiceWithPmsg dispatches a service call, optionally playing a pmsg in
+// parallel with the slow work (svc.Get + TTS synthesis). Sequence:
+//
+//  1. If the service still needs digits, install a collector and return.
+//  2. Start a goroutine that fetches data and pre-synthesizes the result TTS
+//     into mp3 bytes.
+//  3. Synchronously play the pmsg (Wait=true), so the OutputStream queues it
+//     ahead of whatever we submit next and we know exactly when it ends.
+//  4. Once the goroutine finishes, fire-and-forget the result audio.
+//
+// With no pmsg this just blocks on prepare and submits the result async,
+// matching the original behavior.
+func (s *Session) runServiceWithPmsg(srv functions.Service, collector *string, pmsg functions.Prefix) error {
+	svc, ok := services.ServiceRegistry[srv.Destination]
+	if !ok {
 		return fmt.Errorf("service %s is not loaded", srv.Destination)
 	}
-
-	svc := services.ServiceRegistry[srv.Destination]
 
 	inputLength := svc.MaxInputLength()
 	if inputLength > 0 && collector == nil {
@@ -331,9 +348,52 @@ func (s *Session) runService(srv functions.Service, collector *string) error {
 		input = *collector
 	}
 
+	type prepResult struct {
+		audio []byte
+		err   error
+	}
+	resultCh := make(chan prepResult, 1)
+	go func() {
+		audio, err := s.prepareServiceAudio(svc, srv, input)
+		resultCh <- prepResult{audio, err}
+	}()
+
+	// Play pmsg (if any) synchronously. Clear=false: don't cut off whatever
+	// preceded us (e.g. the action's regular Prefix still playing); Wait=true:
+	// block until pmsg playback finishes so the result is guaranteed to land
+	// in the output queue after it.
+	if pmsg != (functions.Prefix{}) {
+		pmsgPl, perr := pmsg.GetPlayable()
+		if perr == nil {
+			pmsgPl.Wait = true
+			pmsgPl.Clear = false
+			if err := pmsgPl.Play(s.Audio, s.TTS); err != nil {
+				log.WithField("session", s.ID).Warnf("pmsg play: %v", err)
+			}
+		} else {
+			log.WithField("session", s.ID).Warnf("pmsg: %v", perr)
+		}
+	}
+
+	r := <-resultCh
+	if r.err != nil {
+		return r.err
+	}
+	go func() {
+		if err := s.Audio.PlayFromStream(r.audio); err != nil {
+			log.WithField("session", s.ID).Warnf("service result play: %v", err)
+		}
+	}()
+	return nil
+}
+
+// prepareServiceAudio runs the service and synthesizes its result into mp3
+// bytes. Safe to call from a goroutine: it touches the service, the TTS
+// registry, and the session's read-only Definition, but never the audio sink.
+func (s *Session) prepareServiceAudio(svc services.Service, srv functions.Service, input string) ([]byte, error) {
 	data, err := svc.Get(input, srv.Template, srv.Arguments)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	t := s.Definition.StandardTTS(data)
@@ -342,9 +402,12 @@ func (s *Session) runService(srv functions.Service, collector *string) error {
 		t.Message = data
 	}
 
-	s.play(t)
-
-	return nil
+	return s.TTS.Synthesize(t.Provider, tts.Request{
+		Message:  t.Message,
+		Voice:    t.Voice,
+		Language: t.Language,
+		Engine:   t.Engine,
+	})
 }
 
 func (s *Session) getCurrent() *functions.Fn {

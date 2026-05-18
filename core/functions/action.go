@@ -11,8 +11,14 @@ type Action struct {
 	// actionables
 	//////////////
 
-	// Play something before triggering the action
+	// Play something before triggering the action (sequential: blocks until done,
+	// then the action runs).
 	Prefix Prefix `toml:"prefix"`
+	// Play something while the action runs (parallel: action work starts
+	// immediately, pmsg plays out, action result is held until pmsg finishes).
+	// Useful for slow service calls — give the caller something to listen to
+	// while svc.Get + TTS synthesis happen in the background.
+	Pmsg Prefix `toml:"pmsg"`
 	// Links to another menu
 	Dst string
 	// Plays a file (mp3, ogg, etc)
@@ -121,4 +127,10 @@ func (a *Action) GetPrefix() (Prefix, error) {
 	}
 
 	return Prefix{}, fmt.Errorf("no prefix")
+}
+
+// HasPmsg reports whether this action has a parallel "playing while running"
+// message configured.
+func (a *Action) HasPmsg() bool {
+	return a.Pmsg != (Prefix{})
 }

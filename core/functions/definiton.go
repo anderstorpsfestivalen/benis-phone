@@ -124,6 +124,15 @@ func (d *Definition) Prepare() {
 					d.General.DefaultTTSProvider,
 				)
 			}
+
+			if a.Pmsg != (Prefix{}) {
+				d.UnsortedFunctions[i].Actions[n].Pmsg.TTS.SetDefault(
+					d.General.DefaultTTSVoice,
+					d.General.DefaultTTSLanguage,
+					d.General.DefaultTTSEngine,
+					d.General.DefaultTTSProvider,
+				)
+			}
 		}
 	}
 
