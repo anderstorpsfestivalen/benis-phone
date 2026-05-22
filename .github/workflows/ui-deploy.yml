@@ -33,7 +33,11 @@ jobs:
           version: 10
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # wrangler 4.x requires Node ≥ 22. Pinning here so
+          # cloudflare/wrangler-action doesn't silently downgrade to
+          # wrangler 3.x (which doesn't understand new_sqlite_classes
+          # DO migrations or the R2 binding shape we use).
+          node-version: "22"
           cache: "pnpm"
           cache-dependency-path: ui/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
