@@ -65,7 +65,7 @@ export default function FnEditor({
         />
       </div>
 
-      <details className="border border-shadow-grey rounded">
+      <details className="border border-shadow-grey rounded" open={!!value.prefix.tts.msg}>
         <summary className="px-3 py-2 cursor-pointer text-sm text-blue-slate">
           Prefix (announcement on entry)
         </summary>
@@ -77,7 +77,10 @@ export default function FnEditor({
         </div>
       </details>
 
-      <details className="border border-shadow-grey rounded">
+      <details
+        className="border border-shadow-grey rounded"
+        open={!!(value.gate.dst || value.gate.accept || value.gate.prompt || value.gate.deny_tmpl)}
+      >
         <summary className="px-3 py-2 cursor-pointer text-sm text-blue-slate">
           Gate (input validation)
         </summary>

@@ -16,13 +16,36 @@ export type FnNodeData = {
   isEntry: boolean;
 };
 
+// Actions live in two places in the config: as elements of `Fn.actions`
+// and as the singleton `Queue.end`. We unify their representation in the
+// graph so both look and edit identically.
+export type ActionSource =
+  | { kind: "fn"; fnName: string; actionIndex: number }
+  | { kind: "queue-end"; queueName: string };
+
 export type ActionNodeData = {
   kind: "action";
-  fnName: string;
-  actionIndex: number;
+  source: ActionSource;
   action: Action;
   actionKind: ActionKind | null;
 };
+
+export function actionNodeId(source: ActionSource): string {
+  return source.kind === "fn"
+    ? `act_fn_${source.fnName}_${source.actionIndex}`
+    : `act_queue_${source.queueName}_end`;
+}
+
+export function sameSource(a: ActionSource, b: ActionSource): boolean {
+  if (a.kind !== b.kind) return false;
+  if (a.kind === "fn" && b.kind === "fn") {
+    return a.fnName === b.fnName && a.actionIndex === b.actionIndex;
+  }
+  if (a.kind === "queue-end" && b.kind === "queue-end") {
+    return a.queueName === b.queueName;
+  }
+  return false;
+}
 
 export type QueueNodeData = {
   kind: "queue";
@@ -48,7 +71,7 @@ const FN_NODE_HEIGHT = 60;
 const ACTION_NODE_WIDTH = 240;
 const ACTION_NODE_HEIGHT = 88;
 const QUEUE_NODE_WIDTH = 220;
-const QUEUE_NODE_HEIGHT = 56;
+const QUEUE_NODE_HEIGHT = 80;
 
 export function buildNodesAndEdges(
   fns: Fn[],
@@ -77,15 +100,15 @@ export function buildNodesAndEdges(
     });
 
     fn.actions.forEach((action, j) => {
-      const actionId = `act_${fn.name}_${j}`;
+      const source: ActionSource = { kind: "fn", fnName: fn.name, actionIndex: j };
+      const actionId = actionNodeId(source);
       nodes.push({
         id: actionId,
         type: "actionNode",
         position: { x: 0, y: 0 },
         data: {
           kind: "action",
-          fnName: fn.name,
-          actionIndex: j,
+          source,
           action,
           actionKind: actionKind(action),
         },
@@ -101,39 +124,46 @@ export function buildNodesAndEdges(
       });
 
       // action → target edge, only for dst / dispatcher
-      const target = dispatcherOrDst(action);
-      if (target) {
-        if (target.kind === "dispatcher" && !queueNames.has(target.target)) {
-          danglingQueueRefs.add(target.target);
-        }
-        const broken =
-          target.kind === "dst"
-            ? !fnNames.has(target.target)
-            : !queueNames.has(target.target);
-        edges.push({
-          id: `e_${fn.name}_${j}_to`,
-          source: actionId,
-          target:
-            target.kind === "dst"
-              ? `fn_${target.target}`
-              : `queue_${target.target}`,
-          label: "",
-          data: { kind: target.kind, broken },
-        });
-      }
+      appendActionTargetEdge(edges, actionId, `e_${fn.name}_${j}_to`, action, fnNames, queueNames, danglingQueueRefs);
     });
   });
 
   // Real queues — always rendered so newly-added unreferenced queues are
-  // visible/clickable.
+  // visible/clickable. Each queue's `end` action also becomes a node so the
+  // post-queue flow is visible end-to-end.
   queues.forEach((q) => {
     if (!q.name) return;
+    const qId = `queue_${q.name}`;
     nodes.push({
-      id: `queue_${q.name}`,
+      id: qId,
       type: "queueNode",
       position: { x: 0, y: 0 },
       data: { kind: "queue", queue: q, name: q.name },
     });
+
+    // queue.end is just an Action. Treat it identically to fn actions so
+    // the existing ActionEditor and ActionNode pick it up unchanged.
+    const endSource: ActionSource = { kind: "queue-end", queueName: q.name };
+    const endId = actionNodeId(endSource);
+    nodes.push({
+      id: endId,
+      type: "actionNode",
+      position: { x: 0, y: 0 },
+      data: {
+        kind: "action",
+        source: endSource,
+        action: q.end,
+        actionKind: actionKind(q.end),
+      },
+    });
+    edges.push({
+      id: `e_q_${q.name}_end`,
+      source: qId,
+      target: endId,
+      label: "end",
+      data: { kind: "key", broken: false },
+    });
+    appendActionTargetEdge(edges, endId, `e_q_${q.name}_end_to`, q.end, fnNames, queueNames, danglingQueueRefs);
   });
   // Broken dispatcher targets — placeholder nodes so the red edge has
   // something to terminate on.
@@ -157,6 +187,37 @@ function dispatcherOrDst(a: Action):
   if (a.dst) return { kind: "dst", target: a.dst };
   if (a.dispatcher) return { kind: "dispatcher", target: a.dispatcher };
   return null;
+}
+
+// appendActionTargetEdge wires an action node to whatever fn/queue it
+// routes to (if any). Shared between fn-action edges and queue-end edges
+// so both follow the same routing-line semantics.
+function appendActionTargetEdge(
+  edges: GraphEdge[],
+  sourceId: string,
+  edgeId: string,
+  action: Action,
+  fnNames: Set<string>,
+  queueNames: Set<string>,
+  danglingQueueRefs: Set<string>,
+) {
+  const target = dispatcherOrDst(action);
+  if (!target) return;
+  if (target.kind === "dispatcher" && !queueNames.has(target.target)) {
+    danglingQueueRefs.add(target.target);
+  }
+  const broken =
+    target.kind === "dst"
+      ? !fnNames.has(target.target)
+      : !queueNames.has(target.target);
+  edges.push({
+    id: edgeId,
+    source: sourceId,
+    target:
+      target.kind === "dst" ? `fn_${target.target}` : `queue_${target.target}`,
+    label: "",
+    data: { kind: target.kind, broken },
+  });
 }
 
 export function runDagreLayout(nodes: GraphNode[], edges: GraphEdge[]) {

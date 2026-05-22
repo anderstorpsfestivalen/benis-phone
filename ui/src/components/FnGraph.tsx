@@ -13,11 +13,13 @@ import "@xyflow/react/dist/style.css";
 import type { Action, Fn, Queue } from "../generated/config";
 import {
   buildNodesAndEdges,
+  sameSource,
   type ActionNodeData,
+  type ActionSource,
   type FnNodeData,
   type QueueNodeData,
 } from "../lib/fn-graph";
-import { emptyFn, emptyQueue } from "../lib/empty";
+import { emptyAction, emptyFn, emptyQueue } from "../lib/empty";
 import FnNode from "./FnNode";
 import ActionNode from "./ActionNode";
 import QueueNode from "./QueueNode";
@@ -29,7 +31,7 @@ const nodeTypes = { fnNode: FnNode, actionNode: ActionNode, queueNode: QueueNode
 
 type Selection =
   | { kind: "fn"; fnName: string }
-  | { kind: "action"; fnName: string; actionIndex: number }
+  | { kind: "action"; source: ActionSource }
   | { kind: "queue"; queueName: string }
   | null;
 
@@ -58,8 +60,7 @@ export default function FnGraph({
         } else if (
           selection.kind === "action" &&
           n.type === "actionNode" &&
-          n.data.fnName === selection.fnName &&
-          n.data.actionIndex === selection.actionIndex
+          sameSource(n.data.source, selection.source)
         ) {
           isSelected = true;
         } else if (
@@ -104,7 +105,7 @@ export default function FnGraph({
       setSelection({ kind: "fn", fnName: data.fn.name });
     } else if (node.type === "actionNode") {
       const data = node.data as ActionNodeData;
-      setSelection({ kind: "action", fnName: data.fnName, actionIndex: data.actionIndex });
+      setSelection({ kind: "action", source: data.source });
     } else if (node.type === "queueNode") {
       const data = node.data as QueueNodeData;
       setSelection({ kind: "queue", queueName: data.name });
@@ -113,8 +114,54 @@ export default function FnGraph({
     }
   }, []);
 
+  // The action editor + the surrounding side-panel chrome both need the
+  // currently-selected Action and the writer that puts it back. These
+  // helpers reduce the "is it an fn action or queue.end" branching to a
+  // single place.
+  const actionForSelection = useMemo<{
+    action: Action;
+    parentLabel: string;
+    onChange: (a: Action) => void;
+    onRemove: (() => void) | null;
+  } | null>(() => {
+    if (!selection || selection.kind !== "action") return null;
+    const src = selection.source;
+    if (src.kind === "fn") {
+      const fn = fns.find((f) => f.name === src.fnName);
+      if (!fn || !fn.actions[src.actionIndex]) return null;
+      return {
+        action: fn.actions[src.actionIndex],
+        parentLabel: `menu "${src.fnName}"`,
+        onChange: (a) => {
+          const next = [...fn.actions];
+          next[src.actionIndex] = a;
+          updateFnByName(src.fnName, { ...fn, actions: next });
+        },
+        onRemove: () => {
+          const next = fn.actions.filter((_, i) => i !== src.actionIndex);
+          updateFnByName(src.fnName, { ...fn, actions: next });
+          setSelection({ kind: "fn", fnName: src.fnName });
+        },
+      };
+    }
+    // queue-end
+    const q = queues.find((x) => x.name === src.queueName);
+    if (!q) return null;
+    return {
+      action: q.end,
+      parentLabel: `queue "${src.queueName}" (end)`,
+      onChange: (a) => updateQueueByName(src.queueName, { ...q, end: a }),
+      // Queue.end is structural — it always exists. "Remove" resets it
+      // back to an empty action rather than deleting the slot.
+      onRemove: () => {
+        updateQueueByName(src.queueName, { ...q, end: emptyAction() });
+      },
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selection, fns, queues]);
+
   const selectedFn = useMemo(() => {
-    if (!selection || (selection.kind !== "fn" && selection.kind !== "action")) return null;
+    if (!selection || selection.kind !== "fn") return null;
     return fns.find((f) => f.name === selection.fnName) ?? null;
   }, [fns, selection]);
 
@@ -122,6 +169,43 @@ export default function FnGraph({
     if (!selection || selection.kind !== "queue") return null;
     return queues.find((q) => q.name === selection.queueName) ?? null;
   }, [queues, selection]);
+
+  function updateFnByName(name: string, next: Fn) {
+    const i = fns.findIndex((f) => f.name === name);
+    if (i < 0) return;
+    const arr = [...fns];
+    arr[i] = next;
+    onFnsChange(arr);
+    if (next.name !== name && selection) {
+      // Rename: keep the selection pointed at the same logical thing.
+      if (selection.kind === "fn" && selection.fnName === name) {
+        setSelection({ kind: "fn", fnName: next.name });
+      } else if (selection.kind === "action" && selection.source.kind === "fn" && selection.source.fnName === name) {
+        setSelection({
+          kind: "action",
+          source: { ...selection.source, fnName: next.name },
+        });
+      }
+    }
+  }
+
+  function updateQueueByName(name: string, next: Queue) {
+    const i = queues.findIndex((q) => q.name === name);
+    if (i < 0) return;
+    const arr = [...queues];
+    arr[i] = next;
+    onQueuesChange(arr);
+    if (next.name !== name && selection) {
+      if (selection.kind === "queue" && selection.queueName === name) {
+        setSelection({ kind: "queue", queueName: next.name });
+      } else if (selection.kind === "action" && selection.source.kind === "queue-end" && selection.source.queueName === name) {
+        setSelection({
+          kind: "action",
+          source: { kind: "queue-end", queueName: next.name },
+        });
+      }
+    }
+  }
 
   function addFn() {
     const name = `fn${fns.length + 1}`;
@@ -133,48 +217,6 @@ export default function FnGraph({
     const name = `queue${queues.length + 1}`;
     onQueuesChange([...queues, emptyQueue(name)]);
     setSelection({ kind: "queue", queueName: name });
-  }
-
-  function updateSelectedFn(updated: Fn) {
-    if (!selection || selection.kind === "queue" || !selectedFn) return;
-    const i = fns.findIndex((f) => f.name === selectedFn.name);
-    if (i < 0) return;
-    const next = [...fns];
-    next[i] = updated;
-    onFnsChange(next);
-    if (updated.name !== selectedFn.name) {
-      setSelection(
-        selection.kind === "fn"
-          ? { kind: "fn", fnName: updated.name }
-          : { kind: "action", fnName: updated.name, actionIndex: selection.actionIndex },
-      );
-    }
-  }
-
-  function updateSelectedAction(updated: Action) {
-    if (!selection || selection.kind !== "action" || !selectedFn) return;
-    const nextActions = [...selectedFn.actions];
-    nextActions[selection.actionIndex] = updated;
-    updateSelectedFn({ ...selectedFn, actions: nextActions });
-  }
-
-  function removeSelectedAction() {
-    if (!selection || selection.kind !== "action" || !selectedFn) return;
-    const nextActions = selectedFn.actions.filter((_, i) => i !== selection.actionIndex);
-    updateSelectedFn({ ...selectedFn, actions: nextActions });
-    setSelection({ kind: "fn", fnName: selectedFn.name });
-  }
-
-  function updateSelectedQueue(updated: Queue) {
-    if (!selection || selection.kind !== "queue" || !selectedQueue) return;
-    const i = queues.findIndex((q) => q.name === selectedQueue.name);
-    if (i < 0) return;
-    const next = [...queues];
-    next[i] = updated;
-    onQueuesChange(next);
-    if (updated.name !== selectedQueue.name) {
-      setSelection({ kind: "queue", queueName: updated.name });
-    }
   }
 
   function removeSelected() {
@@ -193,6 +235,13 @@ export default function FnGraph({
       setSelection(null);
     }
   }
+
+  const removeLabel =
+    selection?.kind === "fn"
+      ? selection.fnName
+      : selection?.kind === "queue"
+        ? selection.queueName
+        : "";
 
   return (
     <div
@@ -218,7 +267,7 @@ export default function FnGraph({
               onClick={removeSelected}
               className="px-3 py-1 text-xs font-mono border border-shadow-grey bg-gunmetal text-blue-slate hover:text-white rounded"
             >
-              remove "{selection.kind === "fn" ? selection.fnName : selection.queueName}"
+              remove "{removeLabel}"
             </button>
           )}
         </div>
@@ -252,9 +301,11 @@ export default function FnGraph({
               Click a node to edit. The {entrypoint || "main"} menu is the call entrypoint.
             </p>
             <p className="mt-3 text-xs leading-relaxed">
-              Menu nodes branch on a DTMF key into action nodes. Each action node shows
-              its kind; routing actions then connect to the next menu or queue.
-              Solid lines: menu links. Dashed lines: dispatcher → queue. Red dashed: broken.
+              Menus branch on a DTMF key into action nodes. Queues also have an
+              action node — labelled <em>end</em> — that runs when the queue
+              terminates; configure it like any other action. Routing actions
+              connect on to the next menu or queue. Solid lines: menu links.
+              Dashed lines: dispatcher → queue. Red dashed: broken.
             </p>
           </div>
         )}
@@ -263,39 +314,54 @@ export default function FnGraph({
           <div className="p-3">
             <FnEditor
               value={selectedFn}
-              onChange={updateSelectedFn}
+              onChange={(next) => updateFnByName(selectedFn.name, next)}
               onSelectAction={(i) =>
-                setSelection({ kind: "action", fnName: selectedFn.name, actionIndex: i })
+                setSelection({
+                  kind: "action",
+                  source: { kind: "fn", fnName: selectedFn.name, actionIndex: i },
+                })
               }
             />
           </div>
         )}
 
-        {selection?.kind === "action" && selectedFn && selectedFn.actions[selection.actionIndex] && (
+        {selection?.kind === "action" && actionForSelection && (
           <div className="p-3 flex flex-col gap-3">
             <div className="flex items-center justify-between text-xs">
               <button
-                onClick={() => setSelection({ kind: "fn", fnName: selectedFn.name })}
+                onClick={() => {
+                  if (selection.source.kind === "fn") {
+                    setSelection({ kind: "fn", fnName: selection.source.fnName });
+                  } else {
+                    setSelection({ kind: "queue", queueName: selection.source.queueName });
+                  }
+                }}
                 className="text-blue-slate hover:text-white font-mono"
               >
-                ← back to menu "{selectedFn.name}"
+                ← back to {actionForSelection.parentLabel}
               </button>
-              <span className="text-blue-slate uppercase tracking-wider">
-                action {selection.actionIndex + 1} / {selectedFn.actions.length}
-              </span>
             </div>
             <ActionEditor
-              value={selectedFn.actions[selection.actionIndex]}
+              value={actionForSelection.action}
               knownFnNames={fns.map((f) => f.name).filter(Boolean)}
-              onChange={updateSelectedAction}
-              onRemove={removeSelectedAction}
+              onChange={actionForSelection.onChange}
+              onRemove={actionForSelection.onRemove ?? (() => {})}
             />
           </div>
         )}
 
         {selection?.kind === "queue" && selectedQueue && (
           <div className="p-3">
-            <QueueEditor value={selectedQueue} onChange={updateSelectedQueue} />
+            <QueueEditor
+              value={selectedQueue}
+              onChange={(next) => updateQueueByName(selectedQueue.name, next)}
+              onSelectEnd={() =>
+                setSelection({
+                  kind: "action",
+                  source: { kind: "queue-end", queueName: selectedQueue.name },
+                })
+              }
+            />
           </div>
         )}
       </div>

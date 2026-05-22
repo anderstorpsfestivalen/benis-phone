@@ -70,6 +70,11 @@ func main() {
 		log.Fatal("Could not load credentials, check creds/creds.json: ", err)
 	}
 
+	// resync, when non-nil, walks the R2 bucket and pulls any keys not
+	// yet on disk. It's called once at startup and again on every
+	// config-update event from the WS broker, so newly-referenced files
+	// land before the IVR swaps to the new Definition.
+	var resync func()
 	if *enableS3 {
 		r2 := credentials.R2
 		if r2.Bucket == "" {
@@ -85,6 +90,7 @@ func main() {
 			log.Fatal("Could not initialize R2 sync: ", err)
 		}
 		fsx.Start("files/")
+		resync = func() { fsx.Start("files/") }
 	}
 
 	var (
@@ -183,7 +189,10 @@ func main() {
 			OnUpdate: func(hash string) {
 				hashMu.Lock()
 				defer hashMu.Unlock()
-				reloadOnce(log, remoteClient, sipClient, &currentHash, false)
+				// reloadOnce re-syncs R2 (when enabled) before swapping
+				// the Definition, so any newly-referenced audio files land
+				// on disk before calls pick up the new menu.
+				reloadOnce(log, remoteClient, sipClient, &currentHash, false, resync)
 			},
 		}
 		reloadWg.Add(1)
@@ -198,7 +207,7 @@ func main() {
 			reloadWg.Add(1)
 			go func() {
 				defer reloadWg.Done()
-				runHotReload(log, remoteClient, sipClient, &currentHash, *reloadInterval, stopReload)
+				runHotReload(log, remoteClient, sipClient, &currentHash, *reloadInterval, stopReload, resync)
 			}()
 		}
 
@@ -209,7 +218,7 @@ func main() {
 		go func() {
 			for range usr1 {
 				log.Info("SIGUSR1 received, forcing config reload")
-				reloadOnce(log, remoteClient, sipClient, &currentHash, true)
+				reloadOnce(log, remoteClient, sipClient, &currentHash, true, resync)
 			}
 		}()
 	}
@@ -242,6 +251,7 @@ func runHotReload(
 	current *string,
 	interval time.Duration,
 	stop <-chan struct{},
+	syncFiles func(),
 ) {
 	t := time.NewTicker(interval)
 	defer t.Stop()
@@ -252,17 +262,22 @@ func runHotReload(
 			log.Info("Hot-reload loop stopped")
 			return
 		case <-t.C:
-			reloadOnce(log, rc, sipClient, current, false)
+			reloadOnce(log, rc, sipClient, current, false, syncFiles)
 		}
 	}
 }
 
+// reloadOnce pulls the worker's current hash; if it differs from `current`
+// (or force is set), it re-syncs the R2 bucket so any newly-referenced
+// audio files land on disk before the new Definition is swapped in.
+// syncFiles may be nil — typically when -s3=false.
 func reloadOnce(
 	log *logrus.Logger,
 	rc *functions.RemoteClient,
 	sipClient *sip.Client,
 	current *string,
 	force bool,
+	syncFiles func(),
 ) {
 	h, err := rc.FetchHash()
 	if err != nil {
@@ -271,6 +286,9 @@ func reloadOnce(
 	}
 	if !force && h == *current {
 		return
+	}
+	if syncFiles != nil {
+		syncFiles()
 	}
 	def, err := rc.LoadDefinition()
 	if err != nil {
