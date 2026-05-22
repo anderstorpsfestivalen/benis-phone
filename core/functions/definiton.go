@@ -8,23 +8,23 @@ import (
 )
 
 func LoadFromFile(path string) (Definition, error) {
-
 	dat, err := os.ReadFile(path)
 	if err != nil {
 		return Definition{}, err
 	}
+	return Decode(dat)
+}
 
+// Decode parses raw TOML bytes into a Definition and runs Prepare(). Shared
+// by the file loader and the remote loader so they produce identical
+// in-memory state.
+func Decode(data []byte) (Definition, error) {
 	var conf Definition
-	_, err = toml.Decode(string(dat), &conf)
-
-	if err != nil {
+	if _, err := toml.Decode(string(data), &conf); err != nil {
 		return Definition{}, err
 	}
-
 	conf.Functions = make(map[string]*Fn)
-
 	conf.Prepare()
-
 	return conf, nil
 }
 

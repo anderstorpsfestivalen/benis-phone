@@ -1,0 +1,22 @@
+name = "benis-pbx"
+main = "worker/index.ts"
+compatibility_date = "2025-01-15"
+
+# Workers Assets: the Worker serves the React build for any path that
+# isn't /api/* or /config. The hostname is bound to this Worker via a
+# Custom Domain (set up in the Cloudflare dashboard, not here).
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+# We handle SPA fallback ourselves in worker/index.ts so /api/* and
+# /config never accidentally return index.html.
+not_found_handling = "none"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "benis-pbx"
+database_id = "1e55b433-bba7-41d4-9ef8-56ed02f58ecc"
+migrations_dir = "worker/migrations"
+
+# Wrangler secrets (set with `wrangler secret put`):
+#   CONFIG_BEARER_TOKEN — shared with the Go binary via creds/creds.json

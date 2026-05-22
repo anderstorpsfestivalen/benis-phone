@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/sirupsen/logrus"
 
@@ -29,7 +30,14 @@ func main() {
 	listAudioDevices := flag.Bool("list-audio-devices", false, "List host audio capture devices (for livefeed config) and exit")
 	definition := flag.String("def",
 		"configurations/default.toml",
-		"Set a custom definition file, standard is configurations/default.toml")
+		"Path to TOML config when -source=file")
+	source := flag.String("source", "file", "Config source: file | remote")
+	configName := flag.String("config-name", "", "Remote config name (required when -source=remote)")
+	remoteURL := flag.String("remote-url",
+		"https://ivr.anderstorpsfestivalen.se",
+		"Base URL of the config worker (used when -source=remote)")
+	reloadInterval := flag.Duration("reload-interval", 60*time.Second,
+		"Remote-mode: poll for config hash changes at this interval. 0 disables polling.")
 	flag.Parse()
 
 	if *listAudioDevices {
@@ -66,9 +74,41 @@ func main() {
 		fsx.Start("files/")
 	}
 
-	def, err := functions.LoadFromFile(*definition)
-	if err != nil {
-		log.Fatal(err)
+	var (
+		def          functions.Definition
+		remoteClient *functions.RemoteClient
+		currentHash  string
+	)
+	switch *source {
+	case "file":
+		def, err = functions.LoadFromFile(*definition)
+		if err != nil {
+			log.Fatal(err)
+		}
+	case "remote":
+		if *configName == "" {
+			log.Fatal("-config-name is required when -source=remote")
+		}
+		if credentials.PBXConfigToken == "" {
+			log.Fatal("creds.json is missing PBXConfigToken (required for -source=remote)")
+		}
+		remoteClient = functions.NewRemoteClient(*remoteURL, *configName, credentials.PBXConfigToken)
+		def, err = remoteClient.LoadDefinition()
+		if err != nil {
+			log.Fatalf("loading remote config %q from %s: %v", *configName, *remoteURL, err)
+		}
+		currentHash, err = remoteClient.FetchHash()
+		if err != nil {
+			// Non-fatal: definition already loaded; polling will retry.
+			log.Warnf("fetching initial config hash: %v", err)
+		}
+		log.WithFields(logrus.Fields{
+			"name": *configName,
+			"url":  *remoteURL,
+			"hash": shortHash(currentHash),
+		}).Info("Loaded remote config")
+	default:
+		log.Fatalf("invalid -source %q (want file|remote)", *source)
 	}
 
 	// CLI flags override the TOML for quick debug workflows.
@@ -113,6 +153,27 @@ func main() {
 		"max_calls": maxCalls,
 	}).Info("SIP client started")
 
+	// Hot-reload: only meaningful with a remote source.
+	stopReload := make(chan struct{})
+	var reloadWg sync.WaitGroup
+	if remoteClient != nil && *reloadInterval > 0 {
+		reloadWg.Add(1)
+		go func() {
+			defer reloadWg.Done()
+			runHotReload(log, remoteClient, sipClient, &currentHash, *reloadInterval, stopReload)
+		}()
+		// SIGUSR1 forces an immediate reload — useful for ops and for the
+		// editor to push changes faster than the next poll.
+		usr1 := make(chan os.Signal, 1)
+		signal.Notify(usr1, syscall.SIGUSR1)
+		go func() {
+			for range usr1 {
+				log.Info("SIGUSR1 received, forcing config reload")
+				reloadOnce(log, remoteClient, sipClient, &currentHash, true)
+			}
+		}()
+	}
+
 	var wg sync.WaitGroup
 	if *enableHttp {
 		wg.Add(1)
@@ -125,7 +186,66 @@ func main() {
 	<-sigChan
 
 	log.Info("Shutting down")
+	close(stopReload)
+	reloadWg.Wait()
 	sipClient.Stop()
+}
+
+// runHotReload polls the worker for hash changes and swaps the active
+// Definition when one is detected. New calls pick up the new config; in-
+// flight calls keep their snapshot until they end.
+func runHotReload(
+	log *logrus.Logger,
+	rc *functions.RemoteClient,
+	sipClient *sip.Client,
+	current *string,
+	interval time.Duration,
+	stop <-chan struct{},
+) {
+	t := time.NewTicker(interval)
+	defer t.Stop()
+	log.WithField("interval", interval.String()).Info("Hot-reload loop started")
+	for {
+		select {
+		case <-stop:
+			log.Info("Hot-reload loop stopped")
+			return
+		case <-t.C:
+			reloadOnce(log, rc, sipClient, current, false)
+		}
+	}
+}
+
+func reloadOnce(
+	log *logrus.Logger,
+	rc *functions.RemoteClient,
+	sipClient *sip.Client,
+	current *string,
+	force bool,
+) {
+	h, err := rc.FetchHash()
+	if err != nil {
+		log.Warnf("hot-reload: hash fetch failed: %v", err)
+		return
+	}
+	if !force && h == *current {
+		return
+	}
+	def, err := rc.LoadDefinition()
+	if err != nil {
+		log.Warnf("hot-reload: definition fetch failed: %v", err)
+		return
+	}
+	sipClient.SessionManager().UpdateDefinition(def)
+	*current = h
+	log.WithField("hash", shortHash(h)).Info("Hot-reloaded config")
+}
+
+func shortHash(h string) string {
+	if len(h) < 8 {
+		return h
+	}
+	return h[:8]
 }
 
 func buildTTSRegistry(log *logrus.Logger, def functions.Definition, credentials secrets.Credentials) *tts.Registry {

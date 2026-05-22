@@ -1,0 +1,19 @@
+name: go build
+
+on:
+  push:
+    branches: [master, ui]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - name: Install build deps (PortAudio)
+        run: sudo apt-get update && sudo apt-get install -y libportaudio2 portaudio19-dev
+      - run: go vet ./...
+      - run: go build ./...

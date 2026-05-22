@@ -1,0 +1,55 @@
+name: ui deploy
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "ui/**"
+      - "core/functions/**"
+      - "extensions/services/services.go"
+      - "tools/typegen/**"
+      - ".github/workflows/ui-deploy.yml"
+
+concurrency:
+  group: ui-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - name: Regenerate types (defense in depth)
+        run: go generate ./...
+        working-directory: .
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: ui/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec tsc -b
+      - run: pnpm build
+      - name: Apply D1 migrations
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: ui
+          command: d1 migrations apply benis-pbx --remote
+      - name: Deploy Worker (with bundled assets)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: ui
+          command: deploy

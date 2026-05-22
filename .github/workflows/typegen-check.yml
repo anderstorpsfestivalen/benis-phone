@@ -1,0 +1,33 @@
+name: typegen check
+
+on:
+  pull_request:
+    paths:
+      - "core/functions/**"
+      - "extensions/services/services.go"
+      - "tools/typegen/**"
+      - "ui/src/generated/**"
+  push:
+    branches: [master]
+    paths:
+      - "core/functions/**"
+      - "extensions/services/services.go"
+      - "tools/typegen/**"
+      - "ui/src/generated/**"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - run: go generate ./...
+      - name: Fail if generated TS is out of date
+        run: |
+          if [ -n "$(git status --porcelain ui/src/generated/)" ]; then
+            echo "::error::ui/src/generated/ is out of date. Run 'go generate ./...' locally and commit the result."
+            git --no-pager diff ui/src/generated/
+            exit 1
+          fi

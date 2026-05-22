@@ -31,6 +31,11 @@ type Credentials struct {
 	// ElevenLabs API key (single-key auth). Optional; provider is only
 	// registered when a non-empty value is present.
 	ElevenLabs string
+
+	// PBXConfigToken is the bearer token the binary sends to the remote
+	// config worker (pbx.<zone>/config) when -source=remote. Required for
+	// remote mode; ignored otherwise.
+	PBXConfigToken string
 }
 
 var Loaded Credentials

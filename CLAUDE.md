@@ -18,6 +18,11 @@ go build benis-phone.go
 # Custom configuration
 ./benis-phone -def configurations/atp.toml
 
+# Remote configuration (Cloudflare Worker). Polls /config?name=X&hash=1
+# every -reload-interval and hot-swaps the IVR tree on change. In-flight
+# calls keep their old snapshot; new calls pick up the new config.
+./benis-phone -source remote -config-name simonstorp
+
 # Direct mode: skip PBX registration, accept unauthenticated INVITEs
 # (point a softphone at sip:anything@<host>:5060)
 ./benis-phone -direct -debug
@@ -46,4 +51,13 @@ Each inbound SIP call gets its own `Session` (in `core/controller/`) driven by a
 Menu structure defined in TOML files (`configurations/`). Actions specify destinations (`dst`), services (`srv`), dispatchers, or `livefeed = { device, channel }` to stream a host audio capture device into the call's outbound RTP. Files referenced are in `files/` directory. SIP block lives at `[sip]` in the same TOML; the optional `direct = true` toggle (or `-direct` CLI flag) skips PBX registration. `./benis-phone -list-audio-devices` enumerates capture devices for filling in the livefeed config.
 
 ### Credentials
-Required in `creds/creds.json` with keys for S3, Polly, Backend, Trafiklab, Systemet, HTTPServerAuth, SIP, and optionally ElevenLabs.
+Required in `creds/creds.json` with keys for S3, Polly, Backend, Trafiklab, Systemet, HTTPServerAuth, SIP, and optionally ElevenLabs and `PBXConfigToken` (required when `-source=remote`; matches the Worker's `CONFIG_BEARER_TOKEN` secret).
+
+### Web editor (`/ui`)
+Single Cloudflare Worker (with bundled static assets via Workers Assets) + D1, served at `ivr.anderstorpsfestivalen.se`. The Worker handles `/api/*` (Cloudflare Access-protected editor CRUD) and `/config` (bearer-token endpoint the Go binary polls), and falls through to the bundled React build for everything else (Cloudflare Access in front of the hostname, with a bypass policy on `/config`). Source under `ui/` — React 19 + TS + Tailwind (5-color palette in `tailwind.config.ts`) + pnpm + Vite + Wrangler. `pnpm deploy` builds Vite into `ui/dist` and ships Worker + assets in one shot.
+
+TypeScript types for the IVR config are generated from `core/functions/*.go` by `tools/typegen/`. Run `go generate ./...` from the repo root after editing any struct in `core/functions/`. CI fails if `ui/src/generated/` is out of date.
+
+Local dev: `cd ui && pnpm install`, then `pnpm worker:dev` (Worker on :8787 with local D1) and `pnpm dev` (Vite on :5173 proxying `/api` + `/config` to the Worker). Apply migrations once with `pnpm d1:migrate:local`.
+
+Hot-reload: with `-source=remote`, the binary polls `/config?name=...&hash=1` every `-reload-interval` (default 60s). On change it fetches the new TOML, re-prepares the Definition, and swaps it on the SessionManager — in-flight calls keep their snapshot, new calls get the new config. `SIGUSR1` forces an immediate reload.

@@ -230,6 +230,12 @@ func NewClient(config ClientConfig, ttsReg *tts.Registry, def functions.Definiti
 	}, nil
 }
 
+// SessionManager returns the controller managing per-call sessions. Used
+// by the hot-reload loop in main to swap the active Definition.
+func (c *Client) SessionManager() *controller.SessionManager {
+	return c.manager
+}
+
 // Start registers with the PBX (or, in Direct mode, just listens) and begins
 // accepting calls.
 func (c *Client) Start() error {

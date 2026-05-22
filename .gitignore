@@ -9,6 +9,9 @@ temp
 haschcache
 haschcache/
 haschcache/*
+transcache/
+transcache/*
+transcache
 
 .DS_Store
 
@@ -27,3 +30,10 @@ haschcache/*
 *.out
 
 benis-phone
+
+# UI build artifacts
+ui/node_modules/
+ui/.wrangler/
+ui/dist/
+ui/dist-types/
+ui/.dev.vars

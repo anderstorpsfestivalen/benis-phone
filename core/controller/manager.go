@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"github.com/anderstorpsfestivalen/benis-phone/core/audio"
 	"github.com/anderstorpsfestivalen/benis-phone/core/callctl"
@@ -15,8 +16,12 @@ import (
 // SessionManager manages multiple concurrent call sessions.
 type SessionManager struct {
 	// Shared resources
-	TTS        *tts.Registry
-	Definition functions.Definition
+	TTS *tts.Registry
+
+	// definition is swappable at runtime (see UpdateDefinition). Sessions
+	// snapshot it at construction time, so in-flight calls keep the
+	// config they started with — only new calls pick up the swap.
+	definition atomic.Pointer[functions.Definition]
 
 	// Configuration
 	MaxConcurrentCalls int
@@ -31,12 +36,26 @@ func NewSessionManager(ttsReg *tts.Registry, def functions.Definition, maxCalls 
 	if maxCalls <= 0 {
 		maxCalls = 10 // default
 	}
-	return &SessionManager{
+	m := &SessionManager{
 		TTS:                ttsReg,
-		Definition:         def,
 		MaxConcurrentCalls: maxCalls,
 		sessions:           make(map[string]*Session),
 	}
+	m.definition.Store(&def)
+	return m
+}
+
+// Definition returns the current config snapshot. The returned value is
+// safe to read concurrently and to copy by value; do not mutate it.
+func (m *SessionManager) Definition() functions.Definition {
+	return *m.definition.Load()
+}
+
+// UpdateDefinition atomically replaces the active config. In-flight
+// sessions are unaffected (they hold their own snapshot via NewSession);
+// every session created after this call sees the new definition.
+func (m *SessionManager) UpdateDefinition(def functions.Definition) {
+	m.definition.Store(&def)
 }
 
 // CreateSession creates and registers a new session with the given components.
@@ -54,7 +73,7 @@ func (m *SessionManager) CreateSession(id string, ph phone.FlowPhone, audioSink 
 		return nil, fmt.Errorf("session %s already exists", id)
 	}
 
-	session := NewSession(id, ph, audioSink, rec, m.TTS, m.Definition, callCtl)
+	session := NewSession(id, ph, audioSink, rec, m.TTS, m.Definition(), callCtl)
 	m.sessions[id] = session
 
 	log.WithFields(log.Fields{
