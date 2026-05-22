@@ -19,7 +19,7 @@ func (p *Prefix) GetPlayable() (Playable, error) {
 	}
 	// Check if prefix is double defined
 	if p.File != (File{}) && p.TTS != (TTS{}) {
-		return Playable{}, fmt.Errorf("Prefix cannot have both a file and a message. ", p.File, p.TTS.Message)
+		return Playable{}, fmt.Errorf("prefix cannot have both a file (%v) and a message (%q)", p.File, p.TTS.Message)
 	}
 
 	return Playable{

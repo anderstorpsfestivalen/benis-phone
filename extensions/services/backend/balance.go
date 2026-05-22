@@ -2,6 +2,7 @@ package backend
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -55,7 +56,7 @@ func GetBalanceForPhoneNumber(number string) (BalanceResp, error) {
 	}
 
 	if br.Message != "" {
-		return BalanceResp{}, fmt.Errorf(br.Message)
+		return BalanceResp{}, errors.New(br.Message)
 	}
 
 	return br, nil

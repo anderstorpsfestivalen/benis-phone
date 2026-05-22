@@ -2,6 +2,7 @@ package backend
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -59,7 +60,7 @@ func GetPromilleForPhoneNumber(number string) (PromilleResp, error) {
 	}
 
 	if pr.Message != "" {
-		return PromilleResp{}, fmt.Errorf(pr.Message)
+		return PromilleResp{}, errors.New(pr.Message)
 	}
 
 	return pr, nil

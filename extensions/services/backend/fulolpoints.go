@@ -2,6 +2,7 @@ package backend
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -55,7 +56,7 @@ func GetFulolPointsForPhoneNumber(number string) (FulolPointsResp, error) {
 	}
 
 	if br.Message != "" {
-		return FulolPointsResp{}, fmt.Errorf(br.Message)
+		return FulolPointsResp{}, errors.New(br.Message)
 	}
 
 	return br, nil
