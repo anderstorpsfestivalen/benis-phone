@@ -1,12 +1,13 @@
 // Pure helpers that turn the Fn[]/Queue[] portion of a Definition into the
 // nodes/edges React Flow renders, plus a dagre-driven auto-layout pass.
 //
-// The fn/queue list IS the source of truth — positions are recomputed on
-// every render, so saving the doc never persists graph coordinates.
+// Model: every Fn is a header node; every Action is its own node connected
+// to its parent fn by a DTMF-key-labelled edge; dst/dispatcher actions get
+// outgoing edges to their target fn/queue node.
 
 import dagre from "dagre";
 import type { Action, Fn, Queue } from "../generated/config";
-import { actionKind } from "../generated/config";
+import { actionKind, type ActionKind } from "../generated/config";
 
 export type FnNodeData = {
   kind: "fn";
@@ -15,14 +16,23 @@ export type FnNodeData = {
   isEntry: boolean;
 };
 
+export type ActionNodeData = {
+  kind: "action";
+  fnName: string;
+  actionIndex: number;
+  action: Action;
+  actionKind: ActionKind | null;
+};
+
 export type QueueNodeData = {
   kind: "queue";
-  queue: Queue | null; // null for dangling dispatcher references
+  queue: Queue | null;
   name: string;
 };
 
 export type GraphNode =
   | { id: string; type: "fnNode"; position: { x: number; y: number }; data: FnNodeData }
+  | { id: string; type: "actionNode"; position: { x: number; y: number }; data: ActionNodeData }
   | { id: string; type: "queueNode"; position: { x: number; y: number }; data: QueueNodeData };
 
 export type GraphEdge = {
@@ -30,14 +40,16 @@ export type GraphEdge = {
   source: string;
   target: string;
   label: string;
-  data: { kind: "dst" | "dispatcher"; broken: boolean };
+  data: { kind: "key" | "dst" | "dispatcher"; broken: boolean };
 };
 
-const NODE_WIDTH = 280;
-const NODE_HEIGHT_PER_ACTION = 22;
-const NODE_HEIGHT_BASE = 64;
+const FN_NODE_WIDTH = 220;
+const FN_NODE_HEIGHT = 60;
+const ACTION_NODE_WIDTH = 240;
+const ACTION_NODE_HEIGHT = 88;
+const QUEUE_NODE_WIDTH = 220;
+const QUEUE_NODE_HEIGHT = 56;
 
-/** Derive nodes & edges from the current fn/queue arrays. */
 export function buildNodesAndEdges(
   fns: Fn[],
   queues: Queue[],
@@ -45,53 +57,92 @@ export function buildNodesAndEdges(
 ): { nodes: GraphNode[]; edges: GraphEdge[] } {
   const fnNames = new Set(fns.map((f) => f.name).filter(Boolean));
   const queueNames = new Set(queues.map((q) => q.name).filter(Boolean));
-  // Queue nodes only get rendered if some fn actually references them as
-  // a dispatcher target. Otherwise the canvas fills with orphans.
-  const referencedQueues = new Set<string>();
-
-  const edges: GraphEdge[] = [];
-  fns.forEach((fn, i) => {
-    if (!fn.name) return;
-    fn.actions.forEach((action, j) => {
-      const target = dispatcherOrDst(action);
-      if (!target) return;
-      if (target.kind === "dispatcher") referencedQueues.add(target.target);
-      const broken =
-        target.kind === "dst"
-          ? !fnNames.has(target.target)
-          : !queueNames.has(target.target);
-      edges.push({
-        id: `e_${i}_${j}`,
-        source: `fn_${fn.name}`,
-        target:
-          target.kind === "dst"
-            ? `fn_${target.target}`
-            : `queue_${target.target}`,
-        label: dtmfLabel(action.num),
-        data: { kind: target.kind, broken },
-      });
-    });
-  });
+  // Queues are always rendered as their own nodes (so newly-added queues
+  // are reachable in the editor). Dispatchers create edges; if they point
+  // to a name that isn't a registered queue, we still create a placeholder
+  // node so the broken reference is visible.
+  const danglingQueueRefs = new Set<string>();
 
   const nodes: GraphNode[] = [];
+  const edges: GraphEdge[] = [];
 
   fns.forEach((fn, i) => {
     if (!fn.name) return;
+    const fnId = `fn_${fn.name}`;
     nodes.push({
-      id: `fn_${fn.name}`,
+      id: fnId,
       type: "fnNode",
       position: { x: 0, y: 0 },
       data: { kind: "fn", fn, index: i, isEntry: fn.name === entrypoint },
     });
+
+    fn.actions.forEach((action, j) => {
+      const actionId = `act_${fn.name}_${j}`;
+      nodes.push({
+        id: actionId,
+        type: "actionNode",
+        position: { x: 0, y: 0 },
+        data: {
+          kind: "action",
+          fnName: fn.name,
+          actionIndex: j,
+          action,
+          actionKind: actionKind(action),
+        },
+      });
+
+      // fn → action edge, labelled with the DTMF key
+      edges.push({
+        id: `e_${fn.name}_${j}_key`,
+        source: fnId,
+        target: actionId,
+        label: dtmfLabel(action.num),
+        data: { kind: "key", broken: false },
+      });
+
+      // action → target edge, only for dst / dispatcher
+      const target = dispatcherOrDst(action);
+      if (target) {
+        if (target.kind === "dispatcher" && !queueNames.has(target.target)) {
+          danglingQueueRefs.add(target.target);
+        }
+        const broken =
+          target.kind === "dst"
+            ? !fnNames.has(target.target)
+            : !queueNames.has(target.target);
+        edges.push({
+          id: `e_${fn.name}_${j}_to`,
+          source: actionId,
+          target:
+            target.kind === "dst"
+              ? `fn_${target.target}`
+              : `queue_${target.target}`,
+          label: "",
+          data: { kind: target.kind, broken },
+        });
+      }
+    });
   });
 
-  for (const name of referencedQueues) {
-    const q = queues.find((q) => q.name === name) ?? null;
+  // Real queues — always rendered so newly-added unreferenced queues are
+  // visible/clickable.
+  queues.forEach((q) => {
+    if (!q.name) return;
+    nodes.push({
+      id: `queue_${q.name}`,
+      type: "queueNode",
+      position: { x: 0, y: 0 },
+      data: { kind: "queue", queue: q, name: q.name },
+    });
+  });
+  // Broken dispatcher targets — placeholder nodes so the red edge has
+  // something to terminate on.
+  for (const name of danglingQueueRefs) {
     nodes.push({
       id: `queue_${name}`,
       type: "queueNode",
       position: { x: 0, y: 0 },
-      data: { kind: "queue", queue: q, name },
+      data: { kind: "queue", queue: null, name },
     });
   }
 
@@ -108,18 +159,19 @@ function dispatcherOrDst(a: Action):
   return null;
 }
 
-/** Mutates node positions in place. Left-to-right layered graph. */
 export function runDagreLayout(nodes: GraphNode[], edges: GraphEdge[]) {
   const g = new dagre.graphlib.Graph();
-  g.setGraph({ rankdir: "LR", nodesep: 40, ranksep: 80, marginx: 20, marginy: 20 });
+  g.setGraph({ rankdir: "LR", nodesep: 24, ranksep: 80, marginx: 20, marginy: 20 });
   g.setDefaultEdgeLabel(() => ({}));
 
   for (const n of nodes) {
-    const height =
+    const dims =
       n.type === "fnNode"
-        ? NODE_HEIGHT_BASE + n.data.fn.actions.length * NODE_HEIGHT_PER_ACTION
-        : 60;
-    g.setNode(n.id, { width: NODE_WIDTH, height });
+        ? { width: FN_NODE_WIDTH, height: FN_NODE_HEIGHT }
+        : n.type === "actionNode"
+          ? { width: ACTION_NODE_WIDTH, height: ACTION_NODE_HEIGHT }
+          : { width: QUEUE_NODE_WIDTH, height: QUEUE_NODE_HEIGHT };
+    g.setNode(n.id, dims);
   }
   for (const e of edges) g.setEdge(e.source, e.target);
 
@@ -132,41 +184,39 @@ export function runDagreLayout(nodes: GraphNode[], edges: GraphEdge[]) {
   }
 }
 
-/** Render the DTMF key as it would appear on the keypad. */
 export function dtmfLabel(num: number): string {
   if (num === 10) return "*";
   if (num === 11) return "#";
   return String(num);
 }
 
-/** One-line human-readable description of an action's kind + target. */
-export function actionSummary(a: Action): string {
+/** One-line description of an action — used inside the action node body. */
+export function actionDetail(a: Action): string {
   const k = actionKind(a);
   switch (k) {
     case "dst":
-      return `→ menu ${a.dst}`;
+      return `→ ${a.dst}`;
     case "dispatcher":
-      return `→ queue ${a.dispatcher}`;
+      return `→ ${a.dispatcher}`;
     case "tts":
-      return `tts "${truncate(a.tts.msg, 30)}"`;
+      return truncate(a.tts.msg, 40);
     case "file":
-      return `file ${a.file.src}`;
+      return a.file.src;
     case "randomfile":
-      return `randomfile ${a.randomfile.folder}`;
+      return a.randomfile.folder;
     case "srv":
-      return `srv ${a.srv.dst}`;
+      return a.srv.dst;
     case "transfer":
-      return `transfer ${a.transfer}`;
-    case "hangup":
-      return "hangup";
+      return a.transfer;
     case "record":
-      return `record ${a.record}`;
+      return a.record;
     case "dtmf":
-      return `dtmf ${a.dtmf}`;
+      return a.dtmf;
     case "livefeed":
-      return `livefeed ${a.livefeed?.device || "default"}`;
+      return a.livefeed?.device || "default device";
+    case "hangup":
     case "clear":
-      return "clear";
+      return "";
     default:
       return "(empty)";
   }
@@ -175,4 +225,25 @@ export function actionSummary(a: Action): string {
 function truncate(s: string, n: number): string {
   if (s.length <= n) return s;
   return s.slice(0, n - 1) + "…";
+}
+
+/** Visual classification of action kinds for node styling. */
+export type ActionCategory = "route" | "speak" | "media" | "control" | "service";
+
+export function categoryFor(kind: ActionKind | null): ActionCategory {
+  switch (kind) {
+    case "dst":
+    case "dispatcher":
+      return "route";
+    case "tts":
+      return "speak";
+    case "file":
+    case "randomfile":
+    case "livefeed":
+      return "media";
+    case "srv":
+      return "service";
+    default:
+      return "control";
+  }
 }

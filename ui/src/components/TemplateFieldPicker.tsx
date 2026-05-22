@@ -9,7 +9,7 @@ export default function TemplateFieldPicker({
   service,
   value,
   onChange,
-  rows = 5,
+  rows = 12,
 }: {
   service: string;
   value: string;
@@ -50,7 +50,8 @@ export default function TemplateFieldPicker({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         rows={rows}
-        className="px-2 py-1 rounded font-mono text-sm w-full"
+        className="px-2 py-1 rounded font-mono text-sm w-full resize-y"
+        style={{ minHeight: 280 }}
       />
       {fields.length > 0 && (
         <div>

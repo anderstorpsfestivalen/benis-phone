@@ -2,9 +2,25 @@ import type { Action, ActionKind } from "../generated/config";
 import { actionKind, ACTION_KINDS } from "../generated/config";
 import { SERVICE_NAMES } from "../generated/services";
 import { Field, TextInput, NumberInput, CheckboxInput } from "./Field";
+import HelpDot from "./HelpDot";
 import TTSEditor from "./TTSEditor";
 import ServiceArgsForm from "./ServiceArgsForm";
 import TemplateFieldPicker from "./TemplateFieldPicker";
+
+const ACTION_KIND_HELP: Record<ActionKind, string> = {
+  dst: "Jump to another menu by name. Use this to chain menus together — pressing this DTMF key sends the caller to the chosen menu.",
+  file: "Play an audio file from disk (ogg/wav/mp3). Block holds the call until playback finishes; clear stops any prior audio first.",
+  randomfile: "Pick a random file from a folder and play it. Useful for jingles, hold music variations, etc.",
+  tts: "Speak text using a TTS provider (Polly / ElevenLabs). Voice/lang/engine override the defaults from General.",
+  srv: "Call an external service (weather, traintimes, etc.), then speak the result through TTS using the template. Args drive the service.",
+  dispatcher: "Hand the caller to a named queue. Queues handle wait music, position announcements, and agent routing.",
+  transfer: "Blind SIP REFER to another endpoint. Format: sip:200@host, user@host, or just an extension like 200.",
+  hangup: "Terminate the call. After this action, the session ends.",
+  record: "Start or stop recording the live call. 'start' begins, 'stop' ends. Subfolder is appended under SIP.record_path.",
+  dtmf: "Transmit a string of DTMF digits to the remote end, 200 ms apart. Useful for chaining into upstream IVRs.",
+  livefeed: "Stream a host audio capture device into the caller's outbound RTP. Device is a case-insensitive substring match; channel picks the audio channel.",
+  clear: "Stop any currently-playing audio in this call session without otherwise affecting state.",
+};
 
 type Props = {
   value: Action;
@@ -79,13 +95,19 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
 
   return (
     <div className="bg-gunmetal border border-shadow-grey rounded p-3 mb-3">
-      <div className="flex items-center gap-3 mb-3">
+      <div className="flex flex-wrap items-end gap-3 mb-3">
         <div className="flex flex-col">
-          <span className="text-xs text-blue-slate uppercase">Key</span>
+          <span className="text-xs text-blue-slate uppercase flex items-center">
+            Key
+            <HelpDot help="DTMF key the caller presses to trigger this action. 0-9 are normal keys; 10 maps to *, 11 maps to #." />
+          </span>
           <NumberInput value={value.num} onChange={(v) => set("num", v)} />
         </div>
-        <div className="flex flex-col flex-1">
-          <span className="text-xs text-blue-slate uppercase">Kind</span>
+        <div className="flex flex-col flex-1 min-w-[120px]">
+          <span className="text-xs text-blue-slate uppercase flex items-center">
+            Kind
+            <HelpDot help={ACTION_KIND_HELP[kind]} />
+          </span>
           <select
             value={kind}
             onChange={(e) => switchKind(e.target.value as ActionKind)}
@@ -96,18 +118,59 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
             ))}
           </select>
         </div>
-        <CheckboxInput label="wait" value={value.wait} onChange={(v) => set("wait", v)} />
-        <CheckboxInput label="clear" value={value.clear} onChange={(v) => set("clear", v)} />
+        <div className="flex items-center gap-3 pb-1">
+          <CheckboxInput
+            label="wait"
+            value={value.wait}
+            onChange={(v) => set("wait", v)}
+            help="Block the menu from accepting the next DTMF press until this action finishes. Used for TTS prompts that should play in full."
+          />
+          <CheckboxInput
+            label="clear"
+            value={value.clear}
+            onChange={(v) => set("clear", v)}
+            help="Stop any currently-playing audio before this action runs. Prevents prompts from overlapping when the caller jumps menus quickly."
+          />
+        </div>
         <button
           onClick={onRemove}
-          className="text-xs px-2 py-1 border border-shadow-grey text-blue-slate hover:text-white rounded"
+          className="text-xs px-2 py-1 border border-shadow-grey text-blue-slate hover:text-white rounded shrink-0"
         >
           Remove
         </button>
       </div>
 
+      <details className="border border-shadow-grey rounded mb-3" open={!!value.prefix.tts.msg}>
+        <summary className="px-3 py-2 cursor-pointer text-xs text-blue-slate uppercase tracking-wider flex items-center">
+          Prefix (plays sequentially before action)
+          <HelpDot help="Audio played BEFORE this action runs. Sequential — the action waits until the prefix finishes. Use for short announcements like 'Connecting…' before a transfer." />
+        </summary>
+        <div className="p-3">
+          <TTSEditor
+            value={value.prefix.tts}
+            onChange={(v) => set("prefix", { ...value.prefix, tts: v })}
+          />
+        </div>
+      </details>
+
+      <details className="border border-shadow-grey rounded mb-3" open={!!value.pmsg.tts.msg}>
+        <summary className="px-3 py-2 cursor-pointer text-xs text-blue-slate uppercase tracking-wider flex items-center">
+          Pmsg (plays in parallel while action runs)
+          <HelpDot help="Audio played WHILE this action runs (parallel). Useful for slow service calls — the caller hears 'The current forecast is…' while the weather lookup + TTS synthesis happen in the background. The action's result is held until pmsg finishes." />
+        </summary>
+        <div className="p-3">
+          <TTSEditor
+            value={value.pmsg.tts}
+            onChange={(v) => set("pmsg", { ...value.pmsg, tts: v })}
+          />
+        </div>
+      </details>
+
       {kind === "dst" && (
-        <Field label="Destination menu">
+        <Field
+          label="Destination menu"
+          help="Name of the menu (fn) to jump into when this key is pressed. Must match an existing fn name."
+        >
           <select
             value={value.dst}
             onChange={(e) => set("dst", e.target.value)}
@@ -123,19 +186,35 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
 
       {kind === "file" && (
         <div className="grid grid-cols-3 gap-2">
-          <Field label="Path">
+          <Field
+            label="Path"
+            help="Path to the audio file under files/. Supported formats: wav, mp3, ogg."
+          >
             <TextInput
               value={value.file.src}
               onChange={(v) => set("file", { ...value.file, src: v })}
             />
           </Field>
-          <CheckboxInput label="block" value={value.file.block} onChange={(v) => set("file", { ...value.file, block: v })} />
-          <CheckboxInput label="clear" value={value.file.clear} onChange={(v) => set("file", { ...value.file, clear: v })} />
+          <CheckboxInput
+            label="block"
+            value={value.file.block}
+            onChange={(v) => set("file", { ...value.file, block: v })}
+            help="Hold the menu until playback finishes. Without this, subsequent actions may fire before the file is done."
+          />
+          <CheckboxInput
+            label="clear"
+            value={value.file.clear}
+            onChange={(v) => set("file", { ...value.file, clear: v })}
+            help="Stop any currently-playing audio before this file starts."
+          />
         </div>
       )}
 
       {kind === "randomfile" && (
-        <Field label="Folder">
+        <Field
+          label="Folder"
+          help="Folder under files/ containing candidate audio files. One is picked uniformly at random per invocation."
+        >
           <TextInput
             value={value.randomfile.folder}
             onChange={(v) => set("randomfile", { folder: v })}
@@ -149,7 +228,10 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
 
       {kind === "srv" && (
         <div className="grid grid-cols-1 gap-3">
-          <Field label="Service">
+          <Field
+            label="Service"
+            help="Registered service to invoke. Each service declares its own typed args and TemplateData; the editor below adapts to the choice."
+          >
             <select
               value={value.srv.dst}
               onChange={(e) => set("srv", { ...value.srv, dst: e.target.value })}
@@ -174,43 +256,64 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
       )}
 
       {kind === "dispatcher" && (
-        <Field label="Queue name">
+        <Field
+          label="Queue name"
+          help="Name of a queue defined under [[queue]]. The caller is held with announcements until an agent (or condition) picks up."
+        >
           <TextInput value={value.dispatcher} onChange={(v) => set("dispatcher", v)} />
         </Field>
       )}
 
       {kind === "transfer" && (
-        <Field label="Transfer target" hint="sip:200@host, user@host, or extension 200">
+        <Field
+          label="Transfer target"
+          help="Endpoint to blind-REFER the call to. Accepts a full SIP URI (sip:200@host), user@host, or a bare extension like 200 (resolved against the registered domain)."
+        >
           <TextInput value={value.transfer} onChange={(v) => set("transfer", v)} />
         </Field>
       )}
 
       {kind === "record" && (
         <div className="grid grid-cols-2 gap-2">
-          <Field label="Mode" hint="start | stop">
+          <Field
+            label="Mode"
+            help="'start' begins recording the live audio of this call; 'stop' ends an in-progress recording."
+          >
             <TextInput value={value.record} onChange={(v) => set("record", v)} />
           </Field>
-          <Field label="Subfolder" hint="under SIP.RecordPath">
+          <Field
+            label="Subfolder"
+            help="Subfolder appended under SIP.record_path. The full recording is written as <record_path>/<subfolder>/<call-id>.wav."
+          >
             <TextInput value={value.record_to} onChange={(v) => set("record_to", v)} />
           </Field>
         </div>
       )}
 
       {kind === "dtmf" && (
-        <Field label="DTMF digits" hint="200 ms gap between each">
+        <Field
+          label="DTMF digits"
+          help="String of DTMF digits sent to the remote end with a 200 ms gap between each. Useful for navigating upstream IVRs."
+        >
           <TextInput value={value.dtmf} onChange={(v) => set("dtmf", v)} />
         </Field>
       )}
 
       {kind === "livefeed" && value.livefeed && (
         <div className="grid grid-cols-2 gap-2">
-          <Field label="Device" hint="case-insensitive substring, empty = system default">
+          <Field
+            label="Device"
+            help="Case-insensitive substring matched against host audio capture device names. Empty selects the system default. Use the -list-audio-devices CLI flag to enumerate."
+          >
             <TextInput
               value={value.livefeed.device}
               onChange={(v) => set("livefeed", { ...value.livefeed!, device: v })}
             />
           </Field>
-          <Field label="Channel">
+          <Field
+            label="Channel"
+            help="Zero-indexed audio channel on the chosen device. 0 = first channel; useful for multi-channel interfaces."
+          >
             <NumberInput
               value={value.livefeed.channel}
               onChange={(v) => set("livefeed", { ...value.livefeed!, channel: v })}

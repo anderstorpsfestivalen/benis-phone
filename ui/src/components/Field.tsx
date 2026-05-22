@@ -1,17 +1,23 @@
 import { ReactNode } from "react";
+import HelpDot from "./HelpDot";
 
 export function Field({
   label,
   children,
   hint,
+  help,
 }: {
   label: string;
   children: ReactNode;
   hint?: string;
+  help?: string;
 }) {
   return (
     <label className="flex flex-col gap-1 text-sm">
-      <span className="text-blue-slate text-xs uppercase tracking-wide">{label}</span>
+      <span className="text-blue-slate text-xs uppercase tracking-wide flex items-center">
+        {label}
+        {help && <HelpDot help={help} />}
+      </span>
       {children}
       {hint && <span className="text-xs text-blue-slate/70">{hint}</span>}
     </label>
@@ -35,7 +41,7 @@ export function TextInput({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="px-2 py-1 rounded font-mono text-sm"
+      className="px-2 py-1 rounded font-mono text-sm w-full min-w-0"
     />
   );
 }
@@ -61,10 +67,12 @@ export function CheckboxInput({
   label,
   value,
   onChange,
+  help,
 }: {
   label: string;
   value: boolean;
   onChange: (v: boolean) => void;
+  help?: string;
 }) {
   return (
     <label className="flex items-center gap-2 text-sm cursor-pointer">
@@ -73,7 +81,10 @@ export function CheckboxInput({
         checked={value}
         onChange={(e) => onChange(e.target.checked)}
       />
-      <span>{label}</span>
+      <span className="flex items-center">
+        {label}
+        {help && <HelpDot help={help} />}
+      </span>
     </label>
   );
 }

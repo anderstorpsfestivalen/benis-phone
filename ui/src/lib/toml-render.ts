@@ -1,15 +1,17 @@
-import { stringify } from "smol-toml";
 import type { Definition, Fn, Action, Queue, QueuePrompt } from "../generated/config";
 
 // Renders the editor's JSON doc into the exact TOML shape that
 // BurntSushi/toml parses back into core/functions.Definition. The goal is
 // strict roundtrip: encode -> Go decode -> identical Definition. We do
-// three things smol-toml doesn't on its own:
-//   1. Emit [[fn]] and [[queue]] as array-of-tables sections, not inline.
+// these things smol-toml doesn't on its own (smol-toml's stringify only
+// emits standard / section-based TOML, never inline tables):
+//   1. Emit [[fn]] and [[queue]] as array-of-tables sections.
 //   2. Drop empty / zero-value branches so we don't pollute TOML with
 //      noise like `wait = false` on every action.
 //   3. Emit `actions = [ {...}, {...} ]` as inline-table arrays to match
 //      the hand-authored TOML style under configurations/.
+//   4. Use triple-quoted literal strings ("""...""") for any value that
+//      contains a newline so the result stays readable.
 
 export function renderToml(d: Definition): string {
   const parts: string[] = [];
@@ -31,7 +33,7 @@ export function renderToml(d: Definition): string {
 
 function renderFn(fn: Fn): string {
   const body: string[] = ["[[fn]]"];
-  if (fn.name) body.push(`name = ${JSON.stringify(fn.name)}`);
+  if (fn.name) body.push(`name = ${formatString(fn.name)}`);
   if (notEmpty(fn.recording)) body.push(`recording = ${inline(prune(fn.recording))}`);
   if (notEmpty(fn.prefix)) body.push(`prefix = ${inline(prune(fn.prefix))}`);
   if (notEmpty(fn.gate)) body.push(`gate = ${inline(prune(fn.gate))}`);
@@ -48,8 +50,6 @@ function renderFn(fn: Fn): string {
 }
 
 function actionForToml(a: Action): Record<string, unknown> {
-  // Strip the fields BurntSushi/toml would name differently or that the
-  // discriminator UI may have left as no-ops. prune() handles zero values.
   return {
     num: a.num,
     wait: a.wait,
@@ -73,7 +73,7 @@ function actionForToml(a: Action): Record<string, unknown> {
 
 function renderQueue(q: Queue): string {
   const body: string[] = ["[[queue]]"];
-  if (q.name) body.push(`name = ${JSON.stringify(q.name)}`);
+  if (q.name) body.push(`name = ${formatString(q.name)}`);
   if (notEmpty(q.entrymsg)) body.push(`entrymsg = ${inline(prune(q.entrymsg))}`);
   if (q.minpos) body.push(`minpos = ${q.minpos}`);
   if (q.maxpos) body.push(`maxpos = ${q.maxpos}`);
@@ -106,15 +106,44 @@ function kv(o: Record<string, unknown>): string {
   return lines.join("\n");
 }
 
-function inline(o: unknown): string {
-  return stringify({ _: o }).replace(/^_ = /, "").trim();
+// inline emits a value in inline-TOML form: strings become quoted; arrays
+// become `[v1, v2]`; objects become `{ k1 = v1, k2 = v2 }`. Multiline
+// strings get triple-quoted literal-string form.
+function inline(v: unknown): string {
+  return tomlValue(v);
 }
 
 function tomlValue(v: unknown): string {
-  if (typeof v === "string") return JSON.stringify(v);
-  if (typeof v === "number" || typeof v === "boolean") return String(v);
   if (v === null || v === undefined) return '""';
-  return inline(v);
+  if (typeof v === "string") return formatString(v);
+  if (typeof v === "number") return Number.isFinite(v) ? String(v) : "0";
+  if (typeof v === "boolean") return v ? "true" : "false";
+  if (Array.isArray(v)) {
+    if (v.length === 0) return "[]";
+    return "[" + v.map((x) => tomlValue(x)).join(", ") + "]";
+  }
+  if (typeof v === "object") {
+    const entries = Object.entries(v as Record<string, unknown>);
+    if (entries.length === 0) return "{}";
+    return (
+      "{ " +
+      entries.map(([k, val]) => `${k} = ${tomlValue(val)}`).join(", ") +
+      " }"
+    );
+  }
+  return '""';
+}
+
+// formatString picks single-line "..." vs triple-quoted """...""" based on
+// content. Single-line strings get JSON-escaped (which is a subset of
+// TOML's basic string syntax: \n, \t, \r, \", \\, and \uXXXX all match).
+function formatString(s: string): string {
+  if (!s.includes("\n") && !s.includes("\r")) return JSON.stringify(s);
+  // Multi-line literal-ish form. TOML """...""" is a basic multi-line
+  // string: \ and the same escapes apply, but newlines and " are allowed
+  // verbatim (except for """ which we have to escape).
+  const escaped = s.replace(/\\/g, "\\\\").replace(/"""/g, '"\\"\\"');
+  return `"""${escaped}"""`;
 }
 
 // prune removes fields whose values are empty strings, zero, false, empty
