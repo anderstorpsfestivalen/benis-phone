@@ -4,10 +4,22 @@ import (
 	"bytes"
 	"html/template"
 	"math/rand"
+	"reflect"
 	"time"
 )
 
+// Args is empty: this service takes no arguments.
+type Args struct{}
+
+// TemplateData is the value passed into the caller's text/template.
+type TemplateData struct {
+	Slang string `desc:"A random drug-and-slang sentence in Swedish"`
+}
+
 type Drogslang struct{}
+
+func (d *Drogslang) ArgsType() reflect.Type     { return reflect.TypeOf(Args{}) }
+func (d *Drogslang) TemplateType() reflect.Type { return reflect.TypeOf(TemplateData{}) }
 
 func (f *Drogslang) Get(input string, tmpl string, arguments map[string]string) (string, error) {
 	ttmpl, err := template.New("drogslang").Parse(tmpl)
@@ -57,11 +69,7 @@ func (f *Drogslang) Get(input string, tmpl string, arguments map[string]string) 
 		message = "Anfetamin. Speed. Tjack. Sho. Tjosan. Ful. Klet. Vaket. Affe. Skor. Billigt. Ice."
 	}
 
-	type DS struct {
-		Slang string
-	}
-
-	ds := DS{
+	ds := TemplateData{
 		Slang: message,
 	}
 

@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"reflect"
 	"strings"
 	"text/template"
 	"time"
@@ -25,11 +26,18 @@ import (
 
 const apiURL = "https://bastu-bot.wberg.workers.dev/temperatures"
 
+// Args is the typed view of the TOML `args` map for this service.
+type Args struct {
+	Target string `schema:"required" desc:"Case-insensitive sauna name, e.g. Summalajnen"`
+}
+
 type Saunatemp struct {
 	HTTP *http.Client
 }
 
-func (s *Saunatemp) MaxInputLength() int { return 0 }
+func (s *Saunatemp) MaxInputLength() int       { return 0 }
+func (s *Saunatemp) ArgsType() reflect.Type    { return reflect.TypeOf(Args{}) }
+func (s *Saunatemp) TemplateType() reflect.Type { return reflect.TypeOf(TemplateData{}) }
 
 func (s *Saunatemp) Get(_ string, tmpl string, args map[string]string) (string, error) {
 	target := strings.TrimSpace(args["target"])

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api } from "../lib/api";
-import { emptyDefinition, emptyFn, emptyQueue } from "../lib/empty";
+import { emptyDefinition, emptyQueue } from "../lib/empty";
 import { renderToml } from "../lib/toml-render";
 import type { Definition } from "../generated/config";
 import { Field, TextInput, NumberInput, CheckboxInput } from "../components/Field";
-import FnEditor from "../components/FnEditor";
+import FnGraph from "../components/FnGraph";
 
 type Tab = "general" | "sip" | "fn" | "queue" | "toml";
 
@@ -27,7 +27,6 @@ export default function ConfigEditor() {
   }, [name]);
 
   const toml = useMemo(() => renderToml(doc), [doc]);
-  const fnNames = useMemo(() => doc.fn.map((f) => f.name).filter(Boolean), [doc]);
 
   async function save() {
     setSaving(true);
@@ -48,7 +47,7 @@ export default function ConfigEditor() {
     setDoc({ ...doc, sip: { ...doc.sip, [k]: v } });
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className={tab === "fn" ? "max-w-[1600px] mx-auto" : "max-w-5xl mx-auto"}>
       <div className="flex items-center gap-3 mb-4">
         <Link to="/" className="text-blue-slate hover:text-white text-sm">← back</Link>
         <h1 className="font-mono text-white">{name}</h1>
@@ -164,27 +163,12 @@ export default function ConfigEditor() {
       )}
 
       {tab === "fn" && (
-        <div className="flex flex-col gap-3">
-          <button
-            onClick={() => setDoc({ ...doc, fn: [...doc.fn, emptyFn(`fn${doc.fn.length + 1}`)] })}
-            className="self-start px-3 py-1 border border-shadow-grey text-blue-slate hover:text-white rounded text-sm"
-          >
-            + add fn
-          </button>
-          {doc.fn.map((f, i) => (
-            <FnEditor
-              key={i}
-              value={f}
-              knownFnNames={fnNames}
-              onChange={(v) => {
-                const next = [...doc.fn];
-                next[i] = v;
-                setDoc({ ...doc, fn: next });
-              }}
-              onRemove={() => setDoc({ ...doc, fn: doc.fn.filter((_, n) => n !== i) })}
-            />
-          ))}
-        </div>
+        <FnGraph
+          fns={doc.fn}
+          queues={doc.queue}
+          entrypoint={doc.general.entrypoint}
+          onChange={(fns) => setDoc({ ...doc, fn: fns })}
+        />
       )}
 
       {tab === "queue" && (

@@ -1,6 +1,8 @@
 package services
 
 import (
+	"reflect"
+
 	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/drogslang"
 	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/drugslang"
 	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/flacornot"
@@ -11,9 +13,15 @@ import (
 	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/weather"
 )
 
+// Service is the contract every IVR extension must satisfy. ArgsType and
+// TemplateType return the Go types describing the service's TOML args block
+// and the value passed into its text/template — the editor UI reflects on
+// both via tools/typegen to render typed forms instead of free-text input.
 type Service interface {
 	Get(input string, template string, arguments map[string]string) (string, error)
 	MaxInputLength() int
+	ArgsType() reflect.Type
+	TemplateType() reflect.Type
 }
 
 type ServiceResponse struct {

@@ -5,9 +5,17 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"reflect"
 
 	"github.com/anderstorpsfestivalen/benis-phone/core/secrets"
 )
+
+// Args is empty: this service takes no arguments.
+type Args struct{}
+
+// TemplateData is empty: the service returns a pre-built string rather than
+// rendering a caller-supplied template.
+type TemplateData struct{}
 
 type APIResopnse struct {
 	Spotify struct {
@@ -70,3 +78,6 @@ func (f *FlacOrNot) Get(input string, tmpl string, arguments map[string]string) 
 func (t *FlacOrNot) MaxInputLength() int {
 	return 0
 }
+
+func (t *FlacOrNot) ArgsType() reflect.Type     { return reflect.TypeOf(Args{}) }
+func (t *FlacOrNot) TemplateType() reflect.Type { return reflect.TypeOf(TemplateData{}) }

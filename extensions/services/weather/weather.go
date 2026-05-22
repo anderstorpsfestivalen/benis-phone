@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"reflect"
 	"strconv"
 	"text/template"
 	"time"
@@ -28,12 +29,23 @@ import (
 
 const apiURL = "https://api.open-meteo.com/v1/forecast"
 
+// Args is the typed view of the TOML `args` map for this service. Tags drive
+// the editor UI; the runtime still reads from map[string]string.
+type Args struct {
+	Latitude  string `schema:"required" desc:"Decimal latitude, e.g. 57.78"`
+	Longitude string `schema:"required" desc:"Decimal longitude, e.g. 13.94"`
+	Timezone  string `schema:"default=auto" desc:"IANA timezone, e.g. Europe/Stockholm"`
+	Name      string `desc:"Display name surfaced as {{.Place}}; falls back to coords"`
+}
+
 // Weather implements the services.Service interface.
 type Weather struct {
 	HTTP *http.Client // optional; defaults to http.DefaultClient with a short timeout
 }
 
-func (w *Weather) MaxInputLength() int { return 0 }
+func (w *Weather) MaxInputLength() int       { return 0 }
+func (w *Weather) ArgsType() reflect.Type    { return reflect.TypeOf(Args{}) }
+func (w *Weather) TemplateType() reflect.Type { return reflect.TypeOf(TemplateData{}) }
 
 // Get pulls a forecast and renders the supplied template against the
 // TemplateData shape. Returns the rendered text on success.

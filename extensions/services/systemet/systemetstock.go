@@ -2,13 +2,28 @@ package systemet
 
 import (
 	"bytes"
+	"reflect"
 	"strconv"
 	"text/template"
 )
 
+// SystemetStockArgs is the typed view of the TOML `args` map for this service.
+type SystemetStockArgs struct {
+	ProductID string `schema:"required" desc:"Systembolaget product ID"`
+	StoreID   string `schema:"required" desc:"Store ID to query stock at"`
+}
+
+// SystemetStockTemplate is the value passed into the caller's text/template.
+type SystemetStockTemplate struct {
+	Stock string `desc:"Number of bottles in stock, as a string"`
+}
+
 type SystemetStock struct {
 	api *SystemetV2
 }
+
+func (f *SystemetStock) ArgsType() reflect.Type     { return reflect.TypeOf(SystemetStockArgs{}) }
+func (f *SystemetStock) TemplateType() reflect.Type { return reflect.TypeOf(SystemetStockTemplate{}) }
 
 func CreateStock(api *SystemetV2) *SystemetStock {
 	return &SystemetStock{

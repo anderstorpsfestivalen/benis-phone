@@ -1,8 +1,10 @@
 import type { Action, ActionKind } from "../generated/config";
 import { actionKind, ACTION_KINDS } from "../generated/config";
 import { SERVICE_NAMES } from "../generated/services";
-import { Field, TextInput, TextArea, NumberInput, CheckboxInput } from "./Field";
+import { Field, TextInput, NumberInput, CheckboxInput } from "./Field";
 import TTSEditor from "./TTSEditor";
+import ServiceArgsForm from "./ServiceArgsForm";
+import TemplateFieldPicker from "./TemplateFieldPicker";
 
 type Props = {
   value: Action;
@@ -158,16 +160,15 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
               ))}
             </select>
           </Field>
-          <Field label="Template (Go text/template, e.g. {{.Field}})">
-            <TextArea
-              value={value.srv.tmpl}
-              onChange={(v) => set("srv", { ...value.srv, tmpl: v })}
-              rows={5}
-            />
-          </Field>
-          <ArgsEditor
+          <ServiceArgsForm
+            service={value.srv.dst}
             value={value.srv.args}
             onChange={(v) => set("srv", { ...value.srv, args: v })}
+          />
+          <TemplateFieldPicker
+            service={value.srv.dst}
+            value={value.srv.tmpl}
+            onChange={(v) => set("srv", { ...value.srv, tmpl: v })}
           />
         </div>
       )}
@@ -228,63 +229,3 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
   );
 }
 
-function ArgsEditor({
-  value,
-  onChange,
-}: {
-  value: Record<string, string>;
-  onChange: (v: Record<string, string>) => void;
-}) {
-  const entries = Object.entries(value);
-  function update(k: string, v: string) {
-    onChange({ ...value, [k]: v });
-  }
-  function rename(oldK: string, newK: string) {
-    if (newK === oldK || !newK) return;
-    const next: Record<string, string> = {};
-    for (const [k, v] of Object.entries(value)) next[k === oldK ? newK : k] = v;
-    onChange(next);
-  }
-  function remove(k: string) {
-    const next = { ...value };
-    delete next[k];
-    onChange(next);
-  }
-  function add() {
-    const k = `key${entries.length + 1}`;
-    onChange({ ...value, [k]: "" });
-  }
-  return (
-    <div>
-      <span className="text-xs text-blue-slate uppercase">Args</span>
-      <div className="flex flex-col gap-2 mt-1">
-        {entries.map(([k, v]) => (
-          <div key={k} className="flex gap-2">
-            <input
-              className="px-2 py-1 rounded font-mono text-sm w-1/3"
-              value={k}
-              onChange={(e) => rename(k, e.target.value)}
-            />
-            <input
-              className="px-2 py-1 rounded font-mono text-sm flex-1"
-              value={v}
-              onChange={(e) => update(k, e.target.value)}
-            />
-            <button
-              onClick={() => remove(k)}
-              className="text-xs px-2 py-1 border border-shadow-grey text-blue-slate hover:text-white rounded"
-            >
-              x
-            </button>
-          </div>
-        ))}
-        <button
-          onClick={add}
-          className="text-xs px-2 py-1 border border-shadow-grey text-blue-slate hover:text-white rounded self-start"
-        >
-          + arg
-        </button>
-      </div>
-    </div>
-  );
-}

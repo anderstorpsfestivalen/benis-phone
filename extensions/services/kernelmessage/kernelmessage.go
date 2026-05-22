@@ -7,19 +7,28 @@ import (
 	"html/template"
 	"io/ioutil"
 	"net/http"
+	"reflect"
 )
+
+// Args is empty: this service takes no arguments.
+type Args struct{}
 
 type KernelMessage struct {
 }
 
-type Message struct {
-	From    string
-	To      string
-	Subject string
-	Date    string
+func (k *KernelMessage) ArgsType() reflect.Type     { return reflect.TypeOf(Args{}) }
+func (k *KernelMessage) TemplateType() reflect.Type { return reflect.TypeOf(TemplateData{}) }
 
-	Text     string
-	Filtered string
+// TemplateData is the value passed into the caller's text/template — a single
+// kernel message fetched from the MCH messages endpoint.
+type TemplateData struct {
+	From    string `desc:"Sender of the message"`
+	To      string `desc:"Recipient of the message"`
+	Subject string `desc:"Subject line"`
+	Date    string `desc:"Timestamp the message was posted"`
+
+	Text     string `desc:"Raw body of the message"`
+	Filtered string `desc:"Body with profanity / unspeakable bits filtered out"`
 }
 
 const url string = "https://mch.anderstorpsfestivalen.se/kernel/messages"
@@ -31,7 +40,7 @@ func (k *KernelMessage) Get(input string, tmpl string, arguments map[string]stri
 		return "", err
 	}
 
-	s := []Message{}
+	s := []TemplateData{}
 
 	res, err := http.Get(url)
 

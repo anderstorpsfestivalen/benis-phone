@@ -3,14 +3,22 @@ package systemet
 import (
 	"bytes"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"text/template"
 )
 
+// SystemetPidArgs is the typed view of the TOML `args` map for this service —
+// no args; the DTMF input is the lookup key.
+type SystemetPidArgs struct{}
+
 type SystemetPid struct {
 	api *SystemetV2
 }
+
+func (f *SystemetPid) ArgsType() reflect.Type     { return reflect.TypeOf(SystemetPidArgs{}) }
+func (f *SystemetPid) TemplateType() reflect.Type { return reflect.TypeOf(SystemetPidResponse{}) }
 
 type SystemetPidResponse struct {
 	R       Product

@@ -102,6 +102,23 @@ func main() {
 		fatal("parse services: %v", err)
 	}
 
+	serviceSchemas := make([]ServiceSchemaInfo, 0, len(services))
+	for _, svc := range services {
+		args, err := parseServiceArgs(svc.Dir)
+		if err != nil {
+			fatal("parse %s args: %v", svc.Name, err)
+		}
+		fields, err := parseServiceTemplate(svc.Dir)
+		if err != nil {
+			fatal("parse %s template: %v", svc.Name, err)
+		}
+		serviceSchemas = append(serviceSchemas, ServiceSchemaInfo{
+			Name:           svc.Name,
+			Args:           args,
+			TemplateFields: fields,
+		})
+	}
+
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		fatal("mkdir out: %v", err)
 	}
@@ -112,11 +129,11 @@ func main() {
 	if err := writeSchemasTS(filtered); err != nil {
 		fatal("write schemas.ts: %v", err)
 	}
-	if err := writeServicesTS(services); err != nil {
+	if err := writeServicesTS(serviceSchemas); err != nil {
 		fatal("write services.ts: %v", err)
 	}
 
-	fmt.Fprintf(os.Stderr, "typegen: wrote %d structs and %d services to %s\n", len(filtered), len(services), outDir)
+	fmt.Fprintf(os.Stderr, "typegen: wrote %d structs and %d services to %s\n", len(filtered), len(serviceSchemas), outDir)
 }
 
 func findRepoRoot() string {
@@ -272,13 +289,65 @@ func goTypeToTS(expr ast.Expr) (string, bool) {
 	return "", false
 }
 
-func parseServiceRegistry(path string) ([]string, error) {
+// ServiceInfo names a registered service and the on-disk directory of its
+// package (e.g. {Name: "traintimes", Dir: "extensions/services/train"}).
+type ServiceInfo struct {
+	Name string
+	Dir  string
+}
+
+// ArgSchema mirrors one field of a service's `Args` struct after tag parsing.
+type ArgSchema struct {
+	Name        string // toml-style lowercase
+	Type        string // "string" | "number" | "boolean"
+	Required    bool
+	Description string
+	Default     string
+}
+
+// TemplateField is one accessor path inside a service's `TemplateData` value,
+// flattened from nested structs (e.g. ".Current.TempC").
+type TemplateField struct {
+	Path        string
+	Type        string // "string" | "number" | "boolean" | "slice" | "struct"
+	Description string
+}
+
+// ServiceSchemaInfo bundles everything the UI needs about one service.
+type ServiceSchemaInfo struct {
+	Name           string
+	Args           []ArgSchema
+	TemplateFields []TemplateField
+}
+
+func parseServiceRegistry(path string) ([]ServiceInfo, error) {
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, path, nil, 0)
 	if err != nil {
 		return nil, err
 	}
-	var names []string
+
+	// alias → import path (e.g. "train" → ".../extensions/services/train")
+	aliasToPath := map[string]string{}
+	for _, imp := range file.Imports {
+		p, err := strconv.Unquote(imp.Path.Value)
+		if err != nil {
+			continue
+		}
+		alias := ""
+		if imp.Name != nil {
+			alias = imp.Name.Name
+		} else {
+			// Default alias is the last path segment.
+			alias = p
+			if i := strings.LastIndex(alias, "/"); i >= 0 {
+				alias = alias[i+1:]
+			}
+		}
+		aliasToPath[alias] = p
+	}
+
+	var infos []ServiceInfo
 	for _, decl := range file.Decls {
 		gen, ok := decl.(*ast.GenDecl)
 		if !ok || gen.Tok != token.VAR {
@@ -305,16 +374,247 @@ func parseServiceRegistry(path string) ([]string, error) {
 				if !ok || key.Kind != token.STRING {
 					continue
 				}
-				s, err := strconv.Unquote(key.Value)
+				name, err := strconv.Unquote(key.Value)
 				if err != nil {
 					continue
 				}
-				names = append(names, s)
+				selector := resolvePackageSelector(kv.Value)
+				if selector == "" {
+					continue
+				}
+				importPath, ok := aliasToPath[selector]
+				if !ok {
+					continue
+				}
+				// Convert the import path back to a repo-relative dir.
+				dir := importPath
+				const prefix = "github.com/anderstorpsfestivalen/benis-phone/"
+				if strings.HasPrefix(dir, prefix) {
+					dir = strings.TrimPrefix(dir, prefix)
+				}
+				infos = append(infos, ServiceInfo{Name: name, Dir: dir})
 			}
 		}
 	}
-	sort.Strings(names)
-	return names, nil
+	sort.Slice(infos, func(i, j int) bool { return infos[i].Name < infos[j].Name })
+	return infos, nil
+}
+
+// resolvePackageSelector pulls the package alias out of expressions like
+// `&weather.Weather{}` or `weather.Weather{}` — returning "weather".
+func resolvePackageSelector(expr ast.Expr) string {
+	if u, ok := expr.(*ast.UnaryExpr); ok {
+		expr = u.X
+	}
+	cl, ok := expr.(*ast.CompositeLit)
+	if !ok {
+		return ""
+	}
+	sel, ok := cl.Type.(*ast.SelectorExpr)
+	if !ok {
+		return ""
+	}
+	id, ok := sel.X.(*ast.Ident)
+	if !ok {
+		return ""
+	}
+	return id.Name
+}
+
+// parseServiceArgs reads the `Args` struct from a service package and
+// returns its fields as ArgSchema entries. A missing Args type returns an
+// empty slice (no args).
+func parseServiceArgs(dir string) ([]ArgSchema, error) {
+	types, err := parsePackageStructs(dir)
+	if err != nil {
+		return nil, err
+	}
+	st, ok := types["Args"]
+	if !ok {
+		return nil, fmt.Errorf("%s: missing `type Args struct`", dir)
+	}
+	var out []ArgSchema
+	for _, field := range st.Fields.List {
+		for _, n := range field.Names {
+			if !n.IsExported() {
+				continue
+			}
+			tsType, _ := goTypeToTS(field.Type)
+			argType := "string"
+			switch tsType {
+			case "number":
+				argType = "number"
+			case "boolean":
+				argType = "boolean"
+			}
+			name := tomlOrLower(field.Tag, n.Name)
+			required, def, desc := parseSchemaTags(field.Tag)
+			out = append(out, ArgSchema{
+				Name:        name,
+				Type:        argType,
+				Required:    required,
+				Default:     def,
+				Description: desc,
+			})
+		}
+	}
+	return out, nil
+}
+
+// parseServiceTemplate flattens `TemplateData` from a service package into a
+// list of dot-paths usable in a Go text/template.
+func parseServiceTemplate(dir string) ([]TemplateField, error) {
+	types, err := parsePackageStructs(dir)
+	if err != nil {
+		return nil, err
+	}
+	st, ok := types["TemplateData"]
+	if !ok {
+		return nil, fmt.Errorf("%s: missing `type TemplateData struct`", dir)
+	}
+	var out []TemplateField
+	walkTemplateStruct(st, types, "", 0, &out)
+	return out, nil
+}
+
+const maxTemplateDepth = 3
+
+func walkTemplateStruct(st *ast.StructType, all map[string]*ast.StructType, prefix string, depth int, out *[]TemplateField) {
+	for _, field := range st.Fields.List {
+		for _, n := range field.Names {
+			if !n.IsExported() {
+				continue
+			}
+			path := prefix + "." + n.Name
+			_, desc := parseDescTag(field.Tag)
+			tsType, isSlice, nested := classifyTemplateType(field.Type)
+			*out = append(*out, TemplateField{
+				Path:        path,
+				Type:        tsType,
+				Description: desc,
+			})
+			if isSlice {
+				continue // don't recurse into slice element types (path syntax gets messy)
+			}
+			if nested != "" && depth+1 < maxTemplateDepth {
+				if child, ok := all[nested]; ok {
+					walkTemplateStruct(child, all, path, depth+1, out)
+				}
+			}
+		}
+	}
+}
+
+// classifyTemplateType returns (label, isSlice, nestedStructName).
+// nestedStructName is non-empty when the field is a struct defined in the
+// same package, signalling that recursion should follow.
+func classifyTemplateType(expr ast.Expr) (string, bool, string) {
+	switch t := expr.(type) {
+	case *ast.Ident:
+		switch t.Name {
+		case "string":
+			return "string", false, ""
+		case "bool":
+			return "boolean", false, ""
+		case "int", "int8", "int16", "int32", "int64",
+			"uint", "uint8", "uint16", "uint32", "uint64",
+			"float32", "float64":
+			return "number", false, ""
+		default:
+			// Named type — assume same-package struct; caller looks it up.
+			return "struct", false, t.Name
+		}
+	case *ast.StarExpr:
+		return classifyTemplateType(t.X)
+	case *ast.ArrayType:
+		_, _, nested := classifyTemplateType(t.Elt)
+		_ = nested
+		return "slice", true, ""
+	case *ast.SelectorExpr:
+		// External type (e.g. trainannouncement.TrainAnnouncement). We can't
+		// see its fields, so surface the path but don't recurse.
+		return "struct", false, ""
+	}
+	return "unknown", false, ""
+}
+
+// parsePackageStructs returns the map of struct name → AST node for one
+// non-test Go package directory.
+func parsePackageStructs(dir string) (map[string]*ast.StructType, error) {
+	fset := token.NewFileSet()
+	pkgs, err := parser.ParseDir(fset, dir, func(fi os.FileInfo) bool {
+		return !strings.HasSuffix(fi.Name(), "_test.go")
+	}, parser.ParseComments)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]*ast.StructType{}
+	for _, pkg := range pkgs {
+		for _, file := range pkg.Files {
+			for _, decl := range file.Decls {
+				gen, ok := decl.(*ast.GenDecl)
+				if !ok || gen.Tok != token.TYPE {
+					continue
+				}
+				for _, spec := range gen.Specs {
+					ts, ok := spec.(*ast.TypeSpec)
+					if !ok {
+						continue
+					}
+					st, ok := ts.Type.(*ast.StructType)
+					if !ok {
+						continue
+					}
+					out[ts.Name.Name] = st
+				}
+			}
+		}
+	}
+	return out, nil
+}
+
+// parseSchemaTags pulls `schema:"required"`, `schema:"default=auto"` and
+// `desc:"..."` out of a struct tag.
+func parseSchemaTags(tag *ast.BasicLit) (required bool, def string, desc string) {
+	if tag == nil {
+		return false, "", ""
+	}
+	raw, err := strconv.Unquote(tag.Value)
+	if err != nil {
+		return false, "", ""
+	}
+	st := reflect.StructTag(raw)
+	schema := st.Get("schema")
+	for _, part := range strings.Split(schema, ",") {
+		part = strings.TrimSpace(part)
+		switch {
+		case part == "required":
+			required = true
+		case strings.HasPrefix(part, "default="):
+			def = strings.TrimPrefix(part, "default=")
+		}
+	}
+	desc = st.Get("desc")
+	return required, def, desc
+}
+
+func parseDescTag(tag *ast.BasicLit) (string, string) {
+	if tag == nil {
+		return "", ""
+	}
+	raw, err := strconv.Unquote(tag.Value)
+	if err != nil {
+		return "", ""
+	}
+	st := reflect.StructTag(raw)
+	return "", st.Get("desc")
+}
+
+func tomlOrLower(tag *ast.BasicLit, goName string) string {
+	if name, _ := parseTomlTag(tag); name != "" {
+		return name
+	}
+	return strings.ToLower(goName)
 }
 
 func writeConfigTS(structs []Struct) error {
@@ -359,21 +659,75 @@ func writeSchemasTS(structs []Struct) error {
 	return os.WriteFile(filepath.Join(outDir, "schemas.ts"), []byte(b.String()), 0o644)
 }
 
-func writeServicesTS(names []string) error {
+func writeServicesTS(schemas []ServiceSchemaInfo) error {
 	var b strings.Builder
 	writeHeader(&b)
-	b.WriteString("\n")
-	if len(names) == 0 {
+	b.WriteString(`
+export type ArgSchema = {
+  name: string;
+  type: "string" | "number" | "boolean";
+  required: boolean;
+  description: string;
+  default: string;
+};
+
+export type TemplateField = {
+  path: string;
+  type: "string" | "number" | "boolean" | "slice" | "struct" | "unknown";
+  description: string;
+};
+
+export type ServiceSchema = {
+  args: readonly ArgSchema[];
+  templateFields: readonly TemplateField[];
+};
+
+`)
+
+	if len(schemas) == 0 {
+		b.WriteString("export const SERVICE_SCHEMAS: Record<string, ServiceSchema> = {};\n")
 		b.WriteString("export const SERVICE_NAMES = [] as const;\n")
 		b.WriteString("export type ServiceName = never;\n")
 		return os.WriteFile(filepath.Join(outDir, "services.ts"), []byte(b.String()), 0o644)
 	}
-	b.WriteString("export const SERVICE_NAMES = [\n")
-	for _, n := range names {
-		b.WriteString(fmt.Sprintf("  %q,\n", n))
+
+	// We emit the schema literals into a helper `_RAW` so `as const` can pin
+	// the service-name keys for ServiceName, while the public
+	// SERVICE_SCHEMAS export keeps the wider ServiceSchema field types so
+	// consumers can iterate args without bumping into narrow literal types.
+	b.WriteString("const _RAW = {\n")
+	for _, s := range schemas {
+		b.WriteString(fmt.Sprintf("  %q: {\n", s.Name))
+		// args
+		b.WriteString("    args: [")
+		if len(s.Args) > 0 {
+			b.WriteString("\n")
+			for _, a := range s.Args {
+				b.WriteString(fmt.Sprintf("      { name: %q, type: %q, required: %t, description: %q, default: %q },\n",
+					a.Name, a.Type, a.Required, a.Description, a.Default))
+			}
+			b.WriteString("    ")
+		}
+		b.WriteString("],\n")
+		// template fields
+		b.WriteString("    templateFields: [")
+		if len(s.TemplateFields) > 0 {
+			b.WriteString("\n")
+			for _, f := range s.TemplateFields {
+				b.WriteString(fmt.Sprintf("      { path: %q, type: %q, description: %q },\n",
+					f.Path, f.Type, f.Description))
+			}
+			b.WriteString("    ")
+		}
+		b.WriteString("],\n")
+		b.WriteString("  },\n")
 	}
-	b.WriteString("] as const;\n\n")
-	b.WriteString("export type ServiceName = (typeof SERVICE_NAMES)[number];\n")
+	b.WriteString("} as const;\n\n")
+
+	b.WriteString("export type ServiceName = keyof typeof _RAW;\n")
+	b.WriteString("export const SERVICE_SCHEMAS: Record<ServiceName, ServiceSchema> = _RAW;\n")
+	b.WriteString("export const SERVICE_NAMES = Object.keys(SERVICE_SCHEMAS) as ServiceName[];\n")
+
 	return os.WriteFile(filepath.Join(outDir, "services.ts"), []byte(b.String()), 0o644)
 }
 
