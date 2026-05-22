@@ -18,5 +18,16 @@ database_name = "benis-pbx"
 database_id = "1e55b433-bba7-41d4-9ef8-56ed02f58ecc"
 migrations_dir = "worker/migrations"
 
+# ConfigBroker: a single Durable Object that fans out config-changed
+# events to subscribed Go binaries over WebSocket. Uses the hibernation
+# API so it's idle (and free) between events.
+[[durable_objects.bindings]]
+name = "CONFIG_BROKER"
+class_name = "ConfigBroker"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ConfigBroker"]
+
 # Wrangler secrets (set with `wrangler secret put`):
 #   CONFIG_BEARER_TOKEN — shared with the Go binary via creds/creds.json

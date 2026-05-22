@@ -6,6 +6,9 @@ export interface Env {
   // Static assets binding (the built React app in ./dist). Calling
   // env.ASSETS.fetch(req) serves a file if one exists.
   ASSETS: Fetcher;
+  // ConfigBroker DO namespace — used by the editor save path to notify
+  // subscribers and by /config/ws to upgrade incoming subscriptions.
+  CONFIG_BROKER: DurableObjectNamespace;
 }
 
 // /config (consumed by the Go binary). Plain bearer token. Cloudflare

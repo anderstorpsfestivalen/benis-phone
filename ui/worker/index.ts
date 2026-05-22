@@ -1,12 +1,22 @@
 import { checkAccess, checkBearer, type Env } from "./lib/auth";
 import { handleApi } from "./handlers/configs";
-import { handleConfig } from "./handlers/serve";
+import { handleConfig, handleConfigWS } from "./handlers/serve";
 import { notFound, unauthorized } from "./lib/responses";
 
+export { ConfigBroker } from "./durable/configBroker";
+
 export default {
-  async fetch(req: Request, env: Env): Promise<Response> {
+  async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(req.url);
     try {
+      // Bearer-token WebSocket endpoint (Go binary). Long-lived push
+      // channel for config-changed events; replaces the old hash-polling
+      // loop. Outside the Access perimeter because phones are headless.
+      if (url.pathname === "/config/ws") {
+        if (!checkBearer(req, env)) return unauthorized();
+        return await handleConfigWS(req, env);
+      }
+
       // Bearer-token endpoint (Go binary). Outside the Access perimeter on
       // purpose — phones are headless clients.
       if (url.pathname === "/config") {
@@ -18,7 +28,7 @@ export default {
       if (url.pathname.startsWith("/api/")) {
         if (!checkAccess(req)) return unauthorized();
         if (url.pathname.startsWith("/api/configs")) {
-          return await handleApi(req, env, url.pathname);
+          return await handleApi(req, env, url.pathname, ctx);
         }
         return notFound();
       }

@@ -12,16 +12,16 @@ benis-phone (Best Enterprise Network Integrated Soft-phone) is a Go-based IVR te
 # Build
 go build benis-phone.go
 
-# Run against the SIP server configured in the default TOML
-./benis-phone
+# Default: -source=remote. Subscribes to the worker's ConfigBroker DO
+# over WebSocket and hot-swaps the IVR tree when the editor saves.
+# In-flight calls keep their old snapshot; new calls pick up the new
+# config. Pass -poll to add the legacy HTTP poll fallback (use only when
+# the WS upgrade is blocked).
+./benis-phone -config simonstorp
+./benis-phone -c simonstorp                  # short alias
 
-# Custom configuration
-./benis-phone -def configurations/atp.toml
-
-# Remote configuration (Cloudflare Worker). Polls /config?name=X&hash=1
-# every -reload-interval and hot-swaps the IVR tree on change. In-flight
-# calls keep their old snapshot; new calls pick up the new config.
-./benis-phone -source remote -config-name simonstorp
+# Local TOML instead of the worker
+./benis-phone -source file -def configurations/atp.toml
 
 # Direct mode: skip PBX registration, accept unauthenticated INVITEs
 # (point a softphone at sip:anything@<host>:5060)
@@ -54,10 +54,10 @@ Menu structure defined in TOML files (`configurations/`). Actions specify destin
 Required in `creds/creds.json` with keys for S3, Polly, Backend, Trafiklab, Systemet, HTTPServerAuth, SIP, and optionally ElevenLabs and `PBXConfigToken` (required when `-source=remote`; matches the Worker's `CONFIG_BEARER_TOKEN` secret).
 
 ### Web editor (`/ui`)
-Single Cloudflare Worker (with bundled static assets via Workers Assets) + D1, served at `ivr.anderstorpsfestivalen.se`. The Worker handles `/api/*` (Cloudflare Access-protected editor CRUD) and `/config` (bearer-token endpoint the Go binary polls), and falls through to the bundled React build for everything else (Cloudflare Access in front of the hostname, with a bypass policy on `/config`). Source under `ui/` — React 19 + TS + Tailwind (5-color palette in `tailwind.config.ts`) + pnpm + Vite + Wrangler. `pnpm deploy` builds Vite into `ui/dist` and ships Worker + assets in one shot.
+Single Cloudflare Worker (with bundled static assets via Workers Assets) + D1 + one Durable Object (`ConfigBroker`), served at `ivr.anderstorpsfestivalen.se`. The Worker handles `/api/*` (Cloudflare Access-protected editor CRUD), `/config` (bearer-token TOML / hash pull for backwards-compat polling), `/config/ws` (bearer-token long-lived WebSocket the binary subscribes to for push updates), and falls through to the bundled React build for everything else (Cloudflare Access in front of the hostname, with a bypass policy on `/config*`). Source under `ui/` — React 19 + TS + Tailwind (5-color palette in `tailwind.config.ts`) + pnpm + Vite + Wrangler. `pnpm deploy` builds Vite into `ui/dist` and ships Worker + assets in one shot.
 
 TypeScript types for the IVR config are generated from `core/functions/*.go` by `tools/typegen/`. Run `go generate ./...` from the repo root after editing any struct in `core/functions/`. CI fails if `ui/src/generated/` is out of date.
 
 Local dev: `cd ui && pnpm install`, then `pnpm worker:dev` (Worker on :8787 with local D1) and `pnpm dev` (Vite on :5173 proxying `/api` + `/config` to the Worker). Apply migrations once with `pnpm d1:migrate:local`.
 
-Hot-reload: with `-source=remote`, the binary polls `/config?name=...&hash=1` every `-reload-interval` (default 60s). On change it fetches the new TOML, re-prepares the Definition, and swaps it on the SessionManager — in-flight calls keep their snapshot, new calls get the new config. `SIGUSR1` forces an immediate reload.
+Hot-reload: with `-source=remote`, the binary opens a long-lived WebSocket to `/config/ws?name=...`. The worker's `ConfigBroker` Durable Object (see `ui/worker/durable/configBroker.ts`) holds the subscription and is poked by `PUT /api/configs/:name` after each save. On a `{type:"config-updated"}` event the binary GETs the new TOML via the existing `/config?name=...` endpoint, re-prepares the Definition, and atomically swaps it on the SessionManager — in-flight calls keep their snapshot, new calls get the new config. `SIGUSR1` still forces an immediate reload via the same code path. Pass `-poll` to additionally run the legacy HTTP poll fallback at `-reload-interval` (default 60s).

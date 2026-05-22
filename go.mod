@@ -8,18 +8,18 @@ require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/anderstorpsfestivalen/go-tts v0.0.0-20220622213112-009cc8575a49
 	github.com/aws/aws-sdk-go v1.55.8
+	github.com/coder/websocket v1.8.14
 	github.com/coral/trafikverket v0.0.0-20220410071233-72d98568d13e
-	github.com/eiannone/keyboard v0.0.0-20220611211555-0d226195f203
 	github.com/emiago/diago v0.26.0
 	github.com/emiago/sipgo v1.1.1
 	github.com/faiface/beep v1.1.0
+	github.com/gen2brain/malgo v0.11.25
 	github.com/gin-gonic/gin v1.11.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/mroth/weightedrand v1.0.0
 	github.com/sirupsen/logrus v1.9.4
-	github.com/stianeikeland/go-rpio v4.2.0+incompatible
 )
 
 require (
@@ -30,7 +30,6 @@ require (
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/emiago/dtls/v3 v3.0.0-20260122183559-8b8d23e359c0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.12 // indirect
-	github.com/gen2brain/malgo v0.11.25 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect
 	github.com/go-audio/riff v1.0.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
@@ -42,7 +41,6 @@ require (
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/hajimehoshi/go-mp3 v0.3.4 // indirect
-	github.com/hajimehoshi/oto v1.0.2 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/icholy/digest v1.1.0 // indirect
 	github.com/icza/bitio v1.1.0 // indirect
@@ -74,9 +72,6 @@ require (
 	go.uber.org/mock v0.6.0 // indirect
 	golang.org/x/arch v0.23.0 // indirect
 	golang.org/x/crypto v0.47.0 // indirect
-	golang.org/x/exp/shiny v0.0.0-20260112195511-716be5621a96 // indirect
-	golang.org/x/image v0.35.0 // indirect
-	golang.org/x/mobile v0.0.0-20260120165949-40bd9ace6ce4 // indirect
 	golang.org/x/net v0.49.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.40.0 // indirect

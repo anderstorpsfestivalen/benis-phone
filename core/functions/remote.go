@@ -91,6 +91,24 @@ func (r *RemoteClient) fetch(hashOnly bool) ([]byte, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("remote /config returned %s: %s", resp.Status, truncate(string(body), 200))
 	}
+	// Sanity check: TOML never starts with '<'. If it does, we got an HTML
+	// page back through a 200 response — usually Cloudflare Access serving
+	// its login page because the bearer-token bypass didn't match. Surface
+	// that instead of letting the TOML parser fail with a cryptic error.
+	trimmed := body
+	for len(trimmed) > 0 && (trimmed[0] == ' ' || trimmed[0] == '\n' || trimmed[0] == '\r' || trimmed[0] == '\t') {
+		trimmed = trimmed[1:]
+	}
+	if len(trimmed) > 0 && trimmed[0] == '<' {
+		ctype := resp.Header.Get("Content-Type")
+		return nil, fmt.Errorf(
+			"remote /config returned HTML (Content-Type=%q) on a 200 response — "+
+				"the bearer-token bypass for /config* is probably not applied to your Access policy, "+
+				"or PBXConfigToken doesn't match the worker's CONFIG_BEARER_TOKEN secret. "+
+				"Body preview: %s",
+			ctype, truncate(string(body), 200),
+		)
+	}
 	return body, nil
 }
 

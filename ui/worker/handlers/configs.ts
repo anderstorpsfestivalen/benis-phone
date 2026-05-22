@@ -11,7 +11,12 @@ import { badRequest, json, notFound } from "../lib/responses";
 
 const NAME_RE = /^[a-zA-Z0-9_-]{1,64}$/;
 
-export async function handleApi(req: Request, env: Env, pathname: string): Promise<Response> {
+export async function handleApi(
+  req: Request,
+  env: Env,
+  pathname: string,
+  ctx: ExecutionContext,
+): Promise<Response> {
   // pathname is "/api/configs" or "/api/configs/<name>[/...]"
   const rest = pathname.replace(/^\/api\/configs/, "");
 
@@ -37,9 +42,9 @@ export async function handleApi(req: Request, env: Env, pathname: string): Promi
     case "GET":
       return getOne(env, name);
     case "PUT":
-      return putOne(req, env, name);
+      return putOne(req, env, name, ctx);
     case "DELETE":
-      return deleteOne(env, name);
+      return deleteOne(env, name, ctx);
     default:
       return badRequest("method not allowed");
   }
@@ -58,7 +63,7 @@ async function getOne(env: Env, name: string): Promise<Response> {
   });
 }
 
-async function putOne(req: Request, env: Env, name: string): Promise<Response> {
+async function putOne(req: Request, env: Env, name: string, ctx: ExecutionContext): Promise<Response> {
   let body: { doc: unknown; toml: string };
   try {
     body = (await req.json()) as { doc: unknown; toml: string };
@@ -84,6 +89,10 @@ async function putOne(req: Request, env: Env, name: string): Promise<Response> {
     updated_at: now,
   };
   await upsertConfig(env, row);
+  // Tell the broker so subscribed Go binaries pull the new config. Fire
+  // and forget — failures here don't roll the save back; the binary will
+  // catch up on next reconnect or SIGUSR1.
+  notifyBroker(env, ctx, row.name, row.hash);
   return json({
     name: row.name,
     doc: body.doc,
@@ -94,9 +103,12 @@ async function putOne(req: Request, env: Env, name: string): Promise<Response> {
   });
 }
 
-async function deleteOne(env: Env, name: string): Promise<Response> {
+async function deleteOne(env: Env, name: string, ctx: ExecutionContext): Promise<Response> {
   const ok = await deleteConfig(env, name);
   if (!ok) return notFound();
+  // Notify subscribers — they'll find /config returns 404 on next pull
+  // and can decide how to handle it (most likely: stay on current).
+  notifyBroker(env, ctx, name, "");
   return new Response(null, { status: 204 });
 }
 
@@ -129,4 +141,11 @@ async function duplicate(req: Request, env: Env, from: string): Promise<Response
     created_at: row.created_at,
     updated_at: row.updated_at,
   });
+}
+
+function notifyBroker(env: Env, ctx: ExecutionContext, name: string, hash: string) {
+  const id = env.CONFIG_BROKER.idFromName("global");
+  const stub = env.CONFIG_BROKER.get(id);
+  const url = `https://broker/notify?name=${encodeURIComponent(name)}&hash=${encodeURIComponent(hash)}`;
+  ctx.waitUntil(stub.fetch(url, { method: "POST" }));
 }

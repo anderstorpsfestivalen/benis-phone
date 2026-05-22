@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -31,13 +32,16 @@ func main() {
 	definition := flag.String("def",
 		"configurations/default.toml",
 		"Path to TOML config when -source=file")
-	source := flag.String("source", "file", "Config source: file | remote")
-	configName := flag.String("config-name", "", "Remote config name (required when -source=remote)")
+	source := flag.String("source", "remote", "Config source: remote | file")
+	configName := flag.String("config", "", "Remote config name (required when -source=remote)")
+	flag.StringVar(configName, "c", "", "Alias for -config")
 	remoteURL := flag.String("remote-url",
 		"https://ivr.anderstorpsfestivalen.se",
 		"Base URL of the config worker (used when -source=remote)")
 	reloadInterval := flag.Duration("reload-interval", 60*time.Second,
-		"Remote-mode: poll for config hash changes at this interval. 0 disables polling.")
+		"Remote-mode: poll for config hash changes at this interval (only used with -poll). 0 disables.")
+	poll := flag.Bool("poll", false,
+		"Remote-mode: enable HTTP poll fallback. By default the binary subscribes to the broker WebSocket; use -poll only when WS is blocked.")
 	flag.Parse()
 
 	if *listAudioDevices {
@@ -87,7 +91,7 @@ func main() {
 		}
 	case "remote":
 		if *configName == "" {
-			log.Fatal("-config-name is required when -source=remote")
+			log.Fatal("-config is required when -source=remote")
 		}
 		if credentials.PBXConfigToken == "" {
 			log.Fatal("creds.json is missing PBXConfigToken (required for -source=remote)")
@@ -156,12 +160,39 @@ func main() {
 	// Hot-reload: only meaningful with a remote source.
 	stopReload := make(chan struct{})
 	var reloadWg sync.WaitGroup
-	if remoteClient != nil && *reloadInterval > 0 {
+	wsCtx, wsCancel := context.WithCancel(context.Background())
+	defer wsCancel()
+	if remoteClient != nil {
+		// Default: long-lived WS subscription to the broker. The OnUpdate
+		// callback shares the same reload path as polling / SIGUSR1.
+		var hashMu sync.Mutex
+		watcher := &functions.WSWatcher{
+			BaseURL: *remoteURL,
+			Name:    *configName,
+			Token:   credentials.PBXConfigToken,
+			Logger:  log,
+			OnUpdate: func(hash string) {
+				hashMu.Lock()
+				defer hashMu.Unlock()
+				reloadOnce(log, remoteClient, sipClient, &currentHash, false)
+			},
+		}
 		reloadWg.Add(1)
 		go func() {
 			defer reloadWg.Done()
-			runHotReload(log, remoteClient, sipClient, &currentHash, *reloadInterval, stopReload)
+			watcher.Run(wsCtx)
 		}()
+
+		// Optional poll fallback for environments where the WS upgrade is
+		// blocked (corporate proxies, certain captive networks).
+		if *poll && *reloadInterval > 0 {
+			reloadWg.Add(1)
+			go func() {
+				defer reloadWg.Done()
+				runHotReload(log, remoteClient, sipClient, &currentHash, *reloadInterval, stopReload)
+			}()
+		}
+
 		// SIGUSR1 forces an immediate reload — useful for ops and for the
 		// editor to push changes faster than the next poll.
 		usr1 := make(chan os.Signal, 1)
@@ -187,6 +218,7 @@ func main() {
 
 	log.Info("Shutting down")
 	close(stopReload)
+	wsCancel()
 	reloadWg.Wait()
 	sipClient.Stop()
 }
