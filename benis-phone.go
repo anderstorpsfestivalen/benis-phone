@@ -71,9 +71,18 @@ func main() {
 	}
 
 	if *enableS3 {
-		fsx, err := filesync.Create(credentials.S3.Key, credentials.S3.Secret, "anderstorpsfestivalen", "eu-north-1")
+		r2 := credentials.R2
+		if r2.Bucket == "" {
+			r2.Bucket = "ivr"
+		}
+		fsx, err := filesync.Create(filesync.Config{
+			AccessKeyID:     r2.AccessKeyID,
+			SecretAccessKey: r2.SecretAccessKey,
+			AccountID:       r2.AccountID,
+			Bucket:          r2.Bucket,
+		})
 		if err != nil {
-			log.Fatal("Could not initialize S3 sync: ", err)
+			log.Fatal("Could not initialize R2 sync: ", err)
 		}
 		fsx.Start("files/")
 	}

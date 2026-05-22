@@ -10,6 +10,17 @@ type AWSCred struct {
 	Secret string
 }
 
+// R2Cred carries the S3-compatible credentials for Cloudflare R2. Both keys
+// come from the dashboard's "R2 API Tokens" / "Account API Tokens with R2
+// permissions" creation page. AccountID is the Cloudflare account UUID
+// (used to derive the S3 endpoint host).
+type R2Cred struct {
+	AccessKeyID     string
+	SecretAccessKey string
+	AccountID       string
+	Bucket          string
+}
+
 type PWCombo struct {
 	Username string
 	Password string
@@ -17,6 +28,7 @@ type PWCombo struct {
 
 type Credentials struct {
 	S3        AWSCred
+	R2        R2Cred
 	Polly     AWSCred
 	Backend   PWCombo
 	Trafiklab string

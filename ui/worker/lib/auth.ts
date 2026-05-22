@@ -9,6 +9,10 @@ export interface Env {
   // ConfigBroker DO namespace — used by the editor save path to notify
   // subscribers and by /config/ws to upgrade incoming subscriptions.
   CONFIG_BROKER: DurableObjectNamespace;
+  // R2 bucket holding audio assets. Read/written by /api/files/* (the
+  // editor's Files tab) and read by the Go binary at startup via the S3
+  // API (see core/filesync/).
+  BUCKET: R2Bucket;
 }
 
 // /config (consumed by the Go binary). Plain bearer token. Cloudflare

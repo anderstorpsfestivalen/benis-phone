@@ -18,6 +18,14 @@ database_name = "benis-pbx"
 database_id = "1e55b433-bba7-41d4-9ef8-56ed02f58ecc"
 migrations_dir = "worker/migrations"
 
+# R2 bucket holding every audio asset the IVR plays. The editor's Files
+# tab and the per-action Pick-from-R2 modal both read/write through this
+# binding; the Go binary still pulls the bucket into a local files/ dir
+# via core/filesync at startup.
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "ivr"
+
 # ConfigBroker: a single Durable Object that fans out config-changed
 # events to subscribed Go binaries over WebSocket. Uses the hibernation
 # API so it's idle (and free) between events.

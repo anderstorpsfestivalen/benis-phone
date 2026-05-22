@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Action, ActionKind } from "../generated/config";
 import { actionKind, ACTION_KINDS } from "../generated/config";
 import { SERVICE_NAMES } from "../generated/services";
@@ -6,6 +7,7 @@ import HelpDot from "./HelpDot";
 import TTSEditor from "./TTSEditor";
 import ServiceArgsForm from "./ServiceArgsForm";
 import TemplateFieldPicker from "./TemplateFieldPicker";
+import FilePicker from "./FilePicker";
 
 const ACTION_KIND_HELP: Record<ActionKind, string> = {
   dst: "Jump to another menu by name. Use this to chain menus together — pressing this DTMF key sends the caller to the chosen menu.",
@@ -33,6 +35,10 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
   const kind = actionKind(value) ?? "dst";
   const set = <K extends keyof Action>(k: K, v: Action[K]) =>
     onChange({ ...value, [k]: v });
+
+  // Track which Pick modal (if any) is open. file = file.src for `file`
+  // actions; folder = randomfile.folder for `randomfile` actions.
+  const [picker, setPicker] = useState<"file" | "folder" | null>(null);
 
   function switchKind(k: ActionKind) {
     // Reset all kind-specific fields, then set just the chosen one to a
@@ -186,15 +192,26 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
 
       {kind === "file" && (
         <div className="grid grid-cols-3 gap-2">
-          <Field
-            label="Path"
-            help="Path to the audio file under files/. Supported formats: wav, mp3, ogg."
-          >
-            <TextInput
-              value={value.file.src}
-              onChange={(v) => set("file", { ...value.file, src: v })}
-            />
-          </Field>
+          <div className="col-span-3">
+            <Field
+              label="Path"
+              help="Path to the audio file under files/. Supported formats: wav, mp3, ogg. Use Pick to browse the R2 bucket."
+            >
+              <div className="flex gap-2">
+                <TextInput
+                  value={value.file.src}
+                  onChange={(v) => set("file", { ...value.file, src: v })}
+                />
+                <button
+                  type="button"
+                  onClick={() => setPicker("file")}
+                  className="shrink-0 text-xs px-3 py-1 border border-shadow-grey text-blue-slate hover:text-white rounded"
+                >
+                  Pick…
+                </button>
+              </div>
+            </Field>
+          </div>
           <CheckboxInput
             label="block"
             value={value.file.block}
@@ -213,13 +230,43 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
       {kind === "randomfile" && (
         <Field
           label="Folder"
-          help="Folder under files/ containing candidate audio files. One is picked uniformly at random per invocation."
+          help="Folder under files/ containing candidate audio files. One is picked uniformly at random per invocation. Use Pick to browse the R2 bucket."
         >
-          <TextInput
-            value={value.randomfile.folder}
-            onChange={(v) => set("randomfile", { folder: v })}
-          />
+          <div className="flex gap-2">
+            <TextInput
+              value={value.randomfile.folder}
+              onChange={(v) => set("randomfile", { folder: v })}
+            />
+            <button
+              type="button"
+              onClick={() => setPicker("folder")}
+              className="shrink-0 text-xs px-3 py-1 border border-shadow-grey text-blue-slate hover:text-white rounded"
+            >
+              Pick…
+            </button>
+          </div>
         </Field>
+      )}
+
+      {picker === "file" && (
+        <FilePicker
+          mode="file"
+          onClose={() => setPicker(null)}
+          onPick={(key) => {
+            set("file", { ...value.file, src: "files/" + key });
+            setPicker(null);
+          }}
+        />
+      )}
+      {picker === "folder" && (
+        <FilePicker
+          mode="folder"
+          onClose={() => setPicker(null)}
+          onPick={(key) => {
+            set("randomfile", { folder: key ? "files/" + key : "files" });
+            setPicker(null);
+          }}
+        />
       )}
 
       {kind === "tts" && (

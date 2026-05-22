@@ -1,5 +1,6 @@
 import { checkAccess, checkBearer, type Env } from "./lib/auth";
 import { handleApi } from "./handlers/configs";
+import { handleFiles } from "./handlers/files";
 import { handleConfig, handleConfigWS } from "./handlers/serve";
 import { notFound, unauthorized } from "./lib/responses";
 
@@ -29,6 +30,9 @@ export default {
         if (!checkAccess(req)) return unauthorized();
         if (url.pathname.startsWith("/api/configs")) {
           return await handleApi(req, env, url.pathname, ctx);
+        }
+        if (url.pathname.startsWith("/api/files")) {
+          return await handleFiles(req, env, url.pathname);
         }
         return notFound();
       }

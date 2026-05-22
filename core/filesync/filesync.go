@@ -1,6 +1,7 @@
 package filesync
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,55 +15,70 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 )
 
+// Config holds the connection details for the R2 bucket we sync down from.
+// R2 is S3-compatible, so we reuse aws-sdk-go but force path-style
+// addressing and point Endpoint at the account's R2 host. Region is
+// ignored by R2; "auto" satisfies the SDK's required-non-empty check.
+type Config struct {
+	AccessKeyID     string
+	SecretAccessKey string
+	AccountID       string // Cloudflare account UUID
+	Bucket          string
+	// Prefix selects which keys in the bucket get mirrored to disk. Empty
+	// means "every object in the bucket".
+	Prefix string
+}
+
 type sync struct {
-	s3key      string
-	s3secret   string
-	bucket     string
-	region     string
-	path       string
+	cfg        Config
 	session    *session.Session
 	svc        *s3.S3
 	downloader *s3manager.Downloader
+	path       string
 }
 
-func Create(s3key string, s3secret string, bucket string, region string) (sync, error) {
+// Create builds an R2-backed file syncer. The returned sync mirrors
+// cfg.Bucket (or the cfg.Prefix subtree of it) into a local directory when
+// Start is called.
+func Create(cfg Config) (sync, error) {
+	if cfg.AccountID == "" {
+		return sync{}, fmt.Errorf("filesync: R2 AccountID is required")
+	}
+	if cfg.Bucket == "" {
+		return sync{}, fmt.Errorf("filesync: R2 Bucket is required")
+	}
+	endpoint := fmt.Sprintf("https://%s.r2.cloudflarestorage.com", cfg.AccountID)
 
 	sess, err := session.NewSession(&aws.Config{
-		Region:      aws.String(region),
-		Credentials: credentials.NewStaticCredentials(s3key, s3secret, ""),
+		Region:           aws.String("auto"),
+		Credentials:      credentials.NewStaticCredentials(cfg.AccessKeyID, cfg.SecretAccessKey, ""),
+		Endpoint:         aws.String(endpoint),
+		S3ForcePathStyle: aws.Bool(true),
 	})
-
-	svc := s3.New(sess)
-
-	downloader := s3manager.NewDownloader(sess)
-
 	if err != nil {
 		return sync{}, err
 	}
 
 	return sync{
-		s3key:      s3key,
-		s3secret:   s3secret,
-		bucket:     bucket,
-		region:     region,
+		cfg:        cfg,
 		session:    sess,
-		svc:        svc,
-		downloader: downloader,
+		svc:        s3.New(sess),
+		downloader: s3manager.NewDownloader(sess),
 	}, nil
 }
 
 func (f *sync) Start(path string) {
-
-	if f.s3secret == "" {
-		log.Error("Empty S3 creds, cannot sync")
+	if f.cfg.SecretAccessKey == "" {
+		log.Error("Empty R2 creds, cannot sync")
 		return
 	}
 
 	log.WithFields(log.Fields{
-		"Bucket":       f.bucket,
-		"Region":       f.region,
+		"Bucket":       f.cfg.Bucket,
+		"Endpoint":     fmt.Sprintf("%s.r2.cloudflarestorage.com", f.cfg.AccountID),
+		"Prefix":       f.cfg.Prefix,
 		"Local folder": path,
-	}).Info("Starting S3 sync")
+	}).Info("Starting R2 sync")
 
 	f.path = path
 	if _, err := os.Stat(f.path); os.IsNotExist(err) {
@@ -70,30 +86,39 @@ func (f *sync) Start(path string) {
 		os.MkdirAll(f.path, os.ModePerm)
 	}
 
-	err := f.svc.ListObjectsPages(&s3.ListObjectsInput{
-		Bucket: &f.bucket,
-		Prefix: aws.String("phone/"),
-	}, func(p *s3.ListObjectsOutput, last bool) (shouldContinue bool) {
-
+	input := &s3.ListObjectsInput{Bucket: &f.cfg.Bucket}
+	if f.cfg.Prefix != "" {
+		input.Prefix = aws.String(f.cfg.Prefix)
+	}
+	err := f.svc.ListObjectsPages(input, func(p *s3.ListObjectsOutput, last bool) bool {
+		prefix := ""
+		if p.Prefix != nil {
+			prefix = *p.Prefix
+		}
 		for _, obj := range p.Contents {
-			p := strings.Replace(*obj.Key, *p.Prefix, "", 1)
-			if p != "" {
+			rel := strings.Replace(*obj.Key, prefix, "", 1)
+			if rel == "" {
+				continue
+			}
+			localPath := filepath.Join(f.path, rel)
+			if _, err := os.Stat(localPath); err == nil {
+				continue // already on disk
+			} else if !os.IsNotExist(err) {
+				log.WithError(err).WithField("path", localPath).Warn("stat failed")
+				continue
+			}
 
-				if _, err := os.Stat(f.path + p); os.IsNotExist(err) {
-					log.WithFields(log.Fields{
-						"Object":      *obj.Key,
-						"Destination": f.path + p,
-					}).Info("Downloading object")
+			log.WithFields(log.Fields{
+				"Object":      *obj.Key,
+				"Destination": localPath,
+			}).Info("Downloading object")
 
-					pth := *obj.Key
-					fm := pth[len(pth)-1:]
-					if fm == "/" {
-						os.MkdirAll(filepath.Dir(f.path+p), os.ModePerm)
-					} else {
-						f.download(*obj.Key, p)
-					}
-				}
-
+			// A trailing slash in the key denotes a directory marker — just
+			// create the directory and move on.
+			if strings.HasSuffix(*obj.Key, "/") {
+				os.MkdirAll(filepath.Dir(localPath), os.ModePerm)
+			} else {
+				f.download(*obj.Key, localPath)
 			}
 		}
 		return true
@@ -103,28 +128,28 @@ func (f *sync) Start(path string) {
 		return
 	}
 
-	log.Info("S3 sync completed")
+	log.Info("R2 sync completed")
 }
 
-func (f *sync) download(key string, path string) {
-
-	os.MkdirAll(filepath.Dir(f.path+path), os.ModePerm)
-	nf, err := os.Create(f.path + path)
+func (f *sync) download(key, localPath string) {
+	os.MkdirAll(filepath.Dir(localPath), os.ModePerm)
+	nf, err := os.Create(localPath)
 	if err != nil {
 		log.WithFields(log.Fields{
-			"Filename": f.path + path,
+			"Filename": localPath,
 			"Err":      err,
 		}).Error("Failed to create file")
+		return
 	}
+	defer nf.Close()
 
 	n, err := f.downloader.Download(nf, &s3.GetObjectInput{
-		Bucket: aws.String(f.bucket),
+		Bucket: aws.String(f.cfg.Bucket),
 		Key:    aws.String(key),
 	})
 	if err != nil {
-		log.Error("Failed to download file", err)
+		log.WithError(err).WithField("key", key).Error("Failed to download file")
+		return
 	}
-	log.WithFields(log.Fields{
-		"Bytes": n,
-	}).Info("Downloaded " + key)
+	log.WithField("Bytes", n).Info("Downloaded " + key)
 }
