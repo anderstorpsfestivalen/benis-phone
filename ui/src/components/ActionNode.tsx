@@ -27,17 +27,20 @@ export default function ActionNode({ data, selected }: NodeProps & { data: Actio
         </span>
         <span className={`text-[10px] uppercase tracking-wider ${palette.tag}`}>{cat}</span>
       </div>
-      {/* One body row: the name when set (it summarizes the action),
-          otherwise the kind-specific detail. Keeping a single row means
-          dagre's hardcoded ACTION_NODE_HEIGHT stays accurate so nodes
-          don't overlap their neighbors. The non-displayed value is
-          still in the tooltip for at-a-glance inspection. */}
+      {/* Single body row so dagre's hardcoded ACTION_NODE_HEIGHT stays
+          accurate. When a name is set we render it bold and prepend the
+          kind-specific detail (URL, dst, message, …) after it; without
+          a name the detail stands alone like it did before the rename
+          feature landed. */}
       {action.name ? (
         <div
-          className="px-2 py-2 text-sm font-semibold truncate"
+          className="px-2 py-2 truncate"
           title={detail ? `${action.name} — ${detail}` : action.name}
         >
-          {action.name}
+          <span className="text-sm font-semibold">{action.name}</span>
+          {detail && (
+            <span className="text-blue-slate"> {detail}</span>
+          )}
         </div>
       ) : detail ? (
         <div className="px-2 py-2 truncate" title={detail}>
