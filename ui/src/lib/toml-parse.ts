@@ -17,6 +17,7 @@ import {
   emptyPrefix,
   emptyQueue,
   emptyService,
+  emptyTTS,
 } from "./empty";
 
 // parseTomlConfig parses a TOML string (as produced by BurntSushi/toml from
@@ -97,6 +98,24 @@ function normalizeAction(raw: unknown): Action {
     record_to: asStr(r.record_to),
     dtmf: asStr(r.dtmf),
     livefeed,
+    genericjson: normalizeGenericJSON(r.genericjson),
+  };
+}
+
+function normalizeGenericJSON(raw: unknown) {
+  const r = asObj(raw);
+  const headers: Record<string, string> = {};
+  for (const [k, v] of Object.entries(asObj(r.headers))) {
+    if (typeof v === "string") headers[k] = v;
+  }
+  return {
+    url: asStr(r.url),
+    method: asStr(r.method),
+    body: asStr(r.body),
+    headers,
+    tmpl: asStr(r.tmpl),
+    timeout_seconds: asNum(r.timeout_seconds),
+    tts: { ...emptyTTS(), ...asObj(r.tts) },
   };
 }
 

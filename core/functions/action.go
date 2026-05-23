@@ -55,6 +55,12 @@ type Action struct {
 	// the caller presses another digit (which Clear()s it). nil means this
 	// action is not a livefeed.
 	LiveFeed *LiveFeed `toml:"livefeed"`
+
+	// GenericJSON fetches a configurable HTTP(S) endpoint, decodes the JSON
+	// response, renders a Go text/template against it, and speaks the
+	// result through TTS. Empty URL means this action is not a
+	// generic-json node.
+	GenericJSON GenericJSON `toml:"genericjson"`
 }
 
 // LiveFeed configures a livefeed action: pick a host capture device by name
@@ -112,6 +118,10 @@ func (a *Action) Type() (string, error) {
 
 	if a.LiveFeed != nil {
 		return "livefeed", nil
+	}
+
+	if a.GenericJSON.URL != "" {
+		return "genericjson", nil
 	}
 
 	if a.Clear {

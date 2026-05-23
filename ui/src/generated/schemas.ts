@@ -21,6 +21,7 @@ export const actionSchema: z.ZodType<unknown> = z.lazy(() => z.object({
   record_to: z.string().optional(),
   dtmf: z.string().optional(),
   livefeed: liveFeedSchema.nullable().optional(),
+  genericjson: genericJSONSchema.optional(),
 }).passthrough());
 
 export const definitionSchema: z.ZodType<unknown> = z.lazy(() => z.object({
@@ -60,6 +61,16 @@ export const generalSchema: z.ZodType<unknown> = z.lazy(() => z.object({
   default_tts_lang: z.string().optional(),
   default_tts_engine: z.string().optional(),
   default_tts_provider: z.string().optional(),
+}).passthrough());
+
+export const genericJSONSchema: z.ZodType<unknown> = z.lazy(() => z.object({
+  url: z.string().optional(),
+  method: z.string().optional(),
+  body: z.string().optional(),
+  headers: z.record(z.string(), z.string()).optional(),
+  tmpl: z.string().optional(),
+  timeout_seconds: z.number().optional(),
+  tts: ttsSchema.optional(),
 }).passthrough());
 
 export const liveFeedSchema: z.ZodType<unknown> = z.lazy(() => z.object({

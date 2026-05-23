@@ -12,24 +12,31 @@ const TTS_PROVIDERS = ["", "polly", "elevenlabs"] as const;
 export default function TTSEditor({
   value,
   onChange,
+  hideMessage = false,
 }: {
   value: TTS;
   onChange: (v: TTS) => void;
+  // hideMessage skips the Message field — useful when the message text is
+  // produced elsewhere (e.g. by a GenericJSON template render) and the TTS
+  // struct is only carrying voice/lang/engine overrides.
+  hideMessage?: boolean;
 }) {
   const set = <K extends keyof TTS>(k: K, v: TTS[K]) => onChange({ ...value, [k]: v });
   const hasOverride = !!(value.voice || value.lang || value.engine || value.provider);
 
   return (
     <div className="flex flex-col gap-3 p-3 bg-ink-black border border-shadow-grey rounded">
-      <Field label="Message">
-        <TextArea
-          value={value.msg}
-          onChange={(v) => set("msg", v)}
-          rows={6}
-        />
-      </Field>
+      {!hideMessage && (
+        <Field label="Message">
+          <TextArea
+            value={value.msg}
+            onChange={(v) => set("msg", v)}
+            rows={6}
+          />
+        </Field>
+      )}
 
-      <details className="border border-shadow-grey rounded" open={hasOverride}>
+      <details className="border border-shadow-grey rounded" open={hideMessage || hasOverride}>
         <summary className="px-3 py-2 cursor-pointer text-xs text-blue-slate uppercase tracking-wider">
           Override TTS settings
         </summary>

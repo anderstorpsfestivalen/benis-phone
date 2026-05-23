@@ -202,6 +202,9 @@ func (s *Session) handleAction(action *functions.Action) {
 		s.handleDTMF(action.DTMF)
 	case "livefeed":
 		s.handleLiveFeed(action.LiveFeed)
+	case "genericjson":
+		err := s.runGenericJSONWithPmsg(action.GenericJSON, action.Pmsg)
+		s.checkError(err)
 	}
 }
 
@@ -385,6 +388,83 @@ func (s *Session) runServiceWithPmsg(srv functions.Service, collector *string, p
 		}
 	}()
 	return nil
+}
+
+// runGenericJSONWithPmsg fetches a configurable JSON endpoint, renders its
+// text/template, and speaks the result. Mirrors runServiceWithPmsg: the
+// fetch + TTS synthesis run in a goroutine while the optional Pmsg plays
+// in the foreground, so callers aren't stuck in silence while the request
+// is in flight.
+func (s *Session) runGenericJSONWithPmsg(g functions.GenericJSON, pmsg functions.Prefix) error {
+	type prepResult struct {
+		audio []byte
+		err   error
+	}
+	resultCh := make(chan prepResult, 1)
+	go func() {
+		audio, err := s.prepareGenericJSONAudio(g)
+		resultCh <- prepResult{audio, err}
+	}()
+
+	if pmsg != (functions.Prefix{}) {
+		pmsgPl, perr := pmsg.GetPlayable()
+		if perr == nil {
+			pmsgPl.Wait = true
+			pmsgPl.Clear = false
+			if err := pmsgPl.Play(s.Audio, s.TTS); err != nil {
+				log.WithField("session", s.ID).Warnf("pmsg play: %v", err)
+			}
+		} else {
+			log.WithField("session", s.ID).Warnf("pmsg: %v", perr)
+		}
+	}
+
+	r := <-resultCh
+	if r.err != nil {
+		return r.err
+	}
+	go func() {
+		if err := s.Audio.PlayFromStream(r.audio); err != nil {
+			log.WithField("session", s.ID).Warnf("genericjson result play: %v", err)
+		}
+	}()
+	return nil
+}
+
+// prepareGenericJSONAudio fetches+renders the JSON node and synthesizes
+// the output through TTS, returning mp3 bytes ready to feed the audio
+// sink. Voice/lang/engine/provider come from the node's TTS overrides
+// when set, otherwise fall back to the definition's StandardTTS.
+func (s *Session) prepareGenericJSONAudio(g functions.GenericJSON) ([]byte, error) {
+	rendered, err := g.FetchAndRender()
+	if err != nil {
+		return nil, err
+	}
+
+	t := s.Definition.StandardTTS(rendered)
+	if g.TTS != (functions.TTS{}) {
+		t = g.TTS
+		t.Message = rendered
+		if t.Voice == "" {
+			t.Voice = s.Definition.General.DefaultTTSVoice
+		}
+		if t.Language == "" {
+			t.Language = s.Definition.General.DefaultTTSLanguage
+		}
+		if t.Engine == "" {
+			t.Engine = s.Definition.General.DefaultTTSEngine
+		}
+		if t.Provider == "" {
+			t.Provider = s.Definition.General.DefaultTTSProvider
+		}
+	}
+
+	return s.TTS.Synthesize(t.Provider, tts.Request{
+		Message:  t.Message,
+		Voice:    t.Voice,
+		Language: t.Language,
+		Engine:   t.Engine,
+	})
 }
 
 // prepareServiceAudio runs the service and synthesizes its result into mp3

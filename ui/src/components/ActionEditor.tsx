@@ -21,8 +21,30 @@ const ACTION_KIND_HELP: Record<ActionKind, string> = {
   record: "Start or stop recording the live call. 'start' begins, 'stop' ends. Subfolder is appended under SIP.record_path.",
   dtmf: "Transmit a string of DTMF digits to the remote end, 200 ms apart. Useful for chaining into upstream IVRs.",
   livefeed: "Stream a host audio capture device into the caller's outbound RTP. Device is a case-insensitive substring match; channel picks the audio channel.",
+  genericjson: "Fetch a JSON HTTP endpoint, render the response through a Go text/template, and speak it through TTS. Navigate untyped JSON with {{.Data.foo.bar}}, iterate with {{range .Data.items}}, or use the full jq language via {{jq .Data \".[] | select(.name == \\\"X\\\") | .temperature\"}}. Helpers: int, round, default, jq, jqAll, first, last, join, add, sub, mul, div, keys, length.",
   clear: "Stop any currently-playing audio in this call session without otherwise affecting state.",
 };
+
+function headersToText(h: Record<string, string> | undefined | null): string {
+  if (!h) return "";
+  return Object.entries(h)
+    .map(([k, v]) => `${k}: ${v}`)
+    .join("\n");
+}
+
+function textToHeaders(text: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) continue;
+    const idx = line.indexOf(":");
+    if (idx < 0) continue;
+    const k = line.slice(0, idx).trim();
+    const v = line.slice(idx + 1).trim();
+    if (k) out[k] = v;
+  }
+  return out;
+}
 
 type Props = {
   value: Action;
@@ -55,6 +77,15 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
       record: "",
       dtmf: "",
       livefeed: null,
+      genericjson: {
+        url: "",
+        method: "",
+        body: "",
+        headers: {},
+        tmpl: "",
+        timeout_seconds: 0,
+        tts: { msg: "", voice: "", lang: "", engine: "", provider: "" },
+      },
       clear: false,
     };
     const seeded: Partial<Action> = {};
@@ -91,6 +122,17 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
         break;
       case "livefeed":
         seeded.livefeed = { device: "", channel: 0 };
+        break;
+      case "genericjson":
+        seeded.genericjson = {
+          url: "https://example.com/api",
+          method: "GET",
+          body: "",
+          headers: {},
+          tmpl: "The value is {{.Data.value}}.",
+          timeout_seconds: 0,
+          tts: { msg: "", voice: "", lang: "", engine: "", provider: "" },
+        };
         break;
       case "clear":
         seeded.clear = true;
@@ -366,6 +408,107 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
               onChange={(v) => set("livefeed", { ...value.livefeed!, channel: v })}
             />
           </Field>
+        </div>
+      )}
+
+      {kind === "genericjson" && (
+        <div className="grid grid-cols-1 gap-3">
+          <Field
+            label="URL"
+            help="Endpoint to fetch. Must be reachable from the phone host. Response must be valid JSON."
+          >
+            <TextInput
+              value={value.genericjson.url}
+              onChange={(v) => set("genericjson", { ...value.genericjson, url: v })}
+              placeholder="https://api.example.com/sensor"
+            />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field
+              label="Method"
+              help="HTTP method. Defaults to GET when empty."
+            >
+              <TextInput
+                value={value.genericjson.method}
+                onChange={(v) => set("genericjson", { ...value.genericjson, method: v })}
+                placeholder="GET"
+              />
+            </Field>
+            <Field
+              label="Timeout (s)"
+              help="Request timeout in seconds. 0 = default (10s)."
+            >
+              <NumberInput
+                value={value.genericjson.timeout_seconds}
+                onChange={(v) => set("genericjson", { ...value.genericjson, timeout_seconds: v })}
+              />
+            </Field>
+          </div>
+          <Field
+            label="Body"
+            help="Request body, sent for non-GET methods. Defaults to Content-Type application/json (override via headers)."
+          >
+            <textarea
+              value={value.genericjson.body}
+              onChange={(e) => set("genericjson", { ...value.genericjson, body: e.target.value })}
+              rows={3}
+              className="px-2 py-1 rounded font-mono text-sm w-full"
+            />
+          </Field>
+          <Field
+            label="Headers (one per line, Key: Value)"
+            help="Extra request headers. Example: Authorization: Bearer abc123"
+          >
+            <textarea
+              value={headersToText(value.genericjson.headers)}
+              onChange={(e) =>
+                set("genericjson", {
+                  ...value.genericjson,
+                  headers: textToHeaders(e.target.value),
+                })
+              }
+              rows={3}
+              className="px-2 py-1 rounded font-mono text-sm w-full"
+              placeholder="Authorization: Bearer abc123"
+            />
+          </Field>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-blue-slate uppercase">
+              Template (Go text/template over decoded JSON)
+            </label>
+            <textarea
+              value={value.genericjson.tmpl}
+              onChange={(e) => set("genericjson", { ...value.genericjson, tmpl: e.target.value })}
+              rows={10}
+              className="px-2 py-1 rounded font-mono text-sm w-full resize-y"
+              style={{ minHeight: 200 }}
+              placeholder={'The temperature is {{int .Data.temp}} celsius.\n{{range .Data.items}}{{.name}}: {{.value}}; {{end}}'}
+            />
+            <span className="text-xs text-blue-slate">
+              JSON tree is bound as <code>.Data</code>. Use <code>.Status</code> and <code>.Raw</code> for the HTTP status and raw body.
+              <br />
+              <code>jq</code> runs a real jq expression (filter/select/map/iterate):{" "}
+              <code>{"{{jq .Data \".[] | select(.name == \\\"Summalajnen\\\") | .temperature\"}}"}</code>.
+              Use <code>jqAll</code> with <code>{"{{range}}"}</code> when a query yields multiple values.
+              <br />
+              Format helpers: <code>int</code>, <code>round</code>, <code>float</code>, <code>str</code>, <code>default</code>,{" "}
+              <code>first</code>, <code>last</code>, <code>join</code>,{" "}
+              <code>add</code>, <code>sub</code>, <code>mul</code>, <code>div</code>,{" "}
+              <code>keys</code>, <code>length</code>.
+            </span>
+          </div>
+          <details className="border border-shadow-grey rounded">
+            <summary className="px-3 py-2 cursor-pointer text-xs text-blue-slate uppercase tracking-wider">
+              TTS overrides (voice / lang / engine / provider)
+            </summary>
+            <div className="p-3">
+              <TTSEditor
+                value={value.genericjson.tts}
+                onChange={(v) => set("genericjson", { ...value.genericjson, tts: v })}
+                hideMessage
+              />
+            </div>
+          </details>
         </div>
       )}
 

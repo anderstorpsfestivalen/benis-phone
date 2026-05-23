@@ -68,6 +68,7 @@ function actionForToml(a: Action): Record<string, unknown> {
     record_to: a.record_to,
     dtmf: a.dtmf,
     livefeed: a.livefeed ?? undefined,
+    genericjson: a.genericjson,
   };
 }
 

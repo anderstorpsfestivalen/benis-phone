@@ -5,6 +5,7 @@ import type {
   Fn,
   Gate,
   General,
+  GenericJSON,
   LiveFeed,
   Playable,
   Prefix,
@@ -52,6 +53,15 @@ export const emptyGate = (): Gate => ({
   deny_tmpl: "",
 });
 export const emptyLiveFeed = (): LiveFeed => ({ device: "", channel: 0 });
+export const emptyGenericJSON = (): GenericJSON => ({
+  url: "",
+  method: "",
+  body: "",
+  headers: {},
+  tmpl: "",
+  timeout_seconds: 0,
+  tts: emptyTTS(),
+});
 
 export const emptyAction = (): Action => ({
   num: 0,
@@ -71,6 +81,7 @@ export const emptyAction = (): Action => ({
   record_to: "",
   dtmf: "",
   livefeed: null,
+  genericjson: emptyGenericJSON(),
 });
 
 export const emptyFn = (name = ""): Fn => ({

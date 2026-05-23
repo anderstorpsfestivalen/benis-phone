@@ -19,6 +19,7 @@ export interface Action {
   record_to: string;
   dtmf: string;
   livefeed?: LiveFeed | null;
+  genericjson: GenericJSON;
 }
 
 export interface Definition {
@@ -58,6 +59,16 @@ export interface General {
   default_tts_lang: string;
   default_tts_engine: string;
   default_tts_provider: string;
+}
+
+export interface GenericJSON {
+  url: string;
+  method: string;
+  body: string;
+  headers: Record<string, string>;
+  tmpl: string;
+  timeout_seconds: number;
+  tts: TTS;
 }
 
 export interface LiveFeed {
@@ -148,6 +159,7 @@ export type ActionKind =
   | "record"
   | "dtmf"
   | "livefeed"
+  | "genericjson"
   | "clear";
 
 export const ACTION_KINDS: readonly ActionKind[] = [
@@ -162,6 +174,7 @@ export const ACTION_KINDS: readonly ActionKind[] = [
   "record",
   "dtmf",
   "livefeed",
+  "genericjson",
   "clear",
 ];
 
@@ -179,6 +192,7 @@ export function actionKind(a: Action): ActionKind | null {
   if (a.record) return "record";
   if (a.dtmf) return "dtmf";
   if (a.livefeed) return "livefeed";
+  if (a.genericjson && a.genericjson.url) return "genericjson";
   if (a.clear) return "clear";
   return null;
 }
