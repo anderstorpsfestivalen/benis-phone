@@ -47,4 +47,14 @@ export const api = {
     ),
   remove: (name: string) =>
     req<void>(`/api/configs/${encodeURIComponent(name)}`, { method: "DELETE" }),
+  previewGenericJSON: (payload: {
+    url: string;
+    method?: string;
+    body?: string;
+    headers?: Record<string, string>;
+  }) =>
+    req<{ status: number; contentType: string; body: string; truncated: boolean }>(
+      "/api/genericjson/preview",
+      { method: "POST", body: JSON.stringify(payload) },
+    ),
 };

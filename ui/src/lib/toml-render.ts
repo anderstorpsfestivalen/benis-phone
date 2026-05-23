@@ -54,6 +54,7 @@ function actionForToml(a: Action): Record<string, unknown> {
     num: a.num,
     wait: a.wait,
     clear: a.clear,
+    name: a.name,
     prefix: a.prefix,
     pmsg: a.pmsg,
     dst: a.dst,
@@ -170,7 +171,10 @@ function prune<T>(x: T): T {
 
 function isEmpty(v: unknown): boolean {
   if (v === null || v === undefined) return true;
-  if (typeof v === "string") return v === "";
+  // Strings: treat whitespace-only as empty so e.g. a `name = "   "`
+  // doesn't survive prune and bloat the TOML output. The runtime
+  // ignores leading/trailing whitespace on labels anyway.
+  if (typeof v === "string") return v.trim() === "";
   if (typeof v === "number") return v === 0;
   if (typeof v === "boolean") return v === false;
   if (Array.isArray(v)) return v.length === 0;

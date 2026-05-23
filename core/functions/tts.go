@@ -57,3 +57,31 @@ func (t *Definition) EnglishTTS(message string) TTS {
 		Provider: t.General.DefaultTTSProvider,
 	}
 }
+
+// ResolveTTS produces a fully-populated TTS struct ready to hand to the
+// synthesis registry. It composes:
+//
+//   - any non-empty fields from `override` (caller intent wins),
+//   - then any missing fields from General.Default* (definition fallback),
+//   - then `message` as the spoken text.
+//
+// Use this from runtime call paths that render a message at call time and
+// want to honor per-node TTS overrides (GenericJSON, Service.TTS). It's
+// the merge that used to live duplicated in session.prepareXAudio.
+func (t *Definition) ResolveTTS(override TTS, message string) TTS {
+	out := override
+	out.Message = message
+	if out.Voice == "" {
+		out.Voice = t.General.DefaultTTSVoice
+	}
+	if out.Language == "" {
+		out.Language = t.General.DefaultTTSLanguage
+	}
+	if out.Engine == "" {
+		out.Engine = t.General.DefaultTTSEngine
+	}
+	if out.Provider == "" {
+		out.Provider = t.General.DefaultTTSProvider
+	}
+	return out
+}

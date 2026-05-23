@@ -7,6 +7,12 @@ type Action struct {
 	Wait  bool
 	Clear bool
 
+	// Name is a human-readable label for this action node. It is stored
+	// and round-tripped through the config so authors can see at a glance
+	// what each node does in the editor's graph, but the runtime ignores
+	// it — purely a UI/documentation aid.
+	Name string `toml:"name"`
+
 	//////////////
 	// actionables
 	//////////////
@@ -58,8 +64,7 @@ type Action struct {
 
 	// GenericJSON fetches a configurable HTTP(S) endpoint, decodes the JSON
 	// response, renders a Go text/template against it, and speaks the
-	// result through TTS. Empty URL means this action is not a
-	// generic-json node.
+	// result through TTS. See Type() for how this variant is discovered.
 	GenericJSON GenericJSON `toml:"genericjson"`
 }
 
@@ -120,6 +125,10 @@ func (a *Action) Type() (string, error) {
 		return "livefeed", nil
 	}
 
+	// GenericJSON is discovered by a non-empty URL: the other fields
+	// (template, headers, body) are all meaningful only in combination
+	// with a URL, so URL is the canonical discriminator. Matches the TS
+	// actionKind() in ui/src/generated/config.ts.
 	if a.GenericJSON.URL != "" {
 		return "genericjson", nil
 	}

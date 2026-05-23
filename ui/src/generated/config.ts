@@ -5,6 +5,7 @@ export interface Action {
   num: number;
   wait: boolean;
   clear: boolean;
+  name: string;
   prefix: Prefix;
   pmsg: Prefix;
   dst: string;

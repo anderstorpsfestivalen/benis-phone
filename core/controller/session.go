@@ -43,6 +43,14 @@ type Session struct {
 	hs           sync.Mutex
 	prefixSignal chan bool
 	done         chan struct{}
+
+	// callCtx scopes long-running per-call work (HTTP fetches, TTS synth)
+	// to the current hook cycle. liftHook installs a fresh ctx; slamHook
+	// and Stop cancel it so in-flight goroutines stop wasting cycles —
+	// crucial when a caller hangs up mid-fetch and we'd otherwise still
+	// burn TTS budget synthesizing audio for a dead call.
+	callCtx    context.Context
+	callCancel context.CancelFunc
 }
 
 // NewSession creates a new call session with the given components.
@@ -115,9 +123,22 @@ func (s *Session) Stop() {
 	close(s.done)
 	s.Audio.Clear()
 	s.Recorder.Stop()
+	if s.callCancel != nil {
+		s.callCancel()
+	}
 	if s.activeDispatcher != nil {
 		s.activeDispatcher.Stop()
 	}
+}
+
+// fetchCtx returns the per-call context used to scope HTTP fetches and
+// background TTS synthesis. Falls back to a fresh background context if
+// no call is in progress (defensive — callers always run after liftHook).
+func (s *Session) fetchCtx() context.Context {
+	if s.callCtx != nil {
+		return s.callCtx
+	}
+	return context.Background()
 }
 
 func (s *Session) handlePrefix() error {
@@ -351,13 +372,14 @@ func (s *Session) runServiceWithPmsg(srv functions.Service, collector *string, p
 		input = *collector
 	}
 
+	ctx := s.fetchCtx()
 	type prepResult struct {
 		audio []byte
 		err   error
 	}
 	resultCh := make(chan prepResult, 1)
 	go func() {
-		audio, err := s.prepareServiceAudio(svc, srv, input)
+		audio, err := s.prepareServiceAudio(ctx, svc, srv, input)
 		resultCh <- prepResult{audio, err}
 	}()
 
@@ -378,31 +400,44 @@ func (s *Session) runServiceWithPmsg(srv functions.Service, collector *string, p
 		}
 	}
 
-	r := <-resultCh
-	if r.err != nil {
-		return r.err
-	}
-	go func() {
-		if err := s.Audio.PlayFromStream(r.audio); err != nil {
-			log.WithField("session", s.ID).Warnf("service result play: %v", err)
+	select {
+	case <-ctx.Done():
+		// Caller hung up during the service call — drain the result so
+		// the goroutine can exit, but don't play anything.
+		go func() { <-resultCh }()
+		return nil
+	case r := <-resultCh:
+		if r.err != nil {
+			if ctx.Err() != nil {
+				return nil
+			}
+			return r.err
 		}
-	}()
-	return nil
+		go func() {
+			if err := s.Audio.PlayFromStream(r.audio); err != nil {
+				log.WithField("session", s.ID).Warnf("service result play: %v", err)
+			}
+		}()
+		return nil
+	}
 }
 
 // runGenericJSONWithPmsg fetches a configurable JSON endpoint, renders its
 // text/template, and speaks the result. Mirrors runServiceWithPmsg: the
 // fetch + TTS synthesis run in a goroutine while the optional Pmsg plays
 // in the foreground, so callers aren't stuck in silence while the request
-// is in flight.
+// is in flight. The goroutine is scoped to the current call's context so
+// a mid-fetch hangup cancels both the HTTP request and any subsequent TTS
+// work, instead of wasting Polly/ElevenLabs budget on a dead call.
 func (s *Session) runGenericJSONWithPmsg(g functions.GenericJSON, pmsg functions.Prefix) error {
+	ctx := s.fetchCtx()
 	type prepResult struct {
 		audio []byte
 		err   error
 	}
 	resultCh := make(chan prepResult, 1)
 	go func() {
-		audio, err := s.prepareGenericJSONAudio(g)
+		audio, err := s.prepareGenericJSONAudio(ctx, g)
 		resultCh <- prepResult{audio, err}
 	}()
 
@@ -419,46 +454,40 @@ func (s *Session) runGenericJSONWithPmsg(g functions.GenericJSON, pmsg functions
 		}
 	}
 
-	r := <-resultCh
-	if r.err != nil {
-		return r.err
-	}
-	go func() {
-		if err := s.Audio.PlayFromStream(r.audio); err != nil {
-			log.WithField("session", s.ID).Warnf("genericjson result play: %v", err)
+	select {
+	case <-ctx.Done():
+		// Call ended while we waited for the fetch — drop the result on
+		// the floor when it eventually arrives; the consuming goroutine
+		// will read from resultCh once and exit.
+		go func() { <-resultCh }()
+		return nil
+	case r := <-resultCh:
+		if r.err != nil {
+			if ctx.Err() != nil {
+				return nil // hangup during fetch; don't speak an error
+			}
+			return r.err
 		}
-	}()
-	return nil
+		go func() {
+			if err := s.Audio.PlayFromStream(r.audio); err != nil {
+				log.WithField("session", s.ID).Warnf("genericjson result play: %v", err)
+			}
+		}()
+		return nil
+	}
 }
 
 // prepareGenericJSONAudio fetches+renders the JSON node and synthesizes
 // the output through TTS, returning mp3 bytes ready to feed the audio
 // sink. Voice/lang/engine/provider come from the node's TTS overrides
 // when set, otherwise fall back to the definition's StandardTTS.
-func (s *Session) prepareGenericJSONAudio(g functions.GenericJSON) ([]byte, error) {
-	rendered, err := g.FetchAndRender()
+func (s *Session) prepareGenericJSONAudio(ctx context.Context, g functions.GenericJSON) ([]byte, error) {
+	rendered, err := g.FetchAndRender(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	t := s.Definition.StandardTTS(rendered)
-	if g.TTS != (functions.TTS{}) {
-		t = g.TTS
-		t.Message = rendered
-		if t.Voice == "" {
-			t.Voice = s.Definition.General.DefaultTTSVoice
-		}
-		if t.Language == "" {
-			t.Language = s.Definition.General.DefaultTTSLanguage
-		}
-		if t.Engine == "" {
-			t.Engine = s.Definition.General.DefaultTTSEngine
-		}
-		if t.Provider == "" {
-			t.Provider = s.Definition.General.DefaultTTSProvider
-		}
-	}
-
+	t := s.Definition.ResolveTTS(g.TTS, rendered)
 	return s.TTS.Synthesize(t.Provider, tts.Request{
 		Message:  t.Message,
 		Voice:    t.Voice,
@@ -470,18 +499,19 @@ func (s *Session) prepareGenericJSONAudio(g functions.GenericJSON) ([]byte, erro
 // prepareServiceAudio runs the service and synthesizes its result into mp3
 // bytes. Safe to call from a goroutine: it touches the service, the TTS
 // registry, and the session's read-only Definition, but never the audio sink.
-func (s *Session) prepareServiceAudio(svc services.Service, srv functions.Service, input string) ([]byte, error) {
+// ctx scopes the work to the current call — if the caller hangs up we bail
+// before paying for the TTS synthesis (and individual services that thread
+// the context through their HTTP clients can cancel mid-fetch too).
+func (s *Session) prepareServiceAudio(ctx context.Context, svc services.Service, srv functions.Service, input string) ([]byte, error) {
 	data, err := svc.Get(input, srv.Template, srv.Arguments)
 	if err != nil {
 		return nil, err
 	}
-
-	t := s.Definition.StandardTTS(data)
-	if srv.TTS != (functions.TTS{}) {
-		t = srv.TTS
-		t.Message = data
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
 
+	t := s.Definition.ResolveTTS(srv.TTS, data)
 	return s.TTS.Synthesize(t.Provider, tts.Request{
 		Message:  t.Message,
 		Voice:    t.Voice,
@@ -511,6 +541,7 @@ func (s *Session) liftHook() {
 	s.HookState = true
 	s.Audio.Clear()
 	s.collector = nil
+	s.callCtx, s.callCancel = context.WithCancel(context.Background())
 	s.enterFunction(s.Definition.General.Entrypoint)
 
 	log.WithField("session", s.ID).Info("Hook lifted")
@@ -526,6 +557,12 @@ func (s *Session) slamHook() {
 
 	s.Callstack = s.Callstack[:0]
 	s.collector = nil
+
+	if s.callCancel != nil {
+		s.callCancel()
+		s.callCancel = nil
+		s.callCtx = nil
+	}
 
 	if s.activeDispatcher != nil {
 		s.activeDispatcher.Stop()

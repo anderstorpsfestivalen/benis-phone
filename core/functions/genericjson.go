@@ -2,16 +2,19 @@ package functions
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"text/template"
 	"time"
 
 	"github.com/itchyny/gojq"
+	log "github.com/sirupsen/logrus"
 )
 
 // GenericJSON describes a node that fetches an HTTP(S) endpoint returning
@@ -45,8 +48,10 @@ type GenericJSON struct {
 	// Method is the HTTP method (GET, POST, …). Defaults to GET when empty.
 	Method string `toml:"method"`
 
-	// Body is the request body sent with non-GET methods. Sent as
-	// application/json unless overridden via Headers.
+	// Body is the request body sent with the HTTP request. When non-empty
+	// AND Headers does not already set Content-Type, the request goes out
+	// as application/json. Empty body sends no payload and no
+	// Content-Type header.
 	Body string `toml:"body"`
 
 	// Headers are extra request headers, keyed by header name.
@@ -56,7 +61,9 @@ type GenericJSON struct {
 	// See genericJSONFuncs for available helpers.
 	Template string `toml:"tmpl"`
 
-	// TimeoutSeconds caps the HTTP request. Defaults to 10s when <=0.
+	// TimeoutSeconds caps the HTTP request. Defaults to defaultTimeout
+	// (10 s) when <= 0. Cancelled early if the parent context fires
+	// (e.g. caller hangs up).
 	TimeoutSeconds int `toml:"timeout_seconds"`
 
 	// TTS overrides the voice/lang/engine/provider for the rendered output.
@@ -64,14 +71,37 @@ type GenericJSON struct {
 	TTS TTS `toml:"tts"`
 }
 
+const (
+	// defaultTimeout caps a GenericJSON HTTP request when the node leaves
+	// TimeoutSeconds unset. Picked to stay well under typical IVR caller
+	// patience while still letting slow upstream APIs finish.
+	defaultTimeout = 10 * time.Second
+
+	// maxBodyBytes caps how much of the response we'll read into memory.
+	// Anything larger almost certainly isn't intended as an IVR readout
+	// source; we surface a clear error instead of OOMing the process.
+	maxBodyBytes = 8 << 20 // 8 MiB
+
+	// errorBodyPeek is the byte-count we surface in *log* output (never
+	// in error strings the caller hears) when a response is non-2xx.
+	// Capped tight to make accidental token/PII exposure in logs less
+	// painful — the full body still lives in upstream observability if
+	// needed.
+	errorBodyPeek = 256
+)
+
 // httpClient is shared across all GenericJSON nodes so connection pooling
-// and DNS caching work as expected.
-var httpClient = &http.Client{Timeout: 30 * time.Second}
+// and DNS caching work. Per-call timeouts are layered on via
+// context.WithTimeout rather than swapping the Timeout field, which would
+// race when two calls fire simultaneously.
+var httpClient = &http.Client{}
 
 // FetchAndRender fetches the configured endpoint, decodes the JSON, and
 // renders the template against it. The rendered text is returned ready to
-// hand to the TTS engine.
-func (g *GenericJSON) FetchAndRender() (string, error) {
+// hand to the TTS engine. ctx scopes the fetch + JQ work to the current
+// call so a hangup cancels the request immediately instead of waiting on
+// the upstream timeout.
+func (g *GenericJSON) FetchAndRender(ctx context.Context) (string, error) {
 	if strings.TrimSpace(g.URL) == "" {
 		return "", fmt.Errorf("genericjson: missing url")
 	}
@@ -84,12 +114,19 @@ func (g *GenericJSON) FetchAndRender() (string, error) {
 		method = "GET"
 	}
 
+	timeout := defaultTimeout
+	if g.TimeoutSeconds > 0 {
+		timeout = time.Duration(g.TimeoutSeconds) * time.Second
+	}
+	reqCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
 	var body io.Reader
 	if g.Body != "" {
 		body = strings.NewReader(g.Body)
 	}
 
-	req, err := http.NewRequest(method, g.URL, body)
+	req, err := http.NewRequestWithContext(reqCtx, method, g.URL, body)
 	if err != nil {
 		return "", fmt.Errorf("genericjson: build request: %w", err)
 	}
@@ -101,23 +138,27 @@ func (g *GenericJSON) FetchAndRender() (string, error) {
 		req.Header.Set(k, v)
 	}
 
-	client := httpClient
-	if g.TimeoutSeconds > 0 {
-		client = &http.Client{Timeout: time.Duration(g.TimeoutSeconds) * time.Second}
-	}
-
-	resp, err := client.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("genericjson: %s %s: %w", method, g.URL, err)
+		return "", fmt.Errorf("genericjson: %s %s: %w", method, redactURL(g.URL), err)
 	}
 	defer resp.Body.Close()
 
-	raw, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20)) // 8 MiB cap
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxBodyBytes))
 	if err != nil {
 		return "", fmt.Errorf("genericjson: read body: %w", err)
 	}
 	if resp.StatusCode >= 400 {
-		return "", fmt.Errorf("genericjson: %s %s: HTTP %d: %s", method, g.URL, resp.StatusCode, truncateForError(raw))
+		// Surface only status + host in the error (which checkError will
+		// log AND speak). The body often contains auth tokens, OAuth
+		// error_description, request IDs — we capture it at Trace level
+		// for debugging instead of leaking it into TTS audio / logs.
+		log.WithFields(log.Fields{
+			"status": resp.StatusCode,
+			"url":    redactURL(g.URL),
+			"body":   truncateBody(string(raw), errorBodyPeek),
+		}).Trace("genericjson: non-2xx response")
+		return "", fmt.Errorf("genericjson: %s %s: HTTP %d", method, redactURL(g.URL), resp.StatusCode)
 	}
 
 	var data any
@@ -147,12 +188,26 @@ func (g *GenericJSON) FetchAndRender() (string, error) {
 	return out.String(), nil
 }
 
-func truncateForError(b []byte) string {
-	const max = 256
-	if len(b) <= max {
-		return string(b)
+// redactURL strips the query string and any userinfo from a URL before
+// it lands in an error/log. The path stays — usually informative — but
+// query params and basic-auth credentials are common token-carrying
+// surfaces we don't want speaking through the TTS or showing up in logs.
+func redactURL(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return raw
 	}
-	return string(b[:max]) + "…"
+	u.User = nil
+	u.RawQuery = ""
+	u.Fragment = ""
+	return u.String()
+}
+
+func truncateBody(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "…"
 }
 
 // genericJSONFuncs are the helpers exposed inside the template. The star
@@ -188,15 +243,14 @@ var genericJSONFuncs = template.FuncMap{
 	"length":  lengthFn,
 }
 
-// toFloat coerces any of (json.Number, float*, int*, string, bool) into a
-// float64. Returns 0 for nil/unknown.
+// toFloat coerces a value into a float64. We feed JSON through plain
+// json.Unmarshal (no UseNumber) so numbers always arrive as float64
+// here — the other cases cover hand-constructed inputs from Go code
+// and the string/bool conversions templates frequently need.
 func toFloat(v any) float64 {
 	switch t := v.(type) {
 	case nil:
 		return 0
-	case json.Number:
-		f, _ := t.Float64()
-		return f
 	case float64:
 		return t
 	case float32:
@@ -236,8 +290,6 @@ func toString(v any) string {
 		return ""
 	case string:
 		return t
-	case json.Number:
-		return t.String()
 	case bool:
 		return strconv.FormatBool(t)
 	case float64:
@@ -263,8 +315,6 @@ func isEmpty(v any) bool {
 		return t == ""
 	case bool:
 		return !t
-	case json.Number:
-		return t.String() == "" || t.String() == "0"
 	case float64:
 		return t == 0
 	case []any:

@@ -2,6 +2,8 @@ import { useState } from "react";
 import type { Action, ActionKind } from "../generated/config";
 import { actionKind, ACTION_KINDS } from "../generated/config";
 import { SERVICE_NAMES } from "../generated/services";
+import { api } from "../lib/api";
+import { emptyGenericJSON } from "../lib/empty";
 import { Field, TextInput, NumberInput, CheckboxInput } from "./Field";
 import HelpDot from "./HelpDot";
 import TTSEditor from "./TTSEditor";
@@ -24,27 +26,6 @@ const ACTION_KIND_HELP: Record<ActionKind, string> = {
   genericjson: "Fetch a JSON HTTP endpoint, render the response through a Go text/template, and speak it through TTS. Navigate untyped JSON with {{.Data.foo.bar}}, iterate with {{range .Data.items}}, or use the full jq language via {{jq .Data \".[] | select(.name == \\\"X\\\") | .temperature\"}}. Helpers: int, round, default, jq, jqAll, first, last, join, add, sub, mul, div, keys, length.",
   clear: "Stop any currently-playing audio in this call session without otherwise affecting state.",
 };
-
-function headersToText(h: Record<string, string> | undefined | null): string {
-  if (!h) return "";
-  return Object.entries(h)
-    .map(([k, v]) => `${k}: ${v}`)
-    .join("\n");
-}
-
-function textToHeaders(text: string): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const raw of text.split(/\r?\n/)) {
-    const line = raw.trim();
-    if (!line) continue;
-    const idx = line.indexOf(":");
-    if (idx < 0) continue;
-    const k = line.slice(0, idx).trim();
-    const v = line.slice(idx + 1).trim();
-    if (k) out[k] = v;
-  }
-  return out;
-}
 
 type Props = {
   value: Action;
@@ -77,15 +58,9 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
       record: "",
       dtmf: "",
       livefeed: null,
-      genericjson: {
-        url: "",
-        method: "",
-        body: "",
-        headers: {},
-        tmpl: "",
-        timeout_seconds: 0,
-        tts: { msg: "", voice: "", lang: "", engine: "", provider: "" },
-      },
+      // GenericJSON has its own empty factory in lib/empty.ts — use it
+      // here so kind-switch and "Add Action" stay in lockstep.
+      genericjson: emptyGenericJSON(),
       clear: false,
     };
     const seeded: Partial<Action> = {};
@@ -124,14 +99,13 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
         seeded.livefeed = { device: "", channel: 0 };
         break;
       case "genericjson":
+        // Start from emptyGenericJSON() so a kind-switch matches "Add
+        // Action" defaults exactly; only layer placeholder hints on top
+        // so the user immediately sees example values to edit.
         seeded.genericjson = {
+          ...emptyGenericJSON(),
           url: "https://example.com/api",
-          method: "GET",
-          body: "",
-          headers: {},
           tmpl: "The value is {{.Data.value}}.",
-          timeout_seconds: 0,
-          tts: { msg: "", voice: "", lang: "", engine: "", provider: "" },
         };
         break;
       case "clear":
@@ -165,6 +139,17 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
               <option key={k} value={k}>{k}</option>
             ))}
           </select>
+        </div>
+        <div className="flex flex-col flex-1 min-w-[160px]">
+          <span className="text-xs text-blue-slate uppercase flex items-center">
+            Name
+            <HelpDot help="Human-readable label shown on this node in the graph. Stored in the config but ignored at runtime — purely an authoring aid." />
+          </span>
+          <TextInput
+            value={value.name}
+            onChange={(v) => set("name", v)}
+            placeholder="e.g. summalajnen temp"
+          />
         </div>
         <div className="flex items-center gap-3 pb-1">
           <CheckboxInput
@@ -456,47 +441,18 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
             />
           </Field>
           <Field
-            label="Headers (one per line, Key: Value)"
-            help="Extra request headers. Example: Authorization: Bearer abc123"
+            label="Headers"
+            help="Extra request headers as key/value rows. Example: Authorization → Bearer abc123."
           >
-            <textarea
-              value={headersToText(value.genericjson.headers)}
-              onChange={(e) =>
-                set("genericjson", {
-                  ...value.genericjson,
-                  headers: textToHeaders(e.target.value),
-                })
-              }
-              rows={3}
-              className="px-2 py-1 rounded font-mono text-sm w-full"
-              placeholder="Authorization: Bearer abc123"
+            <HeadersGrid
+              value={value.genericjson.headers}
+              onChange={(h) => set("genericjson", { ...value.genericjson, headers: h })}
             />
           </Field>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-blue-slate uppercase">
-              Template (Go text/template over decoded JSON)
-            </label>
-            <textarea
-              value={value.genericjson.tmpl}
-              onChange={(e) => set("genericjson", { ...value.genericjson, tmpl: e.target.value })}
-              rows={10}
-              className="px-2 py-1 rounded font-mono text-sm w-full resize-y"
-              style={{ minHeight: 200 }}
-              placeholder={'The temperature is {{int .Data.temp}} celsius.\n{{range .Data.items}}{{.name}}: {{.value}}; {{end}}'}
-            />
-            <span className="text-xs text-blue-slate">
-              JSON tree is bound as <code>.Data</code>. Use <code>.Status</code> and <code>.Raw</code> for the HTTP status and raw body.
-              <br />
-              <code>jq</code> runs a real jq expression (filter/select/map/iterate):{" "}
-              <code>{"{{jq .Data \".[] | select(.name == \\\"Summalajnen\\\") | .temperature\"}}"}</code>.
-              Use <code>jqAll</code> with <code>{"{{range}}"}</code> when a query yields multiple values.
-              <br />
-              Format helpers: <code>int</code>, <code>round</code>, <code>float</code>, <code>str</code>, <code>default</code>,{" "}
-              <code>first</code>, <code>last</code>, <code>join</code>,{" "}
-              <code>add</code>, <code>sub</code>, <code>mul</code>, <code>div</code>,{" "}
-              <code>keys</code>, <code>length</code>.
-            </span>
-          </div>
+          <GenericJSONTemplateAndPreview
+            config={value.genericjson}
+            onTmplChange={(t) => set("genericjson", { ...value.genericjson, tmpl: t })}
+          />
           <details className="border border-shadow-grey rounded">
             <summary className="px-3 py-2 cursor-pointer text-xs text-blue-slate uppercase tracking-wider">
               TTS overrides (voice / lang / engine / provider)
@@ -518,6 +474,216 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
       {kind === "clear" && (
         <div className="text-xs text-blue-slate">Stops any currently-playing audio.</div>
       )}
+    </div>
+  );
+}
+
+// GenericJSONTemplateAndPreview bundles the template textarea, the "Test
+// fetch" button, the helper-function hint line, and the inline preview
+// of the upstream response. Keeping these together lets the preview
+// state live next to the template the author is iterating on without
+// re-rendering the rest of the surrounding form.
+//
+// We deliberately do NOT render the template + jq here — that's the Go
+// side's job at call time. Porting both engines to TS would inevitably
+// drift. Showing the raw upstream response covers most of the authoring
+// pain ("did my URL + headers + body return what I expect?").
+function GenericJSONTemplateAndPreview({
+  config,
+  onTmplChange,
+}: {
+  config: {
+    url: string;
+    method: string;
+    body: string;
+    headers: Record<string, string>;
+    tmpl: string;
+  };
+  onTmplChange: (tmpl: string) => void;
+}) {
+  const [state, setState] = useState<
+    | { kind: "idle" }
+    | { kind: "loading" }
+    | { kind: "ok"; status: number; contentType: string; body: string; truncated: boolean }
+    | { kind: "err"; msg: string }
+  >({ kind: "idle" });
+
+  async function run() {
+    setState({ kind: "loading" });
+    try {
+      const r = await api.previewGenericJSON({
+        url: config.url,
+        method: config.method || undefined,
+        body: config.body || undefined,
+        headers: config.headers,
+      });
+      setState({ kind: "ok", ...r });
+    } catch (e) {
+      setState({ kind: "err", msg: e instanceof Error ? e.message : String(e) });
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between">
+        <label className="text-xs text-blue-slate uppercase">
+          Template (Go text/template over decoded JSON)
+        </label>
+        <button
+          type="button"
+          onClick={run}
+          disabled={!config.url || state.kind === "loading"}
+          className="text-xs px-2 py-1 border border-shadow-grey text-blue-slate hover:text-white rounded disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {state.kind === "loading" ? "Fetching…" : "Test fetch"}
+        </button>
+      </div>
+      <textarea
+        value={config.tmpl}
+        onChange={(e) => onTmplChange(e.target.value)}
+        rows={10}
+        className="px-2 py-1 rounded font-mono text-sm w-full resize-y"
+        style={{ minHeight: 200 }}
+        placeholder={
+          "The temperature is {{int .Data.temp}} celsius.\n{{range .Data.items}}{{.name}}: {{.value}}; {{end}}"
+        }
+      />
+      {state.kind === "ok" && (
+        <div className="mt-1">
+          <div className="text-xs text-blue-slate mb-1">
+            HTTP {state.status}
+            {state.contentType ? ` · ${state.contentType}` : ""}
+            {state.truncated ? " · response truncated at 1 MiB" : ""}
+          </div>
+          <pre className="bg-ink-black border border-shadow-grey rounded p-2 text-xs font-mono text-white max-h-96 overflow-auto whitespace-pre-wrap">
+            {prettyJSON(state.body)}
+          </pre>
+        </div>
+      )}
+      {state.kind === "err" && (
+        <div className="mt-1 text-xs text-red-300 border border-red-900/40 bg-red-900/10 rounded p-2">
+          {state.msg}
+        </div>
+      )}
+      <span className="text-xs text-blue-slate">
+        JSON tree is bound as <code>.Data</code>. Use <code>.Status</code> and <code>.Raw</code> for the HTTP status and raw body.
+        <br />
+        <code>jq</code> runs a real jq expression (filter/select/map/iterate):{" "}
+        <code>{"{{jq .Data \".[] | select(.name == \\\"Summalajnen\\\") | .temperature\"}}"}</code>.
+        Use <code>jqAll</code> with <code>{"{{range}}"}</code> when a query yields multiple values.
+        <br />
+        Format helpers: <code>int</code>, <code>round</code>, <code>float</code>, <code>str</code>, <code>default</code>,{" "}
+        <code>first</code>, <code>last</code>, <code>join</code>,{" "}
+        <code>add</code>, <code>sub</code>, <code>mul</code>, <code>div</code>,{" "}
+        <code>keys</code>, <code>length</code>.
+      </span>
+    </div>
+  );
+}
+
+// Best-effort: pretty-print JSON, fall back to the raw body if parsing
+// fails (e.g. the upstream returned HTML or text instead of JSON — the
+// user still wants to see *something* to understand what came back).
+function prettyJSON(body: string): string {
+  try {
+    return JSON.stringify(JSON.parse(body), null, 2);
+  } catch {
+    return body;
+  }
+}
+
+// HeadersGrid renders the GenericJSON headers map as a list of paired
+// key/value inputs. The storage shape stays Record<string,string>, so
+// nothing downstream changes — the prior textarea-with-line-parsing
+// approach silently dropped malformed lines and reordered the map on
+// every edit, which this avoids entirely.
+//
+// Implementation note: we mirror the map into an ordered local list of
+// {k, v} rows on each render. New rows append with an empty key; we
+// keep the original key as `originalKey` so renaming a key (which would
+// otherwise drop+recreate the entry, losing position) updates in place.
+function HeadersGrid({
+  value,
+  onChange,
+}: {
+  value: Record<string, string>;
+  onChange: (v: Record<string, string>) => void;
+}) {
+  // Object.entries preserves insertion order in modern JS engines, so
+  // round-tripping through this list is stable.
+  const rows = Object.entries(value);
+
+  function setRow(i: number, k: string, v: string) {
+    const next: Record<string, string> = {};
+    rows.forEach(([rk, rv], idx) => {
+      if (idx === i) {
+        if (k) next[k] = v;
+      } else {
+        next[rk] = rv;
+      }
+    });
+    onChange(next);
+  }
+
+  function deleteRow(i: number) {
+    const next: Record<string, string> = {};
+    rows.forEach(([rk, rv], idx) => {
+      if (idx !== i) next[rk] = rv;
+    });
+    onChange(next);
+  }
+
+  function addRow() {
+    // Pick a fresh placeholder key that doesn't collide so React keys
+    // stay stable. Empty string would collapse multiple new rows into
+    // one entry.
+    let i = 1;
+    let candidate = `header-${i}`;
+    while (candidate in value) {
+      i += 1;
+      candidate = `header-${i}`;
+    }
+    onChange({ ...value, [candidate]: "" });
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      {rows.length === 0 && (
+        <span className="text-xs text-blue-slate italic">No headers.</span>
+      )}
+      {rows.map(([k, v], i) => (
+        <div key={i} className="flex gap-2 items-center">
+          <input
+            type="text"
+            value={k}
+            onChange={(e) => setRow(i, e.target.value, v)}
+            placeholder="Header-Name"
+            className="px-2 py-1 rounded font-mono text-sm flex-1 min-w-0"
+          />
+          <input
+            type="text"
+            value={v}
+            onChange={(e) => setRow(i, k, e.target.value)}
+            placeholder="value"
+            className="px-2 py-1 rounded font-mono text-sm flex-1 min-w-0"
+          />
+          <button
+            type="button"
+            onClick={() => deleteRow(i)}
+            className="text-xs px-2 py-1 border border-shadow-grey text-blue-slate hover:text-white rounded shrink-0"
+            aria-label={`Remove header ${k || "row " + (i + 1)}`}
+          >
+            ×
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={addRow}
+        className="self-start text-xs px-2 py-1 border border-shadow-grey text-blue-slate hover:text-white rounded mt-1"
+      >
+        + Add header
+      </button>
     </div>
   );
 }

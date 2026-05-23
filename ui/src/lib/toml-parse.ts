@@ -84,6 +84,7 @@ function normalizeAction(raw: unknown): Action {
     num: asNum(r.num),
     wait: asBool(r.wait),
     clear: asBool(r.clear),
+    name: asStr(r.name),
     prefix: normalizePrefix(r.prefix),
     pmsg: normalizePrefix(r.pmsg),
     dst: asStr(r.dst),

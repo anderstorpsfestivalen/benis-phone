@@ -67,6 +67,7 @@ export const emptyAction = (): Action => ({
   num: 0,
   wait: false,
   clear: false,
+  name: "",
   prefix: emptyPrefix(),
   pmsg: emptyPrefix(),
   dst: "",

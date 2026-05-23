@@ -7,6 +7,7 @@ export const actionSchema: z.ZodType<unknown> = z.lazy(() => z.object({
   num: z.number().optional(),
   wait: z.boolean().optional(),
   clear: z.boolean().optional(),
+  name: z.string().optional(),
   prefix: prefixSchema.optional(),
   pmsg: prefixSchema.optional(),
   dst: z.string().optional(),

@@ -1,6 +1,7 @@
 import { checkAccess, checkBearer, type Env } from "./lib/auth";
 import { handleApi } from "./handlers/configs";
 import { handleFiles } from "./handlers/files";
+import { handlePreview } from "./handlers/preview";
 import { handleConfig, handleConfigWS } from "./handlers/serve";
 import { notFound, unauthorized } from "./lib/responses";
 
@@ -33,6 +34,9 @@ export default {
         }
         if (url.pathname.startsWith("/api/files")) {
           return await handleFiles(req, env, url.pathname);
+        }
+        if (url.pathname === "/api/genericjson/preview") {
+          return await handlePreview(req);
         }
         return notFound();
       }
