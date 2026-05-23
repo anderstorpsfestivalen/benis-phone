@@ -146,7 +146,11 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
             <HelpDot help="Human-readable label shown on this node in the graph. Stored in the config but ignored at runtime — purely an authoring aid." />
           </span>
           <TextInput
-            value={value.name}
+            // Coerce: a stale doc (saved before the field existed) can
+            // hand us name=undefined, which would switch this input
+            // into uncontrolled mode and leak the prior selection's
+            // value when the user clicks a different node.
+            value={value.name ?? ""}
             onChange={(v) => set("name", v)}
             placeholder="e.g. summalajnen temp"
           />

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { emptyDefinition } from "../lib/empty";
+import { parseTomlConfig } from "../lib/toml-parse";
 import { renderToml } from "../lib/toml-render";
 import type { Definition } from "../generated/config";
 import { Field, TextInput, NumberInput, CheckboxInput } from "../components/Field";
@@ -22,7 +23,18 @@ export default function ConfigEditor() {
   useEffect(() => {
     api.get(name)
       .then((p) => {
-        setDoc(p.doc);
+        // Re-normalize through parseTomlConfig instead of trusting p.doc
+        // verbatim: D1 stores the doc as JSON snapshotted at save time, so
+        // older saves from before a field existed (e.g. action.name)
+        // come back with that field undefined. Re-parsing from the TOML
+        // backfills every field via the empty-factory defaults, which
+        // keeps controlled inputs from flipping to uncontrolled and
+        // leaking the previous selection's value into the new node.
+        try {
+          setDoc(parseTomlConfig(p.toml));
+        } catch {
+          setDoc(p.doc);
+        }
         setSavedHash(p.hash);
       })
       .catch((e) => setErr(String(e)));
