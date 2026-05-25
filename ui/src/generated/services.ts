@@ -53,16 +53,6 @@ const _RAW = {
       { path: ".Filtered", type: "string", description: "Body with profanity / unspeakable bits filtered out" },
     ],
   },
-  "saunatemp": {
-    args: [
-      { name: "target", type: "string", required: true, description: "Case-insensitive sauna name, e.g. Summalajnen", default: "" },
-    ],
-    templateFields: [
-      { path: ".Name", type: "string", description: "" },
-      { path: ".Temperature", type: "number", description: "" },
-      { path: ".TemperatureRounded", type: "number", description: "" },
-    ],
-  },
   "traintimes": {
     args: [
       { name: "station", type: "string", required: false, description: "Trafikverket station name to query departures for", default: "Reftele" },

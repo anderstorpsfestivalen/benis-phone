@@ -33,7 +33,6 @@ external_ip = "45.154.28.76"
 name = "main"
 actions = [
     { num = 1, srv = { dst = "weather", args = { latitude = "57.2684", longitude = "13.8358", timezone = "Europe/Stockholm", name = "Simonstorp" }, tmpl = "{{.Current.Condition}}, {{.Current.TempC}} degrees. Today's high {{.Today.HighC}}, low {{.Today.LowC}}. {{if .Today.RainSoon}}Rain expected around {{.Today.RainSoon}}.{{end}}" }, pmsg = { tts = { msg = "The current forecast for Simonstorp is: " } } },
-    { num = 2, srv = { dst = "saunatemp", args = { target = "Summalajnen" }, tmpl = """{{.Name}} is {{.TemperatureRounded}} celsius""", pmsg = { tts = { msg = "The sauna temperature is currently: " } } } } ,
     { num = 3, dst = "directory" },
     { num = 5, srv = { dst = "traintimes", tmpl = """{{.K.InformationOwner}},
         {{index .K.ProductInformation 0}},

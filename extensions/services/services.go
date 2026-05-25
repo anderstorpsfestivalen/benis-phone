@@ -8,7 +8,6 @@ import (
 	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/flacornot"
 	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/idiom"
 	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/kernelmessage"
-	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/saunatemp"
 	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/train"
 	"github.com/anderstorpsfestivalen/benis-phone/extensions/services/weather"
 )
@@ -38,7 +37,6 @@ var ServiceRegistry = map[string]Service{
 	"drugslang":     &drugslang.Drugslang{},
 	"kernelmessage": &kernelmessage.KernelMessage{},
 	"weather":       &weather.Weather{},
-	"saunatemp":     &saunatemp.Saunatemp{},
 }
 
 func AddService(name string, s Service) {
