@@ -4,7 +4,6 @@ import { actionKind, ACTION_KINDS } from "../generated/config";
 import { SERVICE_NAMES } from "../generated/services";
 import { api } from "../lib/api";
 import { emptyGenericJSON } from "../lib/empty";
-import { renderGenericJSONTemplate } from "../lib/template-render";
 import { Field, TextInput, NumberInput, CheckboxInput } from "./Field";
 import HelpDot from "./HelpDot";
 import TTSEditor from "./TTSEditor";
@@ -541,8 +540,16 @@ function GenericJSONTemplateAndPreview({
   async function runParse() {
     if (state.kind !== "ok") return;
     setParseState({ kind: "loading" });
-    const r = await renderGenericJSONTemplate(state.body, config.tmpl, state.status);
-    setParseState(r.ok ? { kind: "ok", rendered: r.rendered } : { kind: "err", msg: r.error });
+    // Dynamic import keeps jq-wasm (~1.4 MB WASM blob) out of the main
+    // ConfigEditor bundle. It's only fetched the first time a user
+    // actually clicks Test parse.
+    try {
+      const { renderGenericJSONTemplate } = await import("../lib/template-render");
+      const r = await renderGenericJSONTemplate(state.body, config.tmpl, state.status);
+      setParseState(r.ok ? { kind: "ok", rendered: r.rendered } : { kind: "err", msg: r.error });
+    } catch (e) {
+      setParseState({ kind: "err", msg: e instanceof Error ? e.message : String(e) });
+    }
   }
 
   const canParse = state.kind === "ok" && config.tmpl.trim().length > 0;
