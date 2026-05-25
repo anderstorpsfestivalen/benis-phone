@@ -14,6 +14,9 @@ importers:
       dagre:
         specifier: ^0.8.5
         version: 0.8.5
+      jq-wasm:
+        specifier: 1.1.0-jq-1.8.1
+        version: 1.1.0-jq-1.8.1
       react:
         specifier: ^19.1.0
         version: 19.2.6
@@ -1128,6 +1131,9 @@ packages:
   jiti@1.21.7:
     resolution: {integrity: sha512-/imKNG4EbWNrVjoNC/1H5/9GFy+tqjGBHCaSsN+P2RnPqjsLmv6UD3Ej+Kj8nBWaRAwyk7kK5ZUc+OEatnTR3A==}
     hasBin: true
+
+  jq-wasm@1.1.0-jq-1.8.1:
+    resolution: {integrity: sha512-lWfu34lpDFIygOYcL5TzxhZIApDR9iR5XywcVoyUAZ6jlQrj8HKHOKeCcHgUm2dE9RVdbP3eqNAKGLuj+k4seQ==}
 
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
@@ -2422,6 +2428,8 @@ snapshots:
   is-number@7.0.0: {}
 
   jiti@1.21.7: {}
+
+  jq-wasm@1.1.0-jq-1.8.1: {}
 
   js-tokens@4.0.0: {}
 

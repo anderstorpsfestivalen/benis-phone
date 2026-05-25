@@ -4,6 +4,7 @@ import { actionKind, ACTION_KINDS } from "../generated/config";
 import { SERVICE_NAMES } from "../generated/services";
 import { api } from "../lib/api";
 import { emptyGenericJSON } from "../lib/empty";
+import { renderGenericJSONTemplate } from "../lib/template-render";
 import { Field, TextInput, NumberInput, CheckboxInput } from "./Field";
 import HelpDot from "./HelpDot";
 import TTSEditor from "./TTSEditor";
@@ -483,15 +484,16 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
 }
 
 // GenericJSONTemplateAndPreview bundles the template textarea, the "Test
-// fetch" button, the helper-function hint line, and the inline preview
-// of the upstream response. Keeping these together lets the preview
-// state live next to the template the author is iterating on without
-// re-rendering the rest of the surrounding form.
+// fetch"/"Test parse" buttons, the helper-function hint line, and the
+// inline previews of the upstream response and rendered output. Keeping
+// these together lets the preview state live next to the template the
+// author is iterating on without re-rendering the rest of the form.
 //
-// We deliberately do NOT render the template + jq here — that's the Go
-// side's job at call time. Porting both engines to TS would inevitably
-// drift. Showing the raw upstream response covers most of the authoring
-// pain ("did my URL + headers + body return what I expect?").
+// Test parse runs the template through a browser-side renderer
+// (lib/template-render.ts) that handles the helper subset and delegates
+// jq to jq-wasm. The renderer is labelled "preview" because Go
+// text/template features outside the documented subset can still drift
+// from runtime behaviour.
 function GenericJSONTemplateAndPreview({
   config,
   onTmplChange,
@@ -512,6 +514,15 @@ function GenericJSONTemplateAndPreview({
     | { kind: "err"; msg: string }
   >({ kind: "idle" });
 
+  // Parse-preview state is independent of fetch state so the user can
+  // tweak the template and re-render without re-fetching.
+  const [parseState, setParseState] = useState<
+    | { kind: "idle" }
+    | { kind: "loading" }
+    | { kind: "ok"; rendered: string }
+    | { kind: "err"; msg: string }
+  >({ kind: "idle" });
+
   async function run() {
     setState({ kind: "loading" });
     try {
@@ -527,20 +538,44 @@ function GenericJSONTemplateAndPreview({
     }
   }
 
+  async function runParse() {
+    if (state.kind !== "ok") return;
+    setParseState({ kind: "loading" });
+    const r = await renderGenericJSONTemplate(state.body, config.tmpl, state.status);
+    setParseState(r.ok ? { kind: "ok", rendered: r.rendered } : { kind: "err", msg: r.error });
+  }
+
+  const canParse = state.kind === "ok" && config.tmpl.trim().length > 0;
+
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center justify-between">
         <label className="text-xs text-blue-slate uppercase">
           Template (Go text/template over decoded JSON)
         </label>
-        <button
-          type="button"
-          onClick={run}
-          disabled={!config.url || state.kind === "loading"}
-          className="text-xs px-2 py-1 border border-shadow-grey text-blue-slate hover:text-white rounded disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          {state.kind === "loading" ? "Fetching…" : "Test fetch"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={run}
+            disabled={!config.url || state.kind === "loading"}
+            className="text-xs px-2 py-1 border border-shadow-grey text-blue-slate hover:text-white rounded disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {state.kind === "loading" ? "Fetching…" : "Test fetch"}
+          </button>
+          <button
+            type="button"
+            onClick={runParse}
+            disabled={!canParse || parseState.kind === "loading"}
+            className="text-xs px-2 py-1 border border-shadow-grey text-blue-slate hover:text-white rounded disabled:opacity-40 disabled:cursor-not-allowed"
+            title={
+              state.kind === "ok"
+                ? "Render the template against the fetched JSON (browser-side preview)"
+                : "Run Test fetch first"
+            }
+          >
+            {parseState.kind === "loading" ? "Rendering…" : "Test parse"}
+          </button>
+        </div>
       </div>
       <textarea
         value={config.tmpl}
@@ -552,18 +587,38 @@ function GenericJSONTemplateAndPreview({
           "The temperature is {{int .Data.temp}} celsius.\n{{range .Data.items}}{{.name}}: {{.value}}; {{end}}"
         }
       />
-      {state.kind === "ok" && (
-        <div className="mt-1">
-          <div className="text-xs text-blue-slate mb-1">
-            HTTP {state.status}
-            {state.contentType ? ` · ${state.contentType}` : ""}
-            {state.truncated ? " · response truncated at 1 MiB" : ""}
+      <div className="grid grid-cols-2 gap-2 mt-1">
+        {state.kind === "ok" && (
+          <div>
+            <div className="text-xs text-blue-slate mb-1">
+              HTTP {state.status}
+              {state.contentType ? ` · ${state.contentType}` : ""}
+              {state.truncated ? " · truncated at 1 MiB" : ""}
+            </div>
+            <pre className="bg-ink-black border border-shadow-grey rounded p-2 text-xs font-mono text-white max-h-96 overflow-auto whitespace-pre-wrap">
+              {prettyJSON(state.body)}
+            </pre>
           </div>
-          <pre className="bg-ink-black border border-shadow-grey rounded p-2 text-xs font-mono text-white max-h-96 overflow-auto whitespace-pre-wrap">
-            {prettyJSON(state.body)}
-          </pre>
-        </div>
-      )}
+        )}
+        {parseState.kind === "ok" && (
+          <div>
+            <div className="text-xs text-blue-slate mb-1">
+              Rendered output (preview)
+            </div>
+            <pre className="bg-ink-black border border-shadow-grey rounded p-2 text-xs font-mono text-white max-h-96 overflow-auto whitespace-pre-wrap">
+              {parseState.rendered}
+            </pre>
+          </div>
+        )}
+        {parseState.kind === "err" && (
+          <div>
+            <div className="text-xs text-red-300 mb-1">Rendered output</div>
+            <pre className="bg-ink-black border border-red-900/40 bg-red-900/10 rounded p-2 text-xs font-mono text-red-300 max-h-96 overflow-auto whitespace-pre-wrap">
+              {parseState.msg}
+            </pre>
+          </div>
+        )}
+      </div>
       {state.kind === "err" && (
         <div className="mt-1 text-xs text-red-300 border border-red-900/40 bg-red-900/10 rounded p-2">
           {state.msg}

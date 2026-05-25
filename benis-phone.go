@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -16,6 +15,7 @@ import (
 	"github.com/anderstorpsfestivalen/benis-phone/core/audio"
 	"github.com/anderstorpsfestivalen/benis-phone/core/filesync"
 	"github.com/anderstorpsfestivalen/benis-phone/core/functions"
+	"github.com/anderstorpsfestivalen/benis-phone/core/hotreload"
 	"github.com/anderstorpsfestivalen/benis-phone/core/polly"
 	"github.com/anderstorpsfestivalen/benis-phone/core/secrets"
 	"github.com/anderstorpsfestivalen/benis-phone/core/sip"
@@ -118,13 +118,14 @@ func main() {
 		}
 		currentHash, err = remoteClient.FetchHash()
 		if err != nil {
-			// Non-fatal: definition already loaded; polling will retry.
+			// Non-fatal: definition already loaded; the WS push or
+			// the next poll tick will retry.
 			log.Warnf("fetching initial config hash: %v", err)
 		}
 		log.WithFields(logrus.Fields{
 			"name": *configName,
 			"url":  *remoteURL,
-			"hash": shortHash(currentHash),
+			"hash": hotreload.ShortHash(currentHash),
 		}).Info("Loaded remote config")
 	default:
 		log.Fatalf("invalid -source %q (want file|remote)", *source)
@@ -172,55 +173,22 @@ func main() {
 		"max_calls": maxCalls,
 	}).Info("SIP client started")
 
-	// Hot-reload: only meaningful with a remote source.
-	stopReload := make(chan struct{})
-	var reloadWg sync.WaitGroup
-	wsCtx, wsCancel := context.WithCancel(context.Background())
-	defer wsCancel()
+	// Hot-reload — only meaningful with a remote source.
+	var reloader *hotreload.Manager
 	if remoteClient != nil {
-		// Default: long-lived WS subscription to the broker. The OnUpdate
-		// callback shares the same reload path as polling / SIGUSR1.
-		var hashMu sync.Mutex
-		watcher := &functions.WSWatcher{
-			BaseURL: *remoteURL,
-			Name:    *configName,
-			Token:   credentials.PBXConfigToken,
-			Logger:  log,
-			OnUpdate: func(hash string) {
-				hashMu.Lock()
-				defer hashMu.Unlock()
-				// reloadOnce re-syncs R2 (when enabled) before swapping
-				// the Definition, so any newly-referenced audio files land
-				// on disk before calls pick up the new menu.
-				reloadOnce(log, remoteClient, sipClient, &currentHash, false, resync)
-			},
-		}
-		reloadWg.Add(1)
-		go func() {
-			defer reloadWg.Done()
-			watcher.Run(wsCtx)
-		}()
-
-		// Optional poll fallback for environments where the WS upgrade is
-		// blocked (corporate proxies, certain captive networks).
-		if *poll && *reloadInterval > 0 {
-			reloadWg.Add(1)
-			go func() {
-				defer reloadWg.Done()
-				runHotReload(log, remoteClient, sipClient, &currentHash, *reloadInterval, stopReload, resync)
-			}()
-		}
-
-		// SIGUSR1 forces an immediate reload — useful for ops and for the
-		// editor to push changes faster than the next poll.
-		usr1 := make(chan os.Signal, 1)
-		signal.Notify(usr1, syscall.SIGUSR1)
-		go func() {
-			for range usr1 {
-				log.Info("SIGUSR1 received, forcing config reload")
-				reloadOnce(log, remoteClient, sipClient, &currentHash, true, resync)
-			}
-		}()
+		reloader = hotreload.New(hotreload.Config{
+			RemoteClient: remoteClient,
+			SIPClient:    sipClient,
+			SyncFiles:    resync,
+			BaseURL:      *remoteURL,
+			Name:         *configName,
+			Token:        credentials.PBXConfigToken,
+			InitialHash:  currentHash,
+			Poll:         *poll,
+			PollInterval: *reloadInterval,
+			Logger:       log,
+		})
+		reloader.Start()
 	}
 
 	var wg sync.WaitGroup
@@ -235,76 +203,10 @@ func main() {
 	<-sigChan
 
 	log.Info("Shutting down")
-	close(stopReload)
-	wsCancel()
-	reloadWg.Wait()
+	if reloader != nil {
+		reloader.Stop()
+	}
 	sipClient.Stop()
-}
-
-// runHotReload polls the worker for hash changes and swaps the active
-// Definition when one is detected. New calls pick up the new config; in-
-// flight calls keep their snapshot until they end.
-func runHotReload(
-	log *logrus.Logger,
-	rc *functions.RemoteClient,
-	sipClient *sip.Client,
-	current *string,
-	interval time.Duration,
-	stop <-chan struct{},
-	syncFiles func(),
-) {
-	t := time.NewTicker(interval)
-	defer t.Stop()
-	log.WithField("interval", interval.String()).Info("Hot-reload loop started")
-	for {
-		select {
-		case <-stop:
-			log.Info("Hot-reload loop stopped")
-			return
-		case <-t.C:
-			reloadOnce(log, rc, sipClient, current, false, syncFiles)
-		}
-	}
-}
-
-// reloadOnce pulls the worker's current hash; if it differs from `current`
-// (or force is set), it re-syncs the R2 bucket so any newly-referenced
-// audio files land on disk before the new Definition is swapped in.
-// syncFiles may be nil — typically when -s3=false.
-func reloadOnce(
-	log *logrus.Logger,
-	rc *functions.RemoteClient,
-	sipClient *sip.Client,
-	current *string,
-	force bool,
-	syncFiles func(),
-) {
-	h, err := rc.FetchHash()
-	if err != nil {
-		log.Warnf("hot-reload: hash fetch failed: %v", err)
-		return
-	}
-	if !force && h == *current {
-		return
-	}
-	if syncFiles != nil {
-		syncFiles()
-	}
-	def, err := rc.LoadDefinition()
-	if err != nil {
-		log.Warnf("hot-reload: definition fetch failed: %v", err)
-		return
-	}
-	sipClient.SessionManager().UpdateDefinition(def)
-	*current = h
-	log.WithField("hash", shortHash(h)).Info("Hot-reloaded config")
-}
-
-func shortHash(h string) string {
-	if len(h) < 8 {
-		return h
-	}
-	return h[:8]
 }
 
 func buildTTSRegistry(log *logrus.Logger, def functions.Definition, credentials secrets.Credentials) *tts.Registry {
