@@ -100,6 +100,20 @@ function normalizeAction(raw: unknown): Action {
     dtmf: asStr(r.dtmf),
     livefeed,
     genericjson: normalizeGenericJSON(r.genericjson),
+    interactive: normalizeInteractive(r.interactive),
+  };
+}
+
+function normalizeInteractive(raw: unknown) {
+  const r = asObj(raw);
+  const args: Record<string, string> = {};
+  for (const [k, v] of Object.entries(asObj(r.args))) {
+    if (typeof v === "string") args[k] = v;
+  }
+  return {
+    dst: asStr(r.dst),
+    args,
+    tts: { ...emptyTTS(), ...asObj(r.tts) },
   };
 }
 

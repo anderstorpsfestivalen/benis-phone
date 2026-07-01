@@ -1,0 +1,94 @@
+[general]
+entrypoint = "main"
+default_tts_voice = "IKne3meq5aSn9XLyUdCD"
+default_tts_lang = "sv-SE"
+default_tts_engine = "eleven_multilingual_v2"
+default_tts_provider = "elevenlabs"
+
+[sip]
+server = "sip.anderstorpsfestivalen.se:5060"
+extension = "3005"
+username = "3005"
+transport = "udp"
+local_port = 5060
+max_concurrent_calls = 10
+record_path = "files/recording"
+expiry_seconds = 300
+external_ip = "45.154.28.76"
+
+[[fn]]
+name = "main"
+recording = { path = "random" }
+prefix = { tts = { msg = """Välkommen till Simonstorp!
+     Tryck 1 för väderrapporten i Simonstorp.
+     Tryck 2 för temperaturen i Bastun.
+     Tryck 3 för telefonbok.
+     Tryck 4 för öl.
+     Tryck 5 för tågtiderna i Reftele.
+     Tryck 6 för livestream av köket.
+     Tryck 8 för att lämna ett meddelande
+     To speak with a customer representative, press 9 or wait on the line.""" } }
+actions = [
+    { num = 1, name = "Väder", pmsg = { tts = { msg = "The current forecast for Simonstorp is: " } }, srv = { dst = "weather", tmpl = "{{.Current.Condition}}, {{.Current.TempC}} degrees. Today's high {{.Today.HighC}}, low {{.Today.LowC}}. {{if .Today.RainSoon}}Rain expected around {{.Today.RainSoon}}.{{end}}", args = { latitude = "57.2684", longitude = "13.8358", timezone = "Europe/Stockholm", name = "Simonstorp" } } },
+    { num = 3, dst = "directory" },
+    { num = 4, name = "Öl", interactive = { dst = "beer", args = { base_url = "https://beer.anderstorpsfestivalen.se" } } },
+    { num = 5, srv = { dst = "traintimes", tmpl = """{{.K.InformationOwner}},
+        {{index .K.ProductInformation 0}},
+        {{.K.TypeOfTraffic}} nummer,
+        {{.K.TechnicalTrainIdent}},
+        Från {{.From.AdvertisedLocationName}},
+        Till {{.To.AdvertisedLocationName}},
+        avgår från spår: {{.K.TrackAtLocation}},
+        klockan {{.Hour}} och {{.Minute}}""", args = { station = "Reftele" } } },
+    { num = 8, dst = "voicemail" },
+    { num = 9, dispatcher = "customerservice" },
+    { num = 3, dst = "voicemail" },
+    { num = 2, name = "Sauna", genericjson = { url = "https://bastu-bot.wberg.com/temperatures", tmpl = "The temperature in the sauna is {{round (jq .Data \".[] | select(.name == \\\"Summalajnen\\\") | .temperature\")}} celsius." } }
+]
+
+[[fn]]
+name = "voicemail"
+recording = { path = "voicemail" }
+prefix = { tts = { msg = "Please leave a message after the beep: BEEP" } }
+
+[[fn]]
+name = "directory"
+prefix = { tts = { msg = """Directory. Press one for sales, two for support,
+    three for billing. Press zero to go back.""" } }
+actions = [
+    { num = 1, transfer = "201" },
+    { num = 2, transfer = "202" },
+    { num = 3, transfer = "203" }
+]
+
+[[queue]]
+name = "customerservice"
+entrymsg = { tts = { msg = """Please wait while we try to connect you to one
+    of our customer service representatives""" }, wait = true }
+minpos = 20
+maxpos = 45
+speed = 60
+minprompt = 35
+maxprompt = 120
+currentpos = { msg = "Your current place in line is: {{.Position}}" }
+bgmusic = { src = "files/hold.mp3" }
+end = { tts = { msg = "Technical error, please try again." } }
+[[queue.prompt]]
+prompt = { tts = { msg = """"We are currently experiencing high call volumes.
+    Your call will be answered as soon as possible by one of our agents.""" } }
+weight = 4
+[[queue.prompt]]
+prompt = { tts = { msg = """"Your call is very important to us,
+    please stay on the line.""" } }
+weight = 3
+[[queue.prompt]]
+prompt = { tts = { msg = """"You may find answers to your questions by visiting
+        w w w dot anderstorpsfestivalen dot s e""" } }
+weight = 1
+[[queue.prompt]]
+prompt = { tts = { msg = """"Your call is very important to us, please stay on the line
+        until your call is no longer important to you.""" } }
+weight = 1
+[[queue.prompt]]
+empty = true
+weight = 3

@@ -3,7 +3,7 @@ import type { Action, ActionKind } from "../generated/config";
 import { actionKind, ACTION_KINDS } from "../generated/config";
 import { SERVICE_NAMES } from "../generated/services";
 import { api } from "../lib/api";
-import { emptyGenericJSON } from "../lib/empty";
+import { emptyGenericJSON, emptyInteractive } from "../lib/empty";
 import { Field, TextInput, NumberInput, CheckboxInput } from "./Field";
 import HelpDot from "./HelpDot";
 import TTSEditor from "./TTSEditor";
@@ -24,6 +24,7 @@ const ACTION_KIND_HELP: Record<ActionKind, string> = {
   dtmf: "Transmit a string of DTMF digits to the remote end, 200 ms apart. Useful for chaining into upstream IVRs.",
   livefeed: "Stream a host audio capture device into the caller's outbound RTP. Device is a case-insensitive substring match; channel picks the audio channel.",
   genericjson: "Fetch a JSON HTTP endpoint, render the response through a Go text/template, and speak it through TTS. Navigate untyped JSON with {{.Data.foo.bar}}, iterate with {{range .Data.items}}, or use the full jq language via {{jq .Data \".[] | select(.name == \\\"X\\\") | .temperature\"}}. Helpers: int, round, default, jq, jqAll, first, last, join, add, sub, mul, div, keys, length.",
+  interactive: "Hand the caller to a named, stateful Go flow (registered in extensions/interactive, e.g. \"beer\") that builds dynamic menus, collects follow-up keys, and threads state across API calls. Args are passed to the handler (e.g. base_url).",
   clear: "Stop any currently-playing audio in this call session without otherwise affecting state.",
 };
 
@@ -61,6 +62,7 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
       // GenericJSON has its own empty factory in lib/empty.ts — use it
       // here so kind-switch and "Add Action" stay in lockstep.
       genericjson: emptyGenericJSON(),
+      interactive: emptyInteractive(),
       clear: false,
     };
     const seeded: Partial<Action> = {};
@@ -107,6 +109,9 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
           url: "https://example.com/api",
           tmpl: "The value is {{.Data.value}}.",
         };
+        break;
+      case "interactive":
+        seeded.interactive = { ...emptyInteractive(), dst: "beer" };
         break;
       case "clear":
         seeded.clear = true;
@@ -465,6 +470,42 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
               <TTSEditor
                 value={value.genericjson.tts}
                 onChange={(v) => set("genericjson", { ...value.genericjson, tts: v })}
+                hideMessage
+              />
+            </div>
+          </details>
+        </div>
+      )}
+
+      {kind === "interactive" && (
+        <div className="grid grid-cols-1 gap-3">
+          <Field
+            label="Flow"
+            help="Name of the interactive handler registered in extensions/interactive (e.g. beer)."
+          >
+            <TextInput
+              value={value.interactive.dst}
+              onChange={(v) => set("interactive", { ...value.interactive, dst: v })}
+              placeholder="beer"
+            />
+          </Field>
+          <Field
+            label="Args"
+            help="Handler-specific config as key/value rows. For beer: base_url → https://beer.anderstorpsfestivalen.se."
+          >
+            <HeadersGrid
+              value={value.interactive.args}
+              onChange={(a) => set("interactive", { ...value.interactive, args: a })}
+            />
+          </Field>
+          <details className="border border-shadow-grey rounded">
+            <summary className="px-3 py-2 cursor-pointer text-xs text-blue-slate uppercase tracking-wider">
+              TTS overrides (voice / lang / engine / provider)
+            </summary>
+            <div className="p-3">
+              <TTSEditor
+                value={value.interactive.tts}
+                onChange={(v) => set("interactive", { ...value.interactive, tts: v })}
                 hideMessage
               />
             </div>

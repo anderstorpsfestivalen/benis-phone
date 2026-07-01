@@ -70,6 +70,7 @@ function actionForToml(a: Action): Record<string, unknown> {
     dtmf: a.dtmf,
     livefeed: a.livefeed ?? undefined,
     genericjson: a.genericjson,
+    interactive: a.interactive,
   };
 }
 

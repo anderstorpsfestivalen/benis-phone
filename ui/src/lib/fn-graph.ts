@@ -312,6 +312,8 @@ export function actionDetail(a: Action): string {
       return a.livefeed?.device || "default device";
     case "genericjson":
       return a.genericjson.url;
+    case "interactive":
+      return `▶ ${a.interactive.dst}`;
     case "hangup":
     case "clear":
       return "";
@@ -341,6 +343,7 @@ export function categoryFor(kind: ActionKind | null): ActionCategory {
       return "media";
     case "srv":
     case "genericjson":
+    case "interactive":
       return "service";
     default:
       return "control";

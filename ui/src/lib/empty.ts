@@ -6,6 +6,7 @@ import type {
   Gate,
   General,
   GenericJSON,
+  Interactive,
   LiveFeed,
   Playable,
   Prefix,
@@ -63,6 +64,12 @@ export const emptyGenericJSON = (): GenericJSON => ({
   tts: emptyTTS(),
 });
 
+export const emptyInteractive = (): Interactive => ({
+  dst: "",
+  args: {},
+  tts: emptyTTS(),
+});
+
 export const emptyAction = (): Action => ({
   num: 0,
   wait: false,
@@ -83,6 +90,7 @@ export const emptyAction = (): Action => ({
   dtmf: "",
   livefeed: null,
   genericjson: emptyGenericJSON(),
+  interactive: emptyInteractive(),
 });
 
 export const emptyFn = (name = ""): Fn => ({
