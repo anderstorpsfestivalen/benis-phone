@@ -237,22 +237,45 @@ function appendActionTargetEdge(
   danglingQueueRefs: Set<string>,
 ) {
   const target = dispatcherOrDst(action);
-  if (!target) return;
-  if (target.kind === "dispatcher" && !queueNames.has(target.target)) {
-    danglingQueueRefs.add(target.target);
+  if (target) {
+    if (target.kind === "dispatcher" && !queueNames.has(target.target)) {
+      danglingQueueRefs.add(target.target);
+    }
+    const broken =
+      target.kind === "dst"
+        ? !fnNames.has(target.target)
+        : !queueNames.has(target.target);
+    edges.push({
+      id: edgeId,
+      source: sourceId,
+      target:
+        target.kind === "dst" ? `fn_${target.target}` : `queue_${target.target}`,
+      label: "",
+      data: { kind: target.kind, broken },
+    });
   }
-  const broken =
-    target.kind === "dst"
-      ? !fnNames.has(target.target)
-      : !queueNames.has(target.target);
-  edges.push({
-    id: edgeId,
-    source: sourceId,
-    target:
-      target.kind === "dst" ? `fn_${target.target}` : `queue_${target.target}`,
-    label: "",
-    data: { kind: target.kind, broken },
-  });
+
+  // A listmenu routes to its dst fn after the caller selects an option.
+  if (action.listmenu && action.listmenu.dst) {
+    edges.push({
+      id: `${edgeId}_list`,
+      source: sourceId,
+      target: `fn_${action.listmenu.dst}`,
+      label: "",
+      data: { kind: "dst", broken: !fnNames.has(action.listmenu.dst) },
+    });
+  }
+
+  // `then` auto-advances to another fn once the action's audio finishes.
+  if (action.then) {
+    edges.push({
+      id: `${edgeId}_then`,
+      source: sourceId,
+      target: `fn_${action.then}`,
+      label: "auto",
+      data: { kind: "dst", broken: !fnNames.has(action.then) },
+    });
+  }
 }
 
 export function runDagreLayout(nodes: GraphNode[], edges: GraphEdge[]) {
@@ -314,6 +337,8 @@ export function actionDetail(a: Action): string {
       return a.genericjson.url;
     case "interactive":
       return `▶ ${a.interactive.dst}`;
+    case "listmenu":
+      return `▤ list → ${a.listmenu.dst || "?"}`;
     case "hangup":
     case "clear":
       return "";
@@ -344,6 +369,7 @@ export function categoryFor(kind: ActionKind | null): ActionCategory {
     case "srv":
     case "genericjson":
     case "interactive":
+    case "listmenu":
       return "service";
     default:
       return "control";

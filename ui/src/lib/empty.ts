@@ -7,6 +7,7 @@ import type {
   General,
   GenericJSON,
   Interactive,
+  ListMenu,
   LiveFeed,
   Playable,
   Prefix,
@@ -60,7 +61,24 @@ export const emptyGenericJSON = (): GenericJSON => ({
   body: "",
   headers: {},
   tmpl: "",
+  store: {},
   timeout_seconds: 0,
+  tts: emptyTTS(),
+});
+
+export const emptyListMenu = (): ListMenu => ({
+  url: "",
+  method: "",
+  body: "",
+  headers: {},
+  timeout_seconds: 0,
+  list: "",
+  label: "",
+  intro: "",
+  option: "",
+  store: "",
+  dst: "",
+  max: 0,
   tts: emptyTTS(),
 });
 
@@ -91,6 +109,9 @@ export const emptyAction = (): Action => ({
   livefeed: null,
   genericjson: emptyGenericJSON(),
   interactive: emptyInteractive(),
+  listmenu: emptyListMenu(),
+  then: "",
+  auto: false,
 });
 
 export const emptyFn = (name = ""): Fn => ({

@@ -1,0 +1,73 @@
+# Simonstorp — declarative beer flow (no bespoke Go module).
+#
+# Press 4 walks members → BAC → roll → accept/veto entirely from generic
+# primitives: a `listmenu` (dynamic menu from /api/members), `genericjson`
+# nodes that `store` jq values into per-call `.Vars` and reference them in
+# later URLs/bodies, and `then`/`auto` to chain steps. Compare to
+# simonstorp2.toml, which uses the bespoke `interactive = { dst = "beer" }`.
+
+[general]
+entrypoint = "main"
+default_tts_voice = "IKne3meq5aSn9XLyUdCD"
+default_tts_lang = "sv-SE"
+default_tts_engine = "eleven_multilingual_v2"
+default_tts_provider = "elevenlabs"
+
+[sip]
+server = "sip.anderstorpsfestivalen.se:5060"
+extension = "3005"
+username = "3005"
+transport = "udp"
+local_port = 5060
+max_concurrent_calls = 10
+record_path = "files/recording"
+expiry_seconds = 300
+external_ip = "45.154.28.76"
+
+[[fn]]
+name = "main"
+recording = { path = "random" }
+prefix = { tts = { msg = """Välkommen till Simonstorp!
+     Tryck 1 för väderrapporten i Simonstorp.
+     Tryck 3 för telefonbok.
+     Tryck 4 för öl.
+     Tryck 5 för tågtiderna i Reftele.""" } }
+actions = [
+    { num = 1, name = "Väder", pmsg = { tts = { msg = "The current forecast for Simonstorp is: " } }, srv = { dst = "weather", tmpl = "{{.Current.Condition}}, {{.Current.TempC}} degrees. Today's high {{.Today.HighC}}, low {{.Today.LowC}}.", args = { latitude = "57.2684", longitude = "13.8358", timezone = "Europe/Stockholm", name = "Simonstorp" } } },
+    { num = 3, dst = "directory" },
+    # Dynamic menu built from the live member list, id-ascending. The chosen
+    # member object is stored in .Vars.member and we advance to beer_bac.
+    { num = 4, name = "Öl", listmenu = { url = "https://beer.anderstorpsfestivalen.se/api/members", list = "sort_by(.id)", label = "{{.name}}", intro = "Vem vill du rulla för?", store = "member", dst = "beer_bac" } },
+    { num = 5, srv = { dst = "traintimes", tmpl = "{{.K.InformationOwner}}, avgår klockan {{.Hour}} och {{.Minute}}", args = { station = "Reftele" } } },
+]
+
+# On entering beer_bac (after a member is picked) the `auto` node fetches the
+# BAC snapshot and reads the chosen member's promille, then offers a roll.
+# It reads .Vars.member.id (set by the listmenu) via printf into a jq select.
+[[fn]]
+name = "beer_bac"
+actions = [
+    { num = 8, auto = true, name = "BAC", genericjson = { url = "https://beer.anderstorpsfestivalen.se/api/public/bac", tmpl = """Din alkoholhalt är {{jq .Data (printf ".members[] | select(.userId == %v) | .promille" .Vars.member.id)}} promille. Tryck 1 för att rulla en öl. Tryck 0 för att gå tillbaka.""" } },
+    # Roll a beer for the chosen member: POST with the member id, store the
+    # whole roll object, read it out, then auto-advance to the accept/veto menu.
+    { num = 1, name = "Rulla", genericjson = { url = "https://beer.anderstorpsfestivalen.se/api/public/roll", method = "POST", body = """{"userId": {{.Vars.member.id}}}""", store = { roll = "." }, tmpl = "Du rullade {{.Data.productNameBold}}, {{.Data.alcoholPercent}} procent. Tryck 1 för att acceptera. Tryck 2 för att avvisa." }, then = "beer_decide" },
+]
+
+# No prefix: the roll readout already spoke the accept/veto prompt before
+# advancing here. Each choice POSTs to the turn id captured in .Vars.roll.id.
+[[fn]]
+name = "beer_decide"
+actions = [
+    { num = 1, name = "Acceptera", genericjson = { url = "https://beer.anderstorpsfestivalen.se/api/public/roll/{{.Vars.roll.id}}/accept", method = "POST", body = "{}", tmpl = "Accepterad. Skål!" } },
+    { num = 2, name = "Avvisa", genericjson = { url = "https://beer.anderstorpsfestivalen.se/api/public/roll/{{.Vars.roll.id}}/veto", method = "POST", body = "{}", tmpl = "Avvisad." } },
+]
+
+[[fn]]
+name = "directory"
+prefix = { tts = { msg = """Directory. Press one for sales, two for support,
+    three for billing. Press zero to go back.""" } }
+actions = [
+    { num = 1, transfer = "201" },
+    { num = 2, transfer = "202" },
+    { num = 3, transfer = "203" }
+]

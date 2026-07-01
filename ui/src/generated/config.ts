@@ -22,6 +22,9 @@ export interface Action {
   livefeed?: LiveFeed | null;
   genericjson: GenericJSON;
   interactive: Interactive;
+  listmenu: ListMenu;
+  then: string;
+  auto: boolean;
 }
 
 export interface Definition {
@@ -69,6 +72,7 @@ export interface GenericJSON {
   body: string;
   headers: Record<string, string>;
   tmpl: string;
+  store: Record<string, string>;
   timeout_seconds: number;
   tts: TTS;
 }
@@ -76,6 +80,22 @@ export interface GenericJSON {
 export interface Interactive {
   dst: string;
   args: Record<string, string>;
+  tts: TTS;
+}
+
+export interface ListMenu {
+  url: string;
+  method: string;
+  body: string;
+  headers: Record<string, string>;
+  timeout_seconds: number;
+  list: string;
+  label: string;
+  intro: string;
+  option: string;
+  store: string;
+  dst: string;
+  max: number;
   tts: TTS;
 }
 
@@ -169,6 +189,7 @@ export type ActionKind =
   | "livefeed"
   | "genericjson"
   | "interactive"
+  | "listmenu"
   | "clear";
 
 export const ACTION_KINDS: readonly ActionKind[] = [
@@ -185,6 +206,7 @@ export const ACTION_KINDS: readonly ActionKind[] = [
   "livefeed",
   "genericjson",
   "interactive",
+  "listmenu",
   "clear",
 ];
 
@@ -204,6 +226,7 @@ export function actionKind(a: Action): ActionKind | null {
   if (a.livefeed) return "livefeed";
   if (a.genericjson && a.genericjson.url) return "genericjson";
   if (a.interactive && a.interactive.dst) return "interactive";
+  if (a.listmenu && a.listmenu.url) return "listmenu";
   if (a.clear) return "clear";
   return null;
 }

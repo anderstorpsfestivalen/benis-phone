@@ -3,7 +3,7 @@ import type { Action, ActionKind } from "../generated/config";
 import { actionKind, ACTION_KINDS } from "../generated/config";
 import { SERVICE_NAMES } from "../generated/services";
 import { api } from "../lib/api";
-import { emptyGenericJSON, emptyInteractive } from "../lib/empty";
+import { emptyGenericJSON, emptyInteractive, emptyListMenu } from "../lib/empty";
 import { Field, TextInput, NumberInput, CheckboxInput } from "./Field";
 import HelpDot from "./HelpDot";
 import TTSEditor from "./TTSEditor";
@@ -25,6 +25,7 @@ const ACTION_KIND_HELP: Record<ActionKind, string> = {
   livefeed: "Stream a host audio capture device into the caller's outbound RTP. Device is a case-insensitive substring match; channel picks the audio channel.",
   genericjson: "Fetch a JSON HTTP endpoint, render the response through a Go text/template, and speak it through TTS. Navigate untyped JSON with {{.Data.foo.bar}}, iterate with {{range .Data.items}}, or use the full jq language via {{jq .Data \".[] | select(.name == \\\"X\\\") | .temperature\"}}. Helpers: int, round, default, jq, jqAll, first, last, join, add, sub, mul, div, keys, length.",
   interactive: "Hand the caller to a named, stateful Go flow (registered in extensions/interactive, e.g. \"beer\") that builds dynamic menus, collects follow-up keys, and threads state across API calls. Args are passed to the handler (e.g. base_url).",
+  listmenu: "Build a dynamic menu from a fetched JSON array: speaks \"Tryck N för <label>\" and, on selection, stores the chosen item into a flow variable and advances to Dst. Use `list` (jq, e.g. sort_by(.id)) to select/order the array; `label` is a per-item template like {{.name}}. url/body/headers may reference prior state via {{.Vars.*}}.",
   clear: "Stop any currently-playing audio in this call session without otherwise affecting state.",
 };
 
@@ -63,6 +64,9 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
       // here so kind-switch and "Add Action" stay in lockstep.
       genericjson: emptyGenericJSON(),
       interactive: emptyInteractive(),
+      listmenu: emptyListMenu(),
+      then: "",
+      auto: false,
       clear: false,
     };
     const seeded: Partial<Action> = {};
@@ -112,6 +116,14 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
         break;
       case "interactive":
         seeded.interactive = { ...emptyInteractive(), dst: "beer" };
+        break;
+      case "listmenu":
+        seeded.listmenu = {
+          ...emptyListMenu(),
+          url: "https://example.com/api/items",
+          label: "{{.name}}",
+          store: "choice",
+        };
         break;
       case "clear":
         seeded.clear = true;
@@ -462,6 +474,40 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
             config={value.genericjson}
             onTmplChange={(t) => set("genericjson", { ...value.genericjson, tmpl: t })}
           />
+          <Field
+            label="Store (flow variables)"
+            help="Save values from the response into flow variables for later nodes. Each row is varname → jq expression (the jq may itself use {{.Vars.*}}). Later nodes read them via {{.Vars.<name>}} in their URL / body / template. Example: roll → ."
+          >
+            <HeadersGrid
+              value={value.genericjson.store}
+              onChange={(st) => set("genericjson", { ...value.genericjson, store: st })}
+            />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field
+              label="Then (auto-advance)"
+              help="After this node's audio finishes, jump to this menu with no keypress — the declarative-flow 'next step'."
+            >
+              <select
+                value={value.then}
+                onChange={(e) => set("then", e.target.value)}
+                className="px-2 py-1 rounded font-mono text-sm"
+              >
+                <option value="">(none)</option>
+                {knownFnNames.map((n) => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+            </Field>
+            <div className="flex items-end pb-1">
+              <CheckboxInput
+                label="auto (run on entry)"
+                value={value.auto}
+                onChange={(v) => set("auto", v)}
+                help="Run this node automatically when its menu is entered (after the prefix), instead of waiting for a key. Use for 'fetch on arrival' steps."
+              />
+            </div>
+          </div>
           <details className="border border-shadow-grey rounded">
             <summary className="px-3 py-2 cursor-pointer text-xs text-blue-slate uppercase tracking-wider">
               TTS overrides (voice / lang / engine / provider)
@@ -506,6 +552,120 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
               <TTSEditor
                 value={value.interactive.tts}
                 onChange={(v) => set("interactive", { ...value.interactive, tts: v })}
+                hideMessage
+              />
+            </div>
+          </details>
+        </div>
+      )}
+
+      {kind === "listmenu" && (
+        <div className="grid grid-cols-1 gap-3">
+          <Field
+            label="URL"
+            help="Endpoint returning a JSON array to build the menu from. May reference prior state via {{.Vars.*}}."
+          >
+            <TextInput
+              value={value.listmenu.url}
+              onChange={(v) => set("listmenu", { ...value.listmenu, url: v })}
+              placeholder="https://api.example.com/items"
+            />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field
+              label="Method"
+              help="HTTP method. Defaults to GET when empty."
+            >
+              <TextInput
+                value={value.listmenu.method}
+                onChange={(v) => set("listmenu", { ...value.listmenu, method: v })}
+                placeholder="GET"
+              />
+            </Field>
+            <Field
+              label="Max options"
+              help="Cap on how many options are offered (DTMF 1-9). 0 = default (9)."
+            >
+              <NumberInput
+                value={value.listmenu.max}
+                onChange={(v) => set("listmenu", { ...value.listmenu, max: v })}
+              />
+            </Field>
+          </div>
+          <Field
+            label="List (jq)"
+            help="jq expression selecting/ordering the array. Defaults to '.' (the whole response). Example: sort_by(.id)."
+          >
+            <TextInput
+              value={value.listmenu.list}
+              onChange={(v) => set("listmenu", { ...value.listmenu, list: v })}
+              placeholder="sort_by(.id)"
+            />
+          </Field>
+          <Field
+            label="Label (per-item template)"
+            help="Go template rendered per item (the item is the root dot). Example: {{.name}}."
+          >
+            <TextInput
+              value={value.listmenu.label}
+              onChange={(v) => set("listmenu", { ...value.listmenu, label: v })}
+              placeholder="{{.name}}"
+            />
+          </Field>
+          <Field
+            label="Intro (optional)"
+            help="Spoken before the options (may reference {{.Vars.*}}). Example: Välj en medlem."
+          >
+            <TextInput
+              value={value.listmenu.intro}
+              onChange={(v) => set("listmenu", { ...value.listmenu, intro: v })}
+            />
+          </Field>
+          <Field
+            label="Option phrase (optional)"
+            help="Per-option template. Context: {{.Num}} and {{.Label}}. Defaults to 'Tryck {{.Num}} för {{.Label}}. '."
+          >
+            <TextInput
+              value={value.listmenu.option}
+              onChange={(v) => set("listmenu", { ...value.listmenu, option: v })}
+              placeholder="Tryck {{.Num}} för {{.Label}}. "
+            />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field
+              label="Store (variable)"
+              help="Flow variable the selected item is saved under. Later nodes read it via {{.Vars.<name>}}."
+            >
+              <TextInput
+                value={value.listmenu.store}
+                onChange={(v) => set("listmenu", { ...value.listmenu, store: v })}
+                placeholder="member"
+              />
+            </Field>
+            <Field
+              label="Destination menu"
+              help="Menu (fn) entered after the caller selects an option."
+            >
+              <select
+                value={value.listmenu.dst}
+                onChange={(e) => set("listmenu", { ...value.listmenu, dst: e.target.value })}
+                className="px-2 py-1 rounded font-mono text-sm"
+              >
+                <option value="">(none)</option>
+                {knownFnNames.map((n) => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+            </Field>
+          </div>
+          <details className="border border-shadow-grey rounded">
+            <summary className="px-3 py-2 cursor-pointer text-xs text-blue-slate uppercase tracking-wider">
+              TTS overrides (voice / lang / engine / provider)
+            </summary>
+            <div className="p-3">
+              <TTSEditor
+                value={value.listmenu.tts}
+                onChange={(v) => set("listmenu", { ...value.listmenu, tts: v })}
                 hideMessage
               />
             </div>

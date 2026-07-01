@@ -67,7 +67,7 @@ func TestGenericJSONFetchAndRender(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			g := GenericJSON{URL: srv.URL, Template: tc.tmpl}
-			got, err := g.FetchAndRender(context.Background())
+			got, _, err := g.FetchAndRender(context.Background(), nil)
 			if err != nil {
 				t.Fatalf("FetchAndRender: %v", err)
 			}
@@ -75,6 +75,43 @@ func TestGenericJSONFetchAndRender(t *testing.T) {
 				t.Errorf("got %q, want %q", got, tc.want)
 			}
 		})
+	}
+}
+
+// TestGenericJSONStoreAndVars exercises the declarative-flow additions:
+// .Vars templating of the URL, and Store extracting a jq value (whose
+// expression itself references .Vars) for the next node to consume.
+func TestGenericJSONStoreAndVars(t *testing.T) {
+	var gotQuery string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotQuery = r.URL.RawQuery
+		_, _ = w.Write([]byte(`{"members":[{"userId":11,"promille":0.05},{"userId":12,"promille":0.057}]}`))
+	}))
+	defer srv.Close()
+
+	g := GenericJSON{
+		URL:      srv.URL + "/bac?u={{.Vars.member.id}}",
+		Template: "member {{.Vars.member.id}}",
+		Store:    map[string]string{"bac": ".members[] | select(.userId == {{.Vars.member.id}})"},
+	}
+	vars := map[string]any{"member": map[string]any{"id": 12.0}}
+
+	rendered, stored, err := g.FetchAndRender(context.Background(), vars)
+	if err != nil {
+		t.Fatalf("FetchAndRender: %v", err)
+	}
+	if gotQuery != "u=12" {
+		t.Errorf(".Vars not templated into URL: query=%q", gotQuery)
+	}
+	if rendered != "member 12" {
+		t.Errorf(".Vars not templated into tmpl: got %q", rendered)
+	}
+	bac, ok := stored["bac"].(map[string]any)
+	if !ok {
+		t.Fatalf("store bac: got %T %v", stored["bac"], stored["bac"])
+	}
+	if bac["promille"] != 0.057 {
+		t.Errorf("store picked wrong member: %v", bac)
 	}
 }
 
@@ -90,7 +127,7 @@ func TestGenericJSONHTTPError(t *testing.T) {
 	defer srv.Close()
 
 	g := GenericJSON{URL: srv.URL, Template: "x"}
-	_, err := g.FetchAndRender(context.Background())
+	_, _, err := g.FetchAndRender(context.Background(), nil)
 	if err == nil {
 		t.Fatal("expected error on 5xx response")
 	}
@@ -104,7 +141,7 @@ func TestGenericJSONHTTPError(t *testing.T) {
 
 func TestGenericJSONMissingURL(t *testing.T) {
 	g := GenericJSON{Template: "x"}
-	if _, err := g.FetchAndRender(context.Background()); err == nil {
+	if _, _, err := g.FetchAndRender(context.Background(), nil); err == nil {
 		t.Fatal("expected error when URL missing")
 	}
 }
@@ -132,7 +169,7 @@ func TestGenericJSONHeadersAndBody(t *testing.T) {
 		Headers:  map[string]string{"Authorization": "Bearer xyz"},
 		Template: `ok={{.Data.ok}}`,
 	}
-	got, err := g.FetchAndRender(context.Background())
+	got, _, err := g.FetchAndRender(context.Background(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,7 +199,7 @@ func TestSaunaSelect(t *testing.T) {
 		URL:      srv.URL,
 		Template: `Summalajnen is {{int (jq .Data ".[] | select(.name == \"Summalajnen\") | .temperature")}} celsius.`,
 	}
-	got, err := g.FetchAndRender(context.Background())
+	got, _, err := g.FetchAndRender(context.Background(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -186,7 +223,7 @@ func TestGenericJSONTimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 	start := time.Now()
-	_, err := g.FetchAndRender(ctx)
+	_, _, err := g.FetchAndRender(ctx, nil)
 	elapsed := time.Since(start)
 	if err == nil {
 		t.Fatal("expected timeout error")
@@ -216,7 +253,7 @@ func TestGenericJSONCancellation(t *testing.T) {
 	g := GenericJSON{URL: srv.URL, Template: "x"}
 	errCh := make(chan error, 1)
 	go func() {
-		_, err := g.FetchAndRender(ctx)
+		_, _, err := g.FetchAndRender(ctx, nil)
 		errCh <- err
 	}()
 	time.Sleep(20 * time.Millisecond)
@@ -240,7 +277,7 @@ func TestGenericJSONNonJSONBody(t *testing.T) {
 	defer srv.Close()
 
 	g := GenericJSON{URL: srv.URL, Template: "x"}
-	_, err := g.FetchAndRender(context.Background())
+	_, _, err := g.FetchAndRender(context.Background(), nil)
 	if err == nil {
 		t.Fatal("expected decode error for non-JSON body")
 	}
@@ -270,7 +307,7 @@ func TestGenericJSONBodySizeLimit(t *testing.T) {
 	defer srv.Close()
 
 	g := GenericJSON{URL: srv.URL, Template: "x"}
-	_, err := g.FetchAndRender(context.Background())
+	_, _, err := g.FetchAndRender(context.Background(), nil)
 	if err == nil {
 		t.Fatal("expected error from truncated giant body")
 	}
@@ -285,7 +322,7 @@ func TestGenericJSONInvalidTemplate(t *testing.T) {
 	defer srv.Close()
 
 	g := GenericJSON{URL: srv.URL, Template: `{{.unbalanced`}
-	_, err := g.FetchAndRender(context.Background())
+	_, _, err := g.FetchAndRender(context.Background(), nil)
 	if err == nil {
 		t.Fatal("expected template parse error")
 	}
@@ -306,7 +343,7 @@ func TestGenericJSONURLRedaction(t *testing.T) {
 		URL:      srv.URL + "/foo?api_key=secret123",
 		Template: "x",
 	}
-	_, err := g.FetchAndRender(context.Background())
+	_, _, err := g.FetchAndRender(context.Background(), nil)
 	if err == nil {
 		t.Fatal("expected error")
 	}

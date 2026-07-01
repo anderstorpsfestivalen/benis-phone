@@ -71,6 +71,9 @@ function actionForToml(a: Action): Record<string, unknown> {
     livefeed: a.livefeed ?? undefined,
     genericjson: a.genericjson,
     interactive: a.interactive,
+    listmenu: a.listmenu,
+    then: a.then,
+    auto: a.auto,
   };
 }
 

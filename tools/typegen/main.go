@@ -87,6 +87,7 @@ func main() {
 		"Playable":    true,
 		"GenericJSON": true,
 		"Interactive": true,
+		"ListMenu":    true,
 	}
 	filtered := make([]Struct, 0, len(wanted))
 	for _, s := range structs {
@@ -871,6 +872,7 @@ const actionVariantSnippet = `export type ActionKind =
   | "livefeed"
   | "genericjson"
   | "interactive"
+  | "listmenu"
   | "clear";
 
 export const ACTION_KINDS: readonly ActionKind[] = [
@@ -887,6 +889,7 @@ export const ACTION_KINDS: readonly ActionKind[] = [
   "livefeed",
   "genericjson",
   "interactive",
+  "listmenu",
   "clear",
 ];
 
@@ -906,6 +909,7 @@ export function actionKind(a: Action): ActionKind | null {
   if (a.livefeed) return "livefeed";
   if (a.genericjson && a.genericjson.url) return "genericjson";
   if (a.interactive && a.interactive.dst) return "interactive";
+  if (a.listmenu && a.listmenu.url) return "listmenu";
   if (a.clear) return "clear";
   return null;
 }

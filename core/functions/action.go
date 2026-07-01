@@ -72,6 +72,24 @@ type Action struct {
 	// follow-up keys, and thread state between API calls. Discovered by a
 	// non-empty Destination.
 	Interactive Interactive `toml:"interactive"`
+
+	// ListMenu builds a dynamic menu from a fetched JSON array (see
+	// listmenu.go): speaks "Tryck N för <label>", and on selection stores
+	// the chosen item into a flow variable and advances to its Dst.
+	// Discovered by a non-empty URL.
+	ListMenu ListMenu `toml:"listmenu"`
+
+	// Then names an fn to auto-advance to after this action's audio finishes,
+	// with no keypress. It's the declarative-flow "next step" edge: a
+	// genericjson node fetches + stores, then hands off to the next node.
+	// Currently honored for genericjson actions.
+	Then string `toml:"then"`
+
+	// Auto marks an action to run automatically when its fn is entered
+	// (after the prefix), instead of waiting for a DTMF key. Used for
+	// "fetch on arrival" steps in a declarative flow — e.g. the fn a listmenu
+	// selection lands on runs a genericjson to fetch detail for the choice.
+	Auto bool `toml:"auto"`
 }
 
 // LiveFeed configures a livefeed action: pick a host capture device by name
@@ -141,6 +159,10 @@ func (a *Action) Type() (string, error) {
 
 	if a.Interactive.Destination != "" {
 		return "interactive", nil
+	}
+
+	if a.ListMenu.URL != "" {
+		return "listmenu", nil
 	}
 
 	if a.Clear {

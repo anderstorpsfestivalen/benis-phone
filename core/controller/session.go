@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -61,6 +62,24 @@ type Session struct {
 	interactiveKeys   chan string
 	interactiveDone   chan struct{}
 
+	// vars is the per-call flow state ("blackboard") that declarative flow
+	// nodes read and write: a genericjson/listmenu node stashes a jq-extracted
+	// value here, and later nodes reference it via `.Vars` in their URL / body /
+	// template. Written from action goroutines (then/store) and read from the
+	// main loop, so it's guarded by varsMu.
+	vars   map[string]any
+	varsMu sync.RWMutex
+
+	// pendingList holds a dynamic listmenu awaiting the caller's selection —
+	// the same key-interception pattern as collector. Only touched from the
+	// session goroutine.
+	pendingList *listSelection
+
+	// advance carries the fn name an action wants to auto-advance to (its
+	// `then`) once its audio finishes — delivered from the play goroutine and
+	// consumed by the main loop, which does the enterFunction.
+	advance chan string
+
 	hs           sync.Mutex
 	prefixSignal chan bool
 	done         chan struct{}
@@ -92,7 +111,45 @@ func NewSession(id string, ph phone.FlowPhone, audioSink audio.AudioSink, rec au
 		// playing, before the flow reaches NextKey) isn't dropped.
 		interactiveKeys: make(chan string, 8),
 		interactiveDone: make(chan struct{}, 1),
+		advance:         make(chan string, 1),
 	}
+}
+
+// listSelection is the state of a dynamic listmenu waiting for a keypress:
+// the fetched items (index i → DTMF key i+1), the var to store the choice
+// under, and the fn to enter after.
+type listSelection struct {
+	items []any
+	store string
+	dst   string
+}
+
+// SetVars merges m into the per-call flow state. Safe to call from action
+// goroutines.
+func (s *Session) SetVars(m map[string]any) {
+	if len(m) == 0 {
+		return
+	}
+	s.varsMu.Lock()
+	defer s.varsMu.Unlock()
+	if s.vars == nil {
+		s.vars = make(map[string]any)
+	}
+	for k, v := range m {
+		s.vars[k] = v
+	}
+}
+
+// VarsSnapshot returns a shallow copy of the current flow state for use as a
+// template context. Copying keeps the map stable while a fetch/render runs.
+func (s *Session) VarsSnapshot() map[string]any {
+	s.varsMu.RLock()
+	defer s.varsMu.RUnlock()
+	out := make(map[string]any, len(s.vars))
+	for k, v := range s.vars {
+		out[k] = v
+	}
+	return out
 }
 
 // Start begins the session's main loop, processing hook and key events.
@@ -139,11 +196,18 @@ func (s *Session) Start() {
 					case s.interactiveKeys <- key:
 					default:
 					}
+				case s.pendingList != nil:
+					s.handleListSelect(key)
 				case s.collector == nil:
 					s.handleKey(key)
 				default:
 					s.handleCollect(key)
 				}
+			}
+		case dst := <-s.advance:
+			// An action finished and asked to auto-advance to its `then` fn.
+			if s.HookState {
+				s.checkError(s.enterFunction(dst))
 			}
 		case <-s.interactiveDone:
 			// The interactive flow's goroutine returned. Hand control back to
@@ -265,10 +329,69 @@ func (s *Session) handleAction(action *functions.Action) {
 	case "livefeed":
 		s.handleLiveFeed(action.LiveFeed)
 	case "genericjson":
-		err := s.runGenericJSONWithPmsg(action.GenericJSON, action.Pmsg)
+		err := s.runGenericJSONWithPmsg(action.GenericJSON, action.Pmsg, action.Then)
 		s.checkError(err)
 	case "interactive":
 		s.handleInteractive(action)
+	case "listmenu":
+		s.handleListMenu(action)
+	}
+}
+
+// handleListMenu fetches a dynamic menu's list, speaks the numbered options,
+// and arms pendingList so the next keypress resolves to the chosen item. The
+// fetch blocks the loop like genericjson (scoped to callCtx, so a hangup
+// unblocks it).
+func (s *Session) handleListMenu(action *functions.Action) {
+	m := action.ListMenu
+	ctx := s.fetchCtx()
+	items, prompt, err := m.Build(ctx, s.VarsSnapshot())
+	if err != nil {
+		if ctx.Err() == nil {
+			s.checkError(err)
+		}
+		return
+	}
+	if len(items) == 0 {
+		s.play(s.Definition.ResolveTTS(m.TTS, "Inga val tillgängliga."))
+		return
+	}
+
+	audio, err := s.synth(m.TTS, prompt)
+	if err != nil {
+		if ctx.Err() == nil {
+			s.checkError(err)
+		}
+		return
+	}
+	s.pendingList = &listSelection{items: items, store: m.Store, dst: m.Dst}
+	go func() {
+		if err := s.Audio.PlayFromStream(audio); err != nil {
+			log.WithField("session", s.ID).Warnf("listmenu play: %v", err)
+		}
+	}()
+}
+
+// handleListSelect resolves a keypress against the armed listmenu: store the
+// chosen item into the flow state and advance to the menu's dst. "0" cancels
+// back to the parent; out-of-range digits are ignored (caller can retry).
+func (s *Session) handleListSelect(key string) {
+	sel := s.pendingList
+	if key == "0" {
+		s.pendingList = nil
+		s.exitFunction()
+		return
+	}
+	d, err := strconv.Atoi(key)
+	if err != nil || d < 1 || d > len(sel.items) {
+		return
+	}
+	s.pendingList = nil
+	if sel.store != "" {
+		s.SetVars(map[string]any{sel.store: sel.items[d-1]})
+	}
+	if sel.dst != "" {
+		s.checkError(s.enterFunction(sel.dst))
 	}
 }
 
@@ -325,13 +448,7 @@ type sessionIO struct {
 // defaults) and plays it to the caller, blocking until playback finishes or a
 // barge-in Clear() cuts it short.
 func (io *sessionIO) Speak(ctx context.Context, text string) error {
-	t := io.session.Definition.ResolveTTS(io.tts, text)
-	data, err := io.session.TTS.Synthesize(t.Provider, tts.Request{
-		Message:  t.Message,
-		Voice:    t.Voice,
-		Language: t.Language,
-		Engine:   t.Engine,
-	})
+	data, err := io.session.synth(io.tts, text)
 	if err != nil {
 		return err
 	}
@@ -339,6 +456,19 @@ func (io *sessionIO) Speak(ctx context.Context, text string) error {
 		return ctx.Err()
 	}
 	return io.session.Audio.PlayFromStream(data)
+}
+
+// synth resolves TTS (node overrides → definition defaults) for text and
+// synthesizes it to mp3 bytes. Shared by every runtime-rendered readout
+// (interactive Speak, genericjson, listmenu).
+func (s *Session) synth(override functions.TTS, text string) ([]byte, error) {
+	t := s.Definition.ResolveTTS(override, text)
+	return s.TTS.Synthesize(t.Provider, tts.Request{
+		Message:  t.Message,
+		Voice:    t.Voice,
+		Language: t.Language,
+		Engine:   t.Engine,
+	})
 }
 
 // NextKey blocks for the next DTMF key, giving up on hangup (ctx) or after
@@ -440,6 +570,18 @@ func (s *Session) enterFunction(dst string) error {
 		if newFn.Recording != (functions.Recording{}) {
 			s.Recorder.Stop()
 			s.Recorder.Record(newFn.Recording.Destination)
+		}
+
+		// On-enter step: if the fn has an action flagged Auto, run it now
+		// (after queuing the prefix) without waiting for a keypress. This is
+		// how a fetch node runs "on arrival" in a declarative flow — e.g. the
+		// fn a listmenu selection lands on fetches detail for the chosen item.
+		for i := range newFn.Actions {
+			if newFn.Actions[i].Auto {
+				a := newFn.Actions[i]
+				s.handleAction(&a)
+				break
+			}
 		}
 
 		return nil
@@ -554,16 +696,18 @@ func (s *Session) runServiceWithPmsg(srv functions.Service, collector *string, p
 // is in flight. The goroutine is scoped to the current call's context so
 // a mid-fetch hangup cancels both the HTTP request and any subsequent TTS
 // work, instead of wasting Polly/ElevenLabs budget on a dead call.
-func (s *Session) runGenericJSONWithPmsg(g functions.GenericJSON, pmsg functions.Prefix) error {
+func (s *Session) runGenericJSONWithPmsg(g functions.GenericJSON, pmsg functions.Prefix, then string) error {
 	ctx := s.fetchCtx()
+	vars := s.VarsSnapshot()
 	type prepResult struct {
-		audio []byte
-		err   error
+		audio  []byte
+		stored map[string]any
+		err    error
 	}
 	resultCh := make(chan prepResult, 1)
 	go func() {
-		audio, err := s.prepareGenericJSONAudio(ctx, g)
-		resultCh <- prepResult{audio, err}
+		audio, stored, err := s.prepareGenericJSONAudio(ctx, g, vars)
+		resultCh <- prepResult{audio, stored, err}
 	}()
 
 	if pmsg != (functions.Prefix{}) {
@@ -593,9 +737,20 @@ func (s *Session) runGenericJSONWithPmsg(g functions.GenericJSON, pmsg functions
 			}
 			return r.err
 		}
+		// Merge stored vars before advancing so the next node's prefix /
+		// URL / template sees them.
+		s.SetVars(r.stored)
 		go func() {
 			if err := s.Audio.PlayFromStream(r.audio); err != nil {
 				log.WithField("session", s.ID).Warnf("genericjson result play: %v", err)
+			}
+			// After the readout finishes, hand off to the `then` fn (no
+			// keypress). Guard on s.done so a torn-down session doesn't block.
+			if then != "" {
+				select {
+				case s.advance <- then:
+				case <-s.done:
+				}
 			}
 		}()
 		return nil
@@ -603,22 +758,19 @@ func (s *Session) runGenericJSONWithPmsg(g functions.GenericJSON, pmsg functions
 }
 
 // prepareGenericJSONAudio fetches+renders the JSON node and synthesizes
-// the output through TTS, returning mp3 bytes ready to feed the audio
-// sink. Voice/lang/engine/provider come from the node's TTS overrides
-// when set, otherwise fall back to the definition's StandardTTS.
-func (s *Session) prepareGenericJSONAudio(ctx context.Context, g functions.GenericJSON) ([]byte, error) {
-	rendered, err := g.FetchAndRender(ctx)
+// the output through TTS, returning the mp3 bytes plus any Store variables
+// to merge into flow state. `vars` is the current flow state, exposed to the
+// node's url/body/template/store as `.Vars`.
+func (s *Session) prepareGenericJSONAudio(ctx context.Context, g functions.GenericJSON, vars map[string]any) ([]byte, map[string]any, error) {
+	rendered, stored, err := g.FetchAndRender(ctx, vars)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-
-	t := s.Definition.ResolveTTS(g.TTS, rendered)
-	return s.TTS.Synthesize(t.Provider, tts.Request{
-		Message:  t.Message,
-		Voice:    t.Voice,
-		Language: t.Language,
-		Engine:   t.Engine,
-	})
+	audio, err := s.synth(g.TTS, rendered)
+	if err != nil {
+		return nil, nil, err
+	}
+	return audio, stored, nil
 }
 
 // prepareServiceAudio runs the service and synthesizes its result into mp3
@@ -666,6 +818,10 @@ func (s *Session) liftHook() {
 	s.HookState = true
 	s.Audio.Clear()
 	s.collector = nil
+	s.pendingList = nil
+	s.varsMu.Lock()
+	s.vars = make(map[string]any)
+	s.varsMu.Unlock()
 	s.callCtx, s.callCancel = context.WithCancel(context.Background())
 	s.enterFunction(s.Definition.General.Entrypoint)
 
@@ -682,6 +838,11 @@ func (s *Session) slamHook() {
 
 	s.Callstack = s.Callstack[:0]
 	s.collector = nil
+	s.pendingList = nil
+
+	s.varsMu.Lock()
+	s.vars = nil
+	s.varsMu.Unlock()
 
 	// Any interactive flow is scoped to callCtx (cancelled just below), so its
 	// goroutine unwinds on its own; just stop routing keys to it. The pending

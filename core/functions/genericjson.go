@@ -61,6 +61,17 @@ type GenericJSON struct {
 	// See genericJSONFuncs for available helpers.
 	Template string `toml:"tmpl"`
 
+	// Store extracts values from the decoded response into per-call flow
+	// variables, keyed by variable name → jq expression. The jq string is
+	// first rendered as a Go template over `.Vars` (so it can reference
+	// prior state, e.g. select(.userId == {{.Vars.member.id}})), then run
+	// against the decoded JSON. A single jq result is stored as-is; zero
+	// results store nil; multiple results store a slice. The controller
+	// merges the result into the call's `.Vars`, which later nodes read via
+	// their URL / body / template. This is what lets genericjson nodes be
+	// chained into a stateful flow.
+	Store map[string]string `toml:"store"`
+
 	// TimeoutSeconds caps the HTTP request. Defaults to defaultTimeout
 	// (10 s) when <= 0. Cancelled early if the parent context fires
 	// (e.g. caller hangs up).
@@ -96,57 +107,120 @@ const (
 // race when two calls fire simultaneously.
 var httpClient = &http.Client{}
 
-// FetchAndRender fetches the configured endpoint, decodes the JSON, and
-// renders the template against it. The rendered text is returned ready to
-// hand to the TTS engine. ctx scopes the fetch + JQ work to the current
-// call so a hangup cancels the request immediately instead of waiting on
-// the upstream timeout.
-func (g *GenericJSON) FetchAndRender(ctx context.Context) (string, error) {
-	if strings.TrimSpace(g.URL) == "" {
-		return "", fmt.Errorf("genericjson: missing url")
-	}
+// FetchAndRender fetches the configured endpoint, decodes the JSON, renders
+// the template against it, and extracts any Store variables. It returns the
+// rendered text (ready for TTS) and the map of variables to merge into the
+// call's flow state. `vars` is the current per-call state, exposed to the
+// URL / body / header / template / store expressions as `.Vars`. ctx scopes
+// the fetch + JQ work to the current call so a hangup cancels the request
+// immediately instead of waiting on the upstream timeout.
+func (g *GenericJSON) FetchAndRender(ctx context.Context, vars map[string]any) (rendered string, stored map[string]any, err error) {
 	if strings.TrimSpace(g.Template) == "" {
-		return "", fmt.Errorf("genericjson: missing template")
+		return "", nil, fmt.Errorf("genericjson: missing template")
 	}
 
-	method := strings.ToUpper(strings.TrimSpace(g.Method))
+	data, status, raw, err := fetchJSON(ctx, fetchSpec{
+		URL:            g.URL,
+		Method:         g.Method,
+		Body:           g.Body,
+		Headers:        g.Headers,
+		TimeoutSeconds: g.TimeoutSeconds,
+	}, vars)
+	if err != nil {
+		return "", nil, err
+	}
+
+	tmpl, err := template.New("genericjson").Funcs(genericJSONFuncs).Parse(g.Template)
+	if err != nil {
+		return "", nil, fmt.Errorf("genericjson: parse template: %w", err)
+	}
+	var out bytes.Buffer
+	if err := tmpl.Execute(&out, map[string]any{
+		"Data":   data,
+		"Status": status,
+		"Raw":    raw,
+		"Vars":   vars,
+	}); err != nil {
+		return "", nil, fmt.Errorf("genericjson: render template: %w", err)
+	}
+
+	stored, err = extractStore(g.Store, data, vars)
+	if err != nil {
+		return "", nil, err
+	}
+	return out.String(), stored, nil
+}
+
+// fetchSpec is the subset of a node's config needed to perform an HTTP JSON
+// fetch. Shared by GenericJSON and ListMenu so both get identical .Vars
+// templating of url/body/headers and the same decode/limits/redaction.
+type fetchSpec struct {
+	URL            string
+	Method         string
+	Body           string
+	Headers        map[string]string
+	TimeoutSeconds int
+}
+
+// fetchJSON renders url/body/header-values against `.Vars`, performs the HTTP
+// request, and returns the decoded JSON (untyped), the status, and the raw
+// body. Errors mirror the original GenericJSON behavior (status-only on 4xx/5xx
+// so tokens in the body don't leak into TTS/logs).
+func fetchJSON(ctx context.Context, spec fetchSpec, vars map[string]any) (data any, status int, raw string, err error) {
+	urlStr, err := renderTemplateString(spec.URL, vars)
+	if err != nil {
+		return nil, 0, "", fmt.Errorf("genericjson: render url: %w", err)
+	}
+	if strings.TrimSpace(urlStr) == "" {
+		return nil, 0, "", fmt.Errorf("genericjson: missing url")
+	}
+
+	method := strings.ToUpper(strings.TrimSpace(spec.Method))
 	if method == "" {
 		method = "GET"
 	}
 
 	timeout := defaultTimeout
-	if g.TimeoutSeconds > 0 {
-		timeout = time.Duration(g.TimeoutSeconds) * time.Second
+	if spec.TimeoutSeconds > 0 {
+		timeout = time.Duration(spec.TimeoutSeconds) * time.Second
 	}
 	reqCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
+	bodyStr, err := renderTemplateString(spec.Body, vars)
+	if err != nil {
+		return nil, 0, "", fmt.Errorf("genericjson: render body: %w", err)
+	}
 	var body io.Reader
-	if g.Body != "" {
-		body = strings.NewReader(g.Body)
+	if bodyStr != "" {
+		body = strings.NewReader(bodyStr)
 	}
 
-	req, err := http.NewRequestWithContext(reqCtx, method, g.URL, body)
+	req, err := http.NewRequestWithContext(reqCtx, method, urlStr, body)
 	if err != nil {
-		return "", fmt.Errorf("genericjson: build request: %w", err)
+		return nil, 0, "", fmt.Errorf("genericjson: build request: %w", err)
 	}
 	if body != nil && req.Header.Get("Content-Type") == "" {
 		req.Header.Set("Content-Type", "application/json")
 	}
 	req.Header.Set("Accept", "application/json")
-	for k, v := range g.Headers {
-		req.Header.Set(k, v)
+	for k, v := range spec.Headers {
+		hv, herr := renderTemplateString(v, vars)
+		if herr != nil {
+			return nil, 0, "", fmt.Errorf("genericjson: render header %q: %w", k, herr)
+		}
+		req.Header.Set(k, hv)
 	}
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("genericjson: %s %s: %w", method, redactURL(g.URL), err)
+		return nil, 0, "", fmt.Errorf("genericjson: %s %s: %w", method, redactURL(urlStr), err)
 	}
 	defer resp.Body.Close()
 
-	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxBodyBytes))
+	rawBytes, err := io.ReadAll(io.LimitReader(resp.Body, maxBodyBytes))
 	if err != nil {
-		return "", fmt.Errorf("genericjson: read body: %w", err)
+		return nil, 0, "", fmt.Errorf("genericjson: read body: %w", err)
 	}
 	if resp.StatusCode >= 400 {
 		// Surface only status + host in the error (which checkError will
@@ -155,37 +229,69 @@ func (g *GenericJSON) FetchAndRender(ctx context.Context) (string, error) {
 		// for debugging instead of leaking it into TTS audio / logs.
 		log.WithFields(log.Fields{
 			"status": resp.StatusCode,
-			"url":    redactURL(g.URL),
-			"body":   truncateBody(string(raw), errorBodyPeek),
+			"url":    redactURL(urlStr),
+			"body":   truncateBody(string(rawBytes), errorBodyPeek),
 		}).Trace("genericjson: non-2xx response")
-		return "", fmt.Errorf("genericjson: %s %s: HTTP %d", method, redactURL(g.URL), resp.StatusCode)
+		return nil, resp.StatusCode, "", fmt.Errorf("genericjson: %s %s: HTTP %d", method, redactURL(urlStr), resp.StatusCode)
 	}
 
-	var data any
-	if len(bytes.TrimSpace(raw)) > 0 {
+	if len(bytes.TrimSpace(rawBytes)) > 0 {
 		// Plain decode (no UseNumber): gojq operates on map[string]any /
 		// []any / float64 / string / bool / nil, so we have to feed it
 		// those exact types. Large integers (>2^53) lose precision here,
 		// which is fine for IVR readouts but worth noting.
-		if err := json.Unmarshal(raw, &data); err != nil {
-			return "", fmt.Errorf("genericjson: decode JSON: %w", err)
+		if err := json.Unmarshal(rawBytes, &data); err != nil {
+			return nil, resp.StatusCode, "", fmt.Errorf("genericjson: decode JSON: %w", err)
 		}
 	}
+	return data, resp.StatusCode, string(rawBytes), nil
+}
 
-	tmpl, err := template.New("genericjson").Funcs(genericJSONFuncs).Parse(g.Template)
+// renderTemplateString renders a Go template string over `.Vars`, reusing the
+// genericjson helper funcs. Strings with no template actions are returned
+// unchanged (fast path), so plain URLs/bodies pay nothing.
+func renderTemplateString(s string, vars map[string]any) (string, error) {
+	if !strings.Contains(s, "{{") {
+		return s, nil
+	}
+	t, err := template.New("s").Funcs(genericJSONFuncs).Parse(s)
 	if err != nil {
-		return "", fmt.Errorf("genericjson: parse template: %w", err)
+		return "", err
 	}
+	var b bytes.Buffer
+	if err := t.Execute(&b, map[string]any{"Vars": vars}); err != nil {
+		return "", err
+	}
+	return b.String(), nil
+}
 
-	var out bytes.Buffer
-	if err := tmpl.Execute(&out, map[string]any{
-		"Data":   data,
-		"Status": resp.StatusCode,
-		"Raw":    string(raw),
-	}); err != nil {
-		return "", fmt.Errorf("genericjson: render template: %w", err)
+// extractStore evaluates each Store jq expression (first rendered as a template
+// over `.Vars`) against the decoded data and returns the resulting variable
+// map. One jq result → the value; zero → nil; many → a slice.
+func extractStore(store map[string]string, data any, vars map[string]any) (map[string]any, error) {
+	if len(store) == 0 {
+		return nil, nil
 	}
-	return out.String(), nil
+	out := make(map[string]any, len(store))
+	for name, expr := range store {
+		rendered, err := renderTemplateString(expr, vars)
+		if err != nil {
+			return nil, fmt.Errorf("genericjson: store %q render: %w", name, err)
+		}
+		results, err := runJQ(data, rendered)
+		if err != nil {
+			return nil, fmt.Errorf("genericjson: store %q jq %q: %w", name, rendered, err)
+		}
+		switch len(results) {
+		case 0:
+			out[name] = nil
+		case 1:
+			out[name] = results[0]
+		default:
+			out[name] = results
+		}
+	}
+	return out, nil
 }
 
 // redactURL strips the query string and any userinfo from a URL before

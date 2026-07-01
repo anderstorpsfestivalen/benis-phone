@@ -101,6 +101,36 @@ function normalizeAction(raw: unknown): Action {
     livefeed,
     genericjson: normalizeGenericJSON(r.genericjson),
     interactive: normalizeInteractive(r.interactive),
+    listmenu: normalizeListMenu(r.listmenu),
+    then: asStr(r.then),
+    auto: asBool(r.auto),
+  };
+}
+
+function strMap(x: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(asObj(x))) {
+    if (typeof v === "string") out[k] = v;
+  }
+  return out;
+}
+
+function normalizeListMenu(raw: unknown) {
+  const r = asObj(raw);
+  return {
+    url: asStr(r.url),
+    method: asStr(r.method),
+    body: asStr(r.body),
+    headers: strMap(r.headers),
+    timeout_seconds: asNum(r.timeout_seconds),
+    list: asStr(r.list),
+    label: asStr(r.label),
+    intro: asStr(r.intro),
+    option: asStr(r.option),
+    store: asStr(r.store),
+    dst: asStr(r.dst),
+    max: asNum(r.max),
+    tts: { ...emptyTTS(), ...asObj(r.tts) },
   };
 }
 
@@ -129,6 +159,7 @@ function normalizeGenericJSON(raw: unknown) {
     body: asStr(r.body),
     headers,
     tmpl: asStr(r.tmpl),
+    store: strMap(r.store),
     timeout_seconds: asNum(r.timeout_seconds),
     tts: { ...emptyTTS(), ...asObj(r.tts) },
   };

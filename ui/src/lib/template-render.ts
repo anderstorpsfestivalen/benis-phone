@@ -38,7 +38,9 @@ export async function renderGenericJSONTemplate(
       return { ok: false, error: `JSON parse: ${e instanceof Error ? e.message : String(e)}` };
     }
   }
-  const ctx: Ctx = { Data: data, Status: status, Raw: jsonBody };
+  // Vars is empty in preview — flow state only exists at call time. Providing
+  // the key keeps templates that reference {{.Vars.*}} from erroring here.
+  const ctx: Ctx = { Data: data, Status: status, Raw: jsonBody, Vars: {} };
   try {
     const nodes = parseTemplate(template);
     const out = await renderNodes(nodes, ctx, ctx);
@@ -50,7 +52,7 @@ export async function renderGenericJSONTemplate(
 
 // -------------------------------------------------------------------- AST
 
-type Ctx = { Data: unknown; Status: number; Raw: string };
+type Ctx = { Data: unknown; Status: number; Raw: string; Vars: Record<string, unknown> };
 
 type Node =
   | { kind: "text"; text: string }
