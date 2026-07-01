@@ -42,6 +42,7 @@ actions = [
         Till {{.To.AdvertisedLocationName}},
         avgår från spår: {{.K.TrackAtLocation}},
         klockan {{.Hour}} och {{.Minute}}""", args = { station = "Reftele" } } },
+    { num = 4, name = "Öl", interactive = { dst = "beer", args = { base_url = "https://beer.anderstorpsfestivalen.se" } } },
     { num = 6, dst = "livestream" },
     { num = 8, dst = "voicemail" },
     { num = 9, dispatcher = "customerservice" },
@@ -51,6 +52,7 @@ prefix = { tts = { msg = """Välkommen till Simonstorp!
      Tryck 1 för väderrapporten i Simonstorp.
      Tryck 2 för temperaturen i Bastun.
      Tryck 3 för telefonbok.
+     Tryck 4 för öl.
      Tryck 5 för tågtiderna i Reftele.
      Tryck 6 för livestream av köket.
      Tryck 8 för att lämna ett meddelande

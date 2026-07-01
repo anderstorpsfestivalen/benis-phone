@@ -11,9 +11,20 @@ import (
 	"github.com/anderstorpsfestivalen/benis-phone/core/functions"
 	"github.com/anderstorpsfestivalen/benis-phone/core/phone"
 	"github.com/anderstorpsfestivalen/benis-phone/core/tts"
+	"github.com/anderstorpsfestivalen/benis-phone/extensions/interactive"
+	// Blank import registers the beer flow into interactive.Registry via its
+	// init(). Extra interactive flows get their own blank import here — same
+	// way the static services registry pulls in each service package.
+	_ "github.com/anderstorpsfestivalen/benis-phone/extensions/interactive/beer"
 	"github.com/anderstorpsfestivalen/benis-phone/extensions/services"
 	log "github.com/sirupsen/logrus"
 )
+
+// interactiveKeyTimeout bounds how long an interactive flow waits for the
+// caller to press a key before NextKey gives up and the flow unwinds back to
+// the menu. Keeps a walked-away caller from pinning a flow (and its goroutine)
+// open indefinitely.
+const interactiveKeyTimeout = 20 * time.Second
 
 // Session represents a single call session with isolated state.
 // Each incoming call gets its own Session instance.
@@ -39,6 +50,16 @@ type Session struct {
 
 	collector        *Collector
 	activeDispatcher functions.Dispatcher
+
+	// activeInteractive is true while a stateful interactive flow (see
+	// extensions/interactive) owns the call. While set, DTMF keys are routed
+	// to interactiveKeys instead of the menu/collector. It is only touched
+	// from the session goroutine (main loop + slamHook), never the flow
+	// goroutine, so it needs no lock. interactiveDone is signalled by the
+	// flow goroutine when Run returns.
+	activeInteractive bool
+	interactiveKeys   chan string
+	interactiveDone   chan struct{}
 
 	hs           sync.Mutex
 	prefixSignal chan bool
@@ -67,6 +88,10 @@ func NewSession(id string, ph phone.FlowPhone, audioSink audio.AudioSink, rec au
 		CallControl:  callCtl,
 		prefixSignal: make(chan bool, 100),
 		done:         make(chan struct{}),
+		// Buffered so a barge-in keypress (pressed while a prompt is still
+		// playing, before the flow reaches NextKey) isn't dropped.
+		interactiveKeys: make(chan string, 8),
+		interactiveDone: make(chan struct{}, 1),
 	}
 }
 
@@ -105,11 +130,27 @@ func (s *Session) Start() {
 			log.WithFields(log.Fields{"session": s.ID, "key": key}).Trace("Got key")
 			if s.HookState {
 				s.Audio.Clear()
-				if s.collector == nil {
+				switch {
+				case s.activeInteractive:
+					// Hand the key to the running flow. Non-blocking: if the
+					// buffer is full (flow isn't consuming) we drop it rather
+					// than stall the session loop.
+					select {
+					case s.interactiveKeys <- key:
+					default:
+					}
+				case s.collector == nil:
 					s.handleKey(key)
-				} else {
+				default:
 					s.handleCollect(key)
 				}
+			}
+		case <-s.interactiveDone:
+			// The interactive flow's goroutine returned. Hand control back to
+			// the menu the caller triggered it from and replay its prompt.
+			s.activeInteractive = false
+			if s.HookState {
+				s.prefixSignal <- true
 			}
 		case <-s.prefixSignal:
 			err := s.handlePrefix()
@@ -226,6 +267,90 @@ func (s *Session) handleAction(action *functions.Action) {
 	case "genericjson":
 		err := s.runGenericJSONWithPmsg(action.GenericJSON, action.Pmsg)
 		s.checkError(err)
+	case "interactive":
+		s.handleInteractive(action)
+	}
+}
+
+// handleInteractive starts a stateful interactive flow. The flow runs in its
+// own goroutine so the session loop keeps draining hook/key events (which is
+// how NextKey and barge-in work); when Run returns it signals interactiveDone
+// and the loop hands control back to the menu.
+func (s *Session) handleInteractive(action *functions.Action) {
+	h, ok := interactive.Lookup(action.Interactive.Destination)
+	if !ok {
+		s.checkError(fmt.Errorf("interactive flow %s is not loaded", action.Interactive.Destination))
+		return
+	}
+
+	// Drop any keys buffered from before the flow started (e.g. the digit
+	// that selected this action) so the flow's first NextKey blocks cleanly.
+drain:
+	for {
+		select {
+		case <-s.interactiveKeys:
+		default:
+			break drain
+		}
+	}
+
+	s.activeInteractive = true
+	io := &sessionIO{session: s, tts: action.Interactive.TTS}
+	ctx := s.fetchCtx()
+	dst := action.Interactive.Destination
+	args := action.Interactive.Arguments
+
+	go func() {
+		if err := h.Run(ctx, io, args); err != nil && ctx.Err() == nil {
+			log.WithField("session", s.ID).Warnf("interactive %s: %v", dst, err)
+		}
+		// Signal completion. Guard on s.done so a torn-down session doesn't
+		// block this goroutine forever if the loop has already exited.
+		select {
+		case s.interactiveDone <- struct{}{}:
+		case <-s.done:
+		}
+	}()
+}
+
+// sessionIO adapts a Session to the interactive.IO surface for one flow. It
+// only touches the audio sink, the TTS registry, the read-only Definition, and
+// the interactiveKeys channel — all safe to use from the flow goroutine.
+type sessionIO struct {
+	session *Session
+	tts     functions.TTS
+}
+
+// Speak synthesizes text (honoring the action's TTS overrides, then definition
+// defaults) and plays it to the caller, blocking until playback finishes or a
+// barge-in Clear() cuts it short.
+func (io *sessionIO) Speak(ctx context.Context, text string) error {
+	t := io.session.Definition.ResolveTTS(io.tts, text)
+	data, err := io.session.TTS.Synthesize(t.Provider, tts.Request{
+		Message:  t.Message,
+		Voice:    t.Voice,
+		Language: t.Language,
+		Engine:   t.Engine,
+	})
+	if err != nil {
+		return err
+	}
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	return io.session.Audio.PlayFromStream(data)
+}
+
+// NextKey blocks for the next DTMF key, giving up on hangup (ctx) or after
+// interactiveKeyTimeout of silence.
+func (io *sessionIO) NextKey(ctx context.Context) (string, error) {
+	select {
+	case k := <-io.session.interactiveKeys:
+		return k, nil
+	case <-ctx.Done():
+		return "", ctx.Err()
+	case <-time.After(interactiveKeyTimeout):
+		return "", fmt.Errorf("timeout waiting for key")
 	}
 }
 
@@ -557,6 +682,12 @@ func (s *Session) slamHook() {
 
 	s.Callstack = s.Callstack[:0]
 	s.collector = nil
+
+	// Any interactive flow is scoped to callCtx (cancelled just below), so its
+	// goroutine unwinds on its own; just stop routing keys to it. The pending
+	// interactiveDone it will send is harmless (HookState is now false, so the
+	// loop won't replay a prompt).
+	s.activeInteractive = false
 
 	if s.callCancel != nil {
 		s.callCancel()

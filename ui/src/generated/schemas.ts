@@ -23,6 +23,7 @@ export const actionSchema: z.ZodType<unknown> = z.lazy(() => z.object({
   dtmf: z.string().optional(),
   livefeed: liveFeedSchema.nullable().optional(),
   genericjson: genericJSONSchema.optional(),
+  interactive: interactiveSchema.optional(),
 }).passthrough());
 
 export const definitionSchema: z.ZodType<unknown> = z.lazy(() => z.object({
@@ -71,6 +72,12 @@ export const genericJSONSchema: z.ZodType<unknown> = z.lazy(() => z.object({
   headers: z.record(z.string(), z.string()).optional(),
   tmpl: z.string().optional(),
   timeout_seconds: z.number().optional(),
+  tts: ttsSchema.optional(),
+}).passthrough());
+
+export const interactiveSchema: z.ZodType<unknown> = z.lazy(() => z.object({
+  dst: z.string().optional(),
+  args: z.record(z.string(), z.string()).optional(),
   tts: ttsSchema.optional(),
 }).passthrough());
 

@@ -66,6 +66,12 @@ type Action struct {
 	// response, renders a Go text/template against it, and speaks the
 	// result through TTS. See Type() for how this variant is discovered.
 	GenericJSON GenericJSON `toml:"genericjson"`
+
+	// Interactive hands the call to a named, stateful Go flow (see
+	// extensions/interactive) that can build dynamic menus, collect
+	// follow-up keys, and thread state between API calls. Discovered by a
+	// non-empty Destination.
+	Interactive Interactive `toml:"interactive"`
 }
 
 // LiveFeed configures a livefeed action: pick a host capture device by name
@@ -131,6 +137,10 @@ func (a *Action) Type() (string, error) {
 	// actionKind() in ui/src/generated/config.ts.
 	if a.GenericJSON.URL != "" {
 		return "genericjson", nil
+	}
+
+	if a.Interactive.Destination != "" {
+		return "interactive", nil
 	}
 
 	if a.Clear {
