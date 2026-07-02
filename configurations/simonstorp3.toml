@@ -1,17 +1,19 @@
-# Simonstorp — declarative beer flow (no bespoke Go module).
+# Simonstorp — full config, with the beer flow (press 4) built from generic
+# declarative primitives instead of the bespoke `interactive = { dst = "beer" }`
+# handler. Everything else mirrors simonstorp.toml.
 #
-# Press 4 walks members → BAC → roll → accept/veto entirely from generic
-# primitives: a `listmenu` (dynamic menu from /api/members), `genericjson`
-# nodes that `store` jq values into per-call `.Vars` and reference them in
-# later URLs/bodies, and `then`/`auto` to chain steps. Compare to
-# simonstorp2.toml, which uses the bespoke `interactive = { dst = "beer" }`.
+# The beer flow: listmenu (dynamic menu from /api/members) stores the chosen
+# member in .Vars.member, then a SEQUENTIAL chain of `auto` nodes linked by
+# `then` reads the BAC, rolls a beer, and lands on the accept/veto menu — no
+# intermediate keypress. auto (run-on-entry) + then (auto-advance) ARE the
+# sequence.
 
 [general]
 entrypoint = "main"
+default_tts_provider = "elevenlabs"
 default_tts_voice = "IKne3meq5aSn9XLyUdCD"
 default_tts_lang = "sv-SE"
 default_tts_engine = "eleven_multilingual_v2"
-default_tts_provider = "elevenlabs"
 
 [sip]
 server = "sip.anderstorpsfestivalen.se:5060"
@@ -23,38 +25,60 @@ max_concurrent_calls = 10
 record_path = "files/recording"
 expiry_seconds = 300
 external_ip = "45.154.28.76"
+# Password stored in creds/creds.json under "SIP.Password"
 
+############################
+# MAIN
+############################
 [[fn]]
 name = "main"
+actions = [
+    { num = 1, srv = { dst = "weather", args = { latitude = "57.2684", longitude = "13.8358", timezone = "Europe/Stockholm", name = "Simonstorp" }, tmpl = "{{.Current.Condition}}, {{.Current.TempC}} degrees. Today's high {{.Today.HighC}}, low {{.Today.LowC}}. {{if .Today.RainSoon}}Rain expected around {{.Today.RainSoon}}.{{end}}" }, pmsg = { tts = { msg = "The current forecast for Simonstorp is: " } } },
+    { num = 3, dst = "directory" },
+    # Beer: dynamic member menu → sequential BAC → roll → decide.
+    { num = 4, name = "Öl", listmenu = { url = "https://beer.anderstorpsfestivalen.se/api/members", list = "sort_by(.id)", label = "{{.name}}", intro = "Vem vill du rulla för?", store = "member", dst = "beer_bac" } },
+    { num = 5, srv = { dst = "traintimes", tmpl = """{{.K.InformationOwner}},
+        {{index .K.ProductInformation 0}},
+        {{.K.TypeOfTraffic}} nummer,
+        {{.K.TechnicalTrainIdent}},
+        Från {{.From.AdvertisedLocationName}},
+        Till {{.To.AdvertisedLocationName}},
+        avgår från spår: {{.K.TrackAtLocation}},
+        klockan {{.Hour}} och {{.Minute}}""", args = { station = "Reftele" } } },
+    { num = 6, dst = "livestream" },
+    { num = 8, dst = "voicemail" },
+    { num = 9, dispatcher = "customerservice" },
+]
 recording = { path = "random" }
 prefix = { tts = { msg = """Välkommen till Simonstorp!
      Tryck 1 för väderrapporten i Simonstorp.
+     Tryck 2 för temperaturen i Bastun.
      Tryck 3 för telefonbok.
      Tryck 4 för öl.
-     Tryck 5 för tågtiderna i Reftele.""" } }
-actions = [
-    { num = 1, name = "Väder", pmsg = { tts = { msg = "The current forecast for Simonstorp is: " } }, srv = { dst = "weather", tmpl = "{{.Current.Condition}}, {{.Current.TempC}} degrees. Today's high {{.Today.HighC}}, low {{.Today.LowC}}.", args = { latitude = "57.2684", longitude = "13.8358", timezone = "Europe/Stockholm", name = "Simonstorp" } } },
-    { num = 3, dst = "directory" },
-    # Dynamic menu built from the live member list, id-ascending. The chosen
-    # member object is stored in .Vars.member and we advance to beer_bac.
-    { num = 4, name = "Öl", listmenu = { url = "https://beer.anderstorpsfestivalen.se/api/members", list = "sort_by(.id)", label = "{{.name}}", intro = "Vem vill du rulla för?", store = "member", dst = "beer_bac" } },
-    { num = 5, srv = { dst = "traintimes", tmpl = "{{.K.InformationOwner}}, avgår klockan {{.Hour}} och {{.Minute}}", args = { station = "Reftele" } } },
-]
+     Tryck 5 för tågtiderna i Reftele.
+     Tryck 6 för livestream av köket.
+     Tryck 8 för att lämna ett meddelande
+     To speak with a customer representative, press 9 or wait on the line.""" } }
 
-# On entering beer_bac (after a member is picked) the `auto` node fetches the
-# BAC snapshot and reads the chosen member's promille, then offers a roll.
-# It reads .Vars.member.id (set by the listmenu) via printf into a jq select.
+############################
+# BEER (declarative flow: listmenu → sequential auto/then chain)
+############################
+# Step 1: read the chosen member's promille, then advance to the roll.
 [[fn]]
 name = "beer_bac"
 actions = [
-    { num = 8, auto = true, name = "BAC", genericjson = { url = "https://beer.anderstorpsfestivalen.se/api/public/bac", tmpl = """Din alkoholhalt är {{jq .Data (printf ".members[] | select(.userId == %v) | .promille" .Vars.member.id)}} promille. Tryck 1 för att rulla en öl. Tryck 0 för att gå tillbaka.""" } },
-    # Roll a beer for the chosen member: POST with the member id, store the
-    # whole roll object, read it out, then auto-advance to the accept/veto menu.
-    { num = 1, name = "Rulla", genericjson = { url = "https://beer.anderstorpsfestivalen.se/api/public/roll", method = "POST", body = """{"userId": {{.Vars.member.id}}}""", store = { roll = "." }, tmpl = "Du rullade {{.Data.productNameBold}}, {{.Data.alcoholPercent}} procent. Tryck 1 för att acceptera. Tryck 2 för att avvisa." }, then = "beer_decide" },
+    { auto = true, name = "Läs BAC", genericjson = { url = "https://beer.anderstorpsfestivalen.se/api/public/bac", tmpl = """Din alkoholhalt är {{jq .Data (printf ".members[] | select(.userId == %v) | .promille" .Vars.member.id)}} promille.""" }, then = "beer_roll" },
 ]
 
-# No prefix: the roll readout already spoke the accept/veto prompt before
-# advancing here. Each choice POSTs to the turn id captured in .Vars.roll.id.
+# Step 2: roll a beer for the chosen member, store it, read it out, then
+# advance to the decision menu.
+[[fn]]
+name = "beer_roll"
+actions = [
+    { auto = true, name = "Rulla", genericjson = { url = "https://beer.anderstorpsfestivalen.se/api/public/roll", method = "POST", body = """{"userId": {{.Vars.member.id}}}""", store = { roll = "." }, tmpl = "Du rullade {{.Data.productNameBold}}, {{.Data.alcoholPercent}} procent. Tryck 1 för att acceptera. Tryck 2 för att avvisa." }, then = "beer_decide" },
+]
+
+# Step 3: accept or veto the rolled turn captured in .Vars.roll.id.
 [[fn]]
 name = "beer_decide"
 actions = [
@@ -62,12 +86,77 @@ actions = [
     { num = 2, name = "Avvisa", genericjson = { url = "https://beer.anderstorpsfestivalen.se/api/public/roll/{{.Vars.roll.id}}/veto", method = "POST", body = "{}", tmpl = "Avvisad." } },
 ]
 
+############################
+# LIVESTREAM (livefeed action demo)
+############################
+[[fn]]
+name = "livestream"
+prefix = { tts = { msg = "Live audio. Press 1 for the default mic, press 0 to go back." } }
+actions = [
+    # Empty device string opens the system default capture device.
+    # Pick a specific interface by substring, e.g. device = "Scarlett",
+    # and a channel within it (0-indexed).
+    { num = 1, livefeed = { device = "", channel = 0 } },
+]
+
+############################
+# VOICEMAIL
+############################
+[[fn]]
+name = "voicemail"
+recording = { path = "voicemail" }
+prefix = { tts = { msg = """Please leave a message after the beep: BEEP""" } }
+actions = []
+
+############################
+# DIRECTORY (call control demo - transfer to other extensions)
+############################
 [[fn]]
 name = "directory"
 prefix = { tts = { msg = """Directory. Press one for sales, two for support,
     three for billing. Press zero to go back.""" } }
 actions = [
+    # Extension shorthand expands to "sip:<ext>@<def.SIP.Domain>".
     { num = 1, transfer = "201" },
     { num = 2, transfer = "202" },
-    { num = 3, transfer = "203" }
+    { num = 3, transfer = "203" },
 ]
+
+############################
+# QUEUE MODE
+############################
+[[queue]]
+name = "customerservice"
+
+minpos = 20
+maxpos = 45
+
+entrymsg = { tts = { msg = """Please wait while we try to connect you to one
+    of our customer service representatives""" }, wait = true }
+bgmusic = { src = "files/hold.mp3" }
+currentpos = { msg = "Your current place in line is: {{.Position}}" }
+end = { tts = { msg = "Technical error, please try again." } }
+
+[[queue.prompt]]
+prompt = { tts = { msg = """"We are currently experiencing high call volumes.
+    Your call will be answered as soon as possible by one of our agents.""" } }
+weight = 4
+
+[[queue.prompt]]
+prompt = { tts = { msg = """"Your call is very important to us,
+    please stay on the line.""" } }
+weight = 3
+
+[[queue.prompt]]
+prompt = { tts = { msg = """"You may find answers to your questions by visiting
+        w w w dot anderstorpsfestivalen dot s e""" } }
+weight = 1
+
+[[queue.prompt]]
+prompt = { tts = { msg = """"Your call is very important to us, please stay on the line
+        until your call is no longer important to you.""" } }
+weight = 1
+
+[[queue.prompt]]
+empty = true
+weight = 3
