@@ -5,7 +5,6 @@
 // to its parent fn by a DTMF-key-labelled edge; dst/dispatcher actions get
 // outgoing edges to their target fn/queue node.
 
-import dagre from "dagre";
 import type { Action, Fn, Queue } from "../generated/config";
 import { actionKind, type ActionKind } from "../generated/config";
 
@@ -53,7 +52,7 @@ export type QueueNodeData = {
   name: string;
 };
 
-// width/height are stamped by runDagreLayout from the layout dimensions.
+// width/height are stamped by runTreeLayout from the layout dimensions.
 // React Flow needs explicit node geometry for the MiniMap to draw the node
 // rectangles (custom nodes aren't always measured by the time it renders).
 export type GraphNode =
@@ -102,17 +101,7 @@ export function buildNodesAndEdges(
       data: { kind: "fn", fn, index: i, isEntry: fn.name === entrypoint },
     });
 
-    // Feed actions to the layout in keypad order (1,2,…,0,#,*) so dagre's
-    // initial within-rank ordering — and thus its tie-breaks — follow the
-    // keypad. Dagre's crossing-minimization is then free to slide a routing
-    // action next to its target menu (flow order) where that removes a
-    // crossing, while leaf actions with no downstream pull stay in keypad
-    // order. We keep the original array index `j` for node/edge IDs so
-    // selection + edit mapping are unaffected by the display order.
-    fn.actions
-      .map((action, j) => ({ action, j }))
-      .sort((a, b) => keypadRank(a.action.num) - keypadRank(b.action.num))
-      .forEach(({ action, j }) => {
+    fn.actions.forEach((action, j) => {
       const source: ActionSource = { kind: "fn", fnName: fn.name, actionIndex: j };
       const actionId = actionNodeId(source);
       nodes.push({
@@ -189,7 +178,7 @@ export function buildNodesAndEdges(
     });
   }
 
-  runDagreLayout(nodes, edges);
+  runTreeLayout(nodes, edges, entrypoint);
   return { nodes, edges };
 }
 
@@ -268,32 +257,97 @@ function appendActionTargetEdge(
   }
 }
 
-export function runDagreLayout(nodes: GraphNode[], edges: GraphEdge[]) {
-  const g = new dagre.graphlib.Graph();
-  g.setGraph({ rankdir: "LR", nodesep: 24, ranksep: 80, marginx: 20, marginy: 20 });
-  g.setDefaultEdgeLabel(() => ({}));
+const NODE_W: Record<GraphNode["type"], number> = {
+  fnNode: FN_NODE_WIDTH,
+  actionNode: ACTION_NODE_WIDTH,
+  queueNode: QUEUE_NODE_WIDTH,
+};
+const NODE_H: Record<GraphNode["type"], number> = {
+  fnNode: FN_NODE_HEIGHT,
+  actionNode: ACTION_NODE_HEIGHT,
+  queueNode: QUEUE_NODE_HEIGHT,
+};
 
-  for (const n of nodes) {
-    const dims =
-      n.type === "fnNode"
-        ? { width: FN_NODE_WIDTH, height: FN_NODE_HEIGHT }
-        : n.type === "actionNode"
-          ? { width: ACTION_NODE_WIDTH, height: ACTION_NODE_HEIGHT }
-          : { width: QUEUE_NODE_WIDTH, height: QUEUE_NODE_HEIGHT };
-    g.setNode(n.id, dims);
+// runTreeLayout is a left-to-right "tidy tree" layout tailored to IVR flows.
+// Unlike a generic crossing-minimizer, it treats the graph as a tree rooted at
+// the entrypoint and:
+//   - orders each node's children in KEYPAD order (1,2,…,0,#,*), so a menu's
+//     actions always read top-to-bottom by DTMF key;
+//   - centers every parent on the vertical span of its children, so a routing
+//     action lands on the same row as the menu/queue it points at (the flow
+//     stays aligned with the keypad row it came from);
+//   - stacks leaves with real per-node heights, so a tall subtree (e.g. a menu
+//     with three transfers) gets its own vertical room instead of overlapping
+//     its siblings.
+// Nodes reached by more than one edge are laid out on first visit; the extra
+// edges are drawn as-is (they may cross — rare for menu trees). Orphan fns /
+// queues become additional roots stacked below the main tree.
+export function runTreeLayout(
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+  entrypoint: string,
+) {
+  const byId = new Map(nodes.map((n) => [n.id, n] as const));
+  const COL_W = 320; // horizontal distance between ranks (> widest node)
+  const ROW_GAP = 28; // vertical gap between stacked leaves
+
+  const outEdges = new Map<string, GraphEdge[]>();
+  for (const e of edges) {
+    if (!byId.has(e.source) || !byId.has(e.target)) continue;
+    const list = outEdges.get(e.source);
+    if (list) list.push(e);
+    else outEdges.set(e.source, [e]);
   }
-  for (const e of edges) g.setEdge(e.source, e.target);
 
-  dagre.layout(g);
+  // Children in draw order: action children (via DTMF "key" edges) sort by
+  // keypad rank; other targets keep their edge order.
+  const childrenOf = (id: string): string[] =>
+    (outEdges.get(id) ?? [])
+      .map((e, i) => {
+        const t = byId.get(e.target)!;
+        const rank =
+          t.type === "actionNode" && t.data.kind === "action"
+            ? keypadRank(t.data.action.num)
+            : Number.MAX_SAFE_INTEGER;
+        return { id: e.target, rank, i };
+      })
+      .sort((a, b) => a.rank - b.rank || a.i - b.i)
+      .map((c) => c.id);
 
-  for (const n of nodes) {
-    const pos = g.node(n.id);
-    if (!pos) continue;
-    n.position = { x: pos.x - pos.width / 2, y: pos.y - pos.height / 2 };
-    // Stamp geometry so the MiniMap can draw the node rectangles even before
-    // React Flow has measured the custom node components.
-    n.width = pos.width;
-    n.height = pos.height;
+  const visited = new Set<string>();
+  let cursor = 0; // running y for the next leaf's top edge
+
+  // Places the subtree rooted at id and returns the node's center-y.
+  const place = (id: string, depth: number): number => {
+    const n = byId.get(id)!;
+    const h = NODE_H[n.type];
+    if (visited.has(id)) return n.position.y + h / 2;
+    visited.add(id);
+    n.width = NODE_W[n.type];
+    n.height = h;
+
+    const kids = childrenOf(id).filter((c) => !visited.has(c));
+    let centerY: number;
+    if (kids.length === 0) {
+      centerY = cursor + h / 2;
+      cursor += h + ROW_GAP;
+    } else {
+      const centers = kids.map((c) => place(c, depth + 1));
+      centerY = (centers[0] + centers[centers.length - 1]) / 2;
+    }
+    n.position = { x: depth * COL_W, y: centerY - h / 2 };
+    return centerY;
+  };
+
+  // Roots: entrypoint first, then any unvisited fn/queue (orphans), then any
+  // stray node — each starts a fresh tree at depth 0, stacked below.
+  const rootOrder = [
+    `fn_${entrypoint}`,
+    ...nodes.filter((n) => n.type === "fnNode" || n.type === "queueNode").map((n) => n.id),
+    ...nodes.map((n) => n.id),
+  ];
+  for (const id of rootOrder) {
+    if (byId.has(id) && !visited.has(id)) place(id, 0);
   }
 }
 
