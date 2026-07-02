@@ -53,10 +53,13 @@ export type QueueNodeData = {
   name: string;
 };
 
+// width/height are stamped by runDagreLayout from the layout dimensions.
+// React Flow needs explicit node geometry for the MiniMap to draw the node
+// rectangles (custom nodes aren't always measured by the time it renders).
 export type GraphNode =
-  | { id: string; type: "fnNode"; position: { x: number; y: number }; data: FnNodeData }
-  | { id: string; type: "actionNode"; position: { x: number; y: number }; data: ActionNodeData }
-  | { id: string; type: "queueNode"; position: { x: number; y: number }; data: QueueNodeData };
+  | { id: string; type: "fnNode"; position: { x: number; y: number }; width?: number; height?: number; data: FnNodeData }
+  | { id: string; type: "actionNode"; position: { x: number; y: number }; width?: number; height?: number; data: ActionNodeData }
+  | { id: string; type: "queueNode"; position: { x: number; y: number }; width?: number; height?: number; data: QueueNodeData };
 
 export type GraphEdge = {
   id: string;
@@ -287,6 +290,10 @@ export function runDagreLayout(nodes: GraphNode[], edges: GraphEdge[]) {
     const pos = g.node(n.id);
     if (!pos) continue;
     n.position = { x: pos.x - pos.width / 2, y: pos.y - pos.height / 2 };
+    // Stamp geometry so the MiniMap can draw the node rectangles even before
+    // React Flow has measured the custom node components.
+    n.width = pos.width;
+    n.height = pos.height;
   }
 }
 
