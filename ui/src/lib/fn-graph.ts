@@ -99,7 +99,17 @@ export function buildNodesAndEdges(
       data: { kind: "fn", fn, index: i, isEntry: fn.name === entrypoint },
     });
 
-    fn.actions.forEach((action, j) => {
+    // Feed actions to the layout in keypad order (1,2,…,0,#,*) so dagre's
+    // initial within-rank ordering — and thus its tie-breaks — follow the
+    // keypad. Dagre's crossing-minimization is then free to slide a routing
+    // action next to its target menu (flow order) where that removes a
+    // crossing, while leaf actions with no downstream pull stay in keypad
+    // order. We keep the original array index `j` for node/edge IDs so
+    // selection + edit mapping are unaffected by the display order.
+    fn.actions
+      .map((action, j) => ({ action, j }))
+      .sort((a, b) => keypadRank(a.action.num) - keypadRank(b.action.num))
+      .forEach(({ action, j }) => {
       const source: ActionSource = { kind: "fn", fnName: fn.name, actionIndex: j };
       const actionId = actionNodeId(source);
       nodes.push({
@@ -177,42 +187,19 @@ export function buildNodesAndEdges(
   }
 
   runDagreLayout(nodes, edges);
-  enforceKeypadOrder(nodes, fns);
   return { nodes, edges };
 }
 
-// Phone-keypad order: 1,2,3,4,5,6,7,8,9,0,#,*. Dagre's barycentric
-// within-rank ordering doesn't know about DTMF semantics, so its layout
-// of an fn's action children comes out arbitrary. We keep dagre's
-// computed y-slots (they're correctly spaced and centered) but
-// re-assign which action occupies which slot so they read top-to-bottom
-// in keypad order.
+// Phone-keypad order: 1,2,3,4,5,6,7,8,9,0,#,*. Used to feed actions to dagre
+// in keypad order so its within-rank tie-breaks follow the keypad; dagre's
+// crossing-minimization then aligns routing actions with their target menus
+// (flow order) where that removes a crossing.
 function keypadRank(num: number): number {
   if (num >= 1 && num <= 9) return num;
   if (num === 0) return 10;
   if (num === 11) return 11; // #
   if (num === 10) return 12; // *
   return 99;
-}
-
-function enforceKeypadOrder(nodes: GraphNode[], fns: Fn[]) {
-  const byId = new Map(nodes.map((n) => [n.id, n] as const));
-  for (const fn of fns) {
-    if (!fn.name || fn.actions.length < 2) continue;
-    const entries = fn.actions
-      .map((action, j) => {
-        const id = actionNodeId({ kind: "fn", fnName: fn.name, actionIndex: j });
-        const node = byId.get(id);
-        return node ? { node, rank: keypadRank(action.num) } : null;
-      })
-      .filter((e): e is { node: GraphNode; rank: number } => e !== null);
-    if (entries.length < 2) continue;
-    const slotsY = entries.map((e) => e.node.position.y).sort((a, b) => a - b);
-    entries.sort((a, b) => a.rank - b.rank);
-    entries.forEach((e, i) => {
-      e.node.position = { ...e.node.position, y: slotsY[i] };
-    });
-  }
 }
 
 function dispatcherOrDst(a: Action):
