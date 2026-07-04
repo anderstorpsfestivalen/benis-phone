@@ -42,7 +42,56 @@ actions = [
         Till {{.To.AdvertisedLocationName}},
         avgår från spår: {{.K.TrackAtLocation}},
         klockan {{.Hour}} och {{.Minute}}""", args = { station = "Reftele" } } },
-    { num = 4, name = "Öl", interactive = { dst = "beer", args = { base_url = "https://beer.anderstorpsfestivalen.se" } } },
+    { num = 4, name = "Öl", script = { args = { base_url = "https://beer.anderstorpsfestivalen.se" }, code = '''
+// Öl-menyn: välj medlem, läs promille, rulla en öl, acceptera eller avvisa.
+var base = (args.base_url || "https://beer.anderstorpsfestivalen.se").replace(/\/+$/, "");
+
+var members = http.get(base + "/api/members").json;
+if (!members || members.length === 0) {
+  speak("Det finns inga medlemmar att välja bland.");
+  return;
+}
+members.sort(function (a, b) { return a.id - b.id; });
+if (members.length > 9) { members = members.slice(0, 9); }
+
+var menu = "Välkommen till ölmenyn. ";
+for (var i = 0; i < members.length; i++) {
+  menu += "Tryck " + (i + 1) + " för " + members[i].name + ". ";
+}
+menu += "Tryck 0 för att gå tillbaka.";
+speak(menu);
+
+var idx = parseInt(readKey(), 10) - 1;
+if (isNaN(idx) || idx < 0 || idx >= members.length) { return; }
+var chosen = members[idx];
+
+var bac = http.get(base + "/api/public/bac").json;
+var promille = null;
+if (bac && bac.members) {
+  var found = bac.members.find(function (m) { return m.userId === chosen.id; });
+  if (found) { promille = found.promille; }
+}
+var offer = promille !== null
+  ? chosen.name + ", din alkoholhalt är " + sv(promille) + " promille. "
+  : chosen.name + ", din alkoholhalt är okänd. ";
+speak(offer + "Tryck 1 för att rulla en öl. Tryck 0 för att gå tillbaka.");
+if (readKey() !== "1") { return; }
+
+var roll = http.post(base + "/api/public/roll", { userId: chosen.id }).json;
+var beerName = (roll && roll.productNameBold) ? roll.productNameBold : "en öl";
+speak("Du rullade " + beerName + ", " + sv(roll.alcoholPercent) + " procent. Tryck 1 för att acceptera. Tryck 2 för att avvisa.");
+
+var decision = readKey();
+if (decision === "1") {
+  http.post(base + "/api/public/roll/" + roll.id + "/accept", {});
+  speak("Accepterad. Skål!");
+} else if (decision === "2") {
+  http.post(base + "/api/public/roll/" + roll.id + "/veto", {});
+  speak("Avvisad.");
+}
+
+function sv(f) { return String(f).replace(".", ","); }
+''' } },
     { num = 6, dst = "livestream" },
     { num = 8, dst = "voicemail" },
     { num = 9, dispatcher = "customerservice" },

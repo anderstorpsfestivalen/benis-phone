@@ -67,17 +67,10 @@ type Action struct {
 	// result through TTS. See Type() for how this variant is discovered.
 	GenericJSON GenericJSON `toml:"genericjson"`
 
-	// Interactive hands the call to a named, stateful Go flow (see
-	// extensions/interactive) that can build dynamic menus, collect
-	// follow-up keys, and thread state between API calls. Discovered by a
-	// non-empty Destination.
-	Interactive Interactive `toml:"interactive"`
-
-	// ListMenu builds a dynamic menu from a fetched JSON array (see
-	// listmenu.go): speaks "Tryck N för <label>", and on selection stores
-	// the chosen item into a flow variable and advances to its Dst.
-	// Discovered by a non-empty URL.
-	ListMenu ListMenu `toml:"listmenu"`
+	// Script runs an inline JavaScript program (via goja) that drives a whole
+	// stateful dialogue — fetch APIs, speak, read keys, branch, loop — as
+	// ordinary imperative code. See script.go. Discovered by non-empty Code.
+	Script Script `toml:"script"`
 
 	// Then names an fn to auto-advance to after this action's audio finishes,
 	// with no keypress. It's the declarative-flow "next step" edge: a
@@ -87,8 +80,8 @@ type Action struct {
 
 	// Auto marks an action to run automatically when its fn is entered
 	// (after the prefix), instead of waiting for a DTMF key. Used for
-	// "fetch on arrival" steps in a declarative flow — e.g. the fn a listmenu
-	// selection lands on runs a genericjson to fetch detail for the choice.
+	// "fetch on arrival" steps in a declarative flow — e.g. a genericjson node
+	// that fetches detail as soon as the caller lands on the fn.
 	Auto bool `toml:"auto"`
 }
 
@@ -157,12 +150,11 @@ func (a *Action) Type() (string, error) {
 		return "genericjson", nil
 	}
 
-	if a.Interactive.Destination != "" {
-		return "interactive", nil
-	}
-
-	if a.ListMenu.URL != "" {
-		return "listmenu", nil
+	// Script is discovered by non-empty Code. Placed after genericjson so a
+	// node that (nonsensically) sets both still reads out as genericjson;
+	// authors pick exactly one. Matches the TS actionKind() ordering.
+	if a.Script.Code != "" {
+		return "script", nil
 	}
 
 	if a.Clear {

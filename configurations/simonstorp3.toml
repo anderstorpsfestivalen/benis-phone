@@ -1,12 +1,8 @@
-# Simonstorp — full config, with the beer flow (press 4) built from generic
-# declarative primitives instead of the bespoke `interactive = { dst = "beer" }`
-# handler. Everything else mirrors simonstorp.toml.
-#
-# The beer flow: listmenu (dynamic menu from /api/members) stores the chosen
-# member in .Vars.member, then a SEQUENTIAL chain of `auto` nodes linked by
-# `then` reads the BAC, rolls a beer, and lands on the accept/veto menu — no
-# intermediate keypress. auto (run-on-entry) + then (auto-advance) ARE the
-# sequence.
+# Simonstorp — full config, with the beer flow (press 4) written as a single
+# `script` action: an inline JavaScript program (run by goja) that fetches the
+# member list, builds the menu, reads the selection, reads the BAC, rolls a
+# beer, and resolves accept/veto — all as plain imperative code. Everything
+# else mirrors simonstorp.toml.
 
 [general]
 entrypoint = "main"
@@ -35,8 +31,57 @@ name = "main"
 actions = [
     { num = 1, srv = { dst = "weather", args = { latitude = "57.2684", longitude = "13.8358", timezone = "Europe/Stockholm", name = "Simonstorp" }, tmpl = "{{.Current.Condition}}, {{.Current.TempC}} degrees. Today's high {{.Today.HighC}}, low {{.Today.LowC}}. {{if .Today.RainSoon}}Rain expected around {{.Today.RainSoon}}.{{end}}" }, pmsg = { tts = { msg = "The current forecast for Simonstorp is: " } } },
     { num = 3, dst = "directory" },
-    # Beer: dynamic member menu → sequential BAC → roll → decide.
-    { num = 4, name = "Öl", listmenu = { url = "https://beer.anderstorpsfestivalen.se/api/members", list = "sort_by(.id)", label = "{{.name}}", intro = "Vem vill du rulla för?", store = "member", dst = "beer_bac" } },
+    # Beer: the whole dialogue as a script — member menu → BAC → roll → decide.
+    { num = 4, name = "Öl", script = { args = { base_url = "https://beer.anderstorpsfestivalen.se" }, code = '''
+// Öl-menyn: välj medlem, läs promille, rulla en öl, acceptera eller avvisa.
+var base = (args.base_url || "https://beer.anderstorpsfestivalen.se").replace(/\/+$/, "");
+
+var members = http.get(base + "/api/members").json;
+if (!members || members.length === 0) {
+  speak("Det finns inga medlemmar att välja bland.");
+  return;
+}
+members.sort(function (a, b) { return a.id - b.id; });
+if (members.length > 9) { members = members.slice(0, 9); }
+
+var menu = "Välkommen till ölmenyn. ";
+for (var i = 0; i < members.length; i++) {
+  menu += "Tryck " + (i + 1) + " för " + members[i].name + ". ";
+}
+menu += "Tryck 0 för att gå tillbaka.";
+speak(menu);
+
+var idx = parseInt(readKey(), 10) - 1;
+if (isNaN(idx) || idx < 0 || idx >= members.length) { return; }
+var chosen = members[idx];
+
+var bac = http.get(base + "/api/public/bac").json;
+var promille = null;
+if (bac && bac.members) {
+  var found = bac.members.find(function (m) { return m.userId === chosen.id; });
+  if (found) { promille = found.promille; }
+}
+var offer = promille !== null
+  ? chosen.name + ", din alkoholhalt är " + sv(promille) + " promille. "
+  : chosen.name + ", din alkoholhalt är okänd. ";
+speak(offer + "Tryck 1 för att rulla en öl. Tryck 0 för att gå tillbaka.");
+if (readKey() !== "1") { return; }
+
+var roll = http.post(base + "/api/public/roll", { userId: chosen.id }).json;
+var beerName = (roll && roll.productNameBold) ? roll.productNameBold : "en öl";
+speak("Du rullade " + beerName + ", " + sv(roll.alcoholPercent) + " procent. Tryck 1 för att acceptera. Tryck 2 för att avvisa.");
+
+var decision = readKey();
+if (decision === "1") {
+  http.post(base + "/api/public/roll/" + roll.id + "/accept", {});
+  speak("Accepterad. Skål!");
+} else if (decision === "2") {
+  http.post(base + "/api/public/roll/" + roll.id + "/veto", {});
+  speak("Avvisad.");
+}
+
+function sv(f) { return String(f).replace(".", ","); }
+''' } },
     { num = 5, srv = { dst = "traintimes", tmpl = """{{.K.InformationOwner}},
         {{index .K.ProductInformation 0}},
         {{.K.TypeOfTraffic}} nummer,
@@ -59,32 +104,6 @@ prefix = { tts = { msg = """Välkommen till Simonstorp!
      Tryck 6 för livestream av köket.
      Tryck 8 för att lämna ett meddelande
      To speak with a customer representative, press 9 or wait on the line.""" } }
-
-############################
-# BEER (declarative flow: listmenu → sequential auto/then chain)
-############################
-# Step 1: read the chosen member's promille, then advance to the roll.
-[[fn]]
-name = "beer_bac"
-actions = [
-    { auto = true, name = "Läs BAC", genericjson = { url = "https://beer.anderstorpsfestivalen.se/api/public/bac", tmpl = """Din alkoholhalt är {{jq .Data (printf ".members[] | select(.userId == %v) | .promille" .Vars.member.id)}} promille.""" }, then = "beer_roll" },
-]
-
-# Step 2: roll a beer for the chosen member, store it, read it out, then
-# advance to the decision menu.
-[[fn]]
-name = "beer_roll"
-actions = [
-    { auto = true, name = "Rulla", genericjson = { url = "https://beer.anderstorpsfestivalen.se/api/public/roll", method = "POST", body = """{"userId": {{.Vars.member.id}}}""", store = { roll = "." }, tmpl = "Du rullade {{.Data.productNameBold}}, {{.Data.alcoholPercent}} procent. Tryck 1 för att acceptera. Tryck 2 för att avvisa." }, then = "beer_decide" },
-]
-
-# Step 3: accept or veto the rolled turn captured in .Vars.roll.id.
-[[fn]]
-name = "beer_decide"
-actions = [
-    { num = 1, name = "Acceptera", genericjson = { url = "https://beer.anderstorpsfestivalen.se/api/public/roll/{{.Vars.roll.id}}/accept", method = "POST", body = "{}", tmpl = "Accepterad. Skål!" } },
-    { num = 2, name = "Avvisa", genericjson = { url = "https://beer.anderstorpsfestivalen.se/api/public/roll/{{.Vars.roll.id}}/veto", method = "POST", body = "{}", tmpl = "Avvisad." } },
-]
 
 ############################
 # LIVESTREAM (livefeed action demo)

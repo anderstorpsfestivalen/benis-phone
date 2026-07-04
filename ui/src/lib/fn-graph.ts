@@ -194,6 +194,19 @@ function keypadRank(num: number): number {
   return 99;
 }
 
+// scriptGotoTargets extracts the fn names from literal goto("name") /
+// goto('name') calls in a script. Non-literal targets (goto(someVar)) can't be
+// resolved statically and are omitted from the graph.
+function scriptGotoTargets(code: string): string[] {
+  const out = new Set<string>();
+  const re = /\bgoto\s*\(\s*(['"])([^'"]+)\1/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(code)) !== null) {
+    if (m[2]) out.add(m[2]);
+  }
+  return [...out];
+}
+
 function dispatcherOrDst(a: Action):
   | { kind: "dst"; target: string }
   | { kind: "dispatcher"; target: string }
@@ -234,15 +247,18 @@ function appendActionTargetEdge(
     });
   }
 
-  // A listmenu routes to its dst fn after the caller selects an option.
-  if (action.listmenu && action.listmenu.dst) {
-    edges.push({
-      id: `${edgeId}_list`,
-      source: sourceId,
-      target: `fn_${action.listmenu.dst}`,
-      label: "",
-      data: { kind: "dst", broken: !fnNames.has(action.listmenu.dst) },
-    });
+  // A script can hand off to another fn via goto(). The target is dynamic JS,
+  // so we can only draw edges for literal goto("name") calls — best-effort.
+  if (action.script && action.script.code) {
+    for (const target of scriptGotoTargets(action.script.code)) {
+      edges.push({
+        id: `${edgeId}_goto_${target}`,
+        source: sourceId,
+        target: `fn_${target}`,
+        label: "goto",
+        data: { kind: "dst", broken: !fnNames.has(target) },
+      });
+    }
   }
 
   // `then` auto-advances to another fn once the action's audio finishes.
@@ -383,10 +399,10 @@ export function actionDetail(a: Action): string {
       return a.livefeed?.device || "default device";
     case "genericjson":
       return a.genericjson.url;
-    case "interactive":
-      return `▶ ${a.interactive.dst}`;
-    case "listmenu":
-      return `▤ list → ${a.listmenu.dst || "?"}`;
+    case "script": {
+      const targets = scriptGotoTargets(a.script.code);
+      return targets.length ? `▶ script → ${targets.join(", ")}` : "▶ script";
+    }
     case "hangup":
     case "clear":
       return "";
@@ -416,8 +432,7 @@ export function categoryFor(kind: ActionKind | null): ActionCategory {
       return "media";
     case "srv":
     case "genericjson":
-    case "interactive":
-    case "listmenu":
+    case "script":
       return "service";
     default:
       return "control";

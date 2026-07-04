@@ -3,7 +3,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"sync"
 	"time"
 
@@ -12,20 +11,14 @@ import (
 	"github.com/anderstorpsfestivalen/benis-phone/core/functions"
 	"github.com/anderstorpsfestivalen/benis-phone/core/phone"
 	"github.com/anderstorpsfestivalen/benis-phone/core/tts"
-	"github.com/anderstorpsfestivalen/benis-phone/extensions/interactive"
-	// Blank import registers the beer flow into interactive.Registry via its
-	// init(). Extra interactive flows get their own blank import here — same
-	// way the static services registry pulls in each service package.
-	_ "github.com/anderstorpsfestivalen/benis-phone/extensions/interactive/beer"
 	"github.com/anderstorpsfestivalen/benis-phone/extensions/services"
 	log "github.com/sirupsen/logrus"
 )
 
-// interactiveKeyTimeout bounds how long an interactive flow waits for the
-// caller to press a key before NextKey gives up and the flow unwinds back to
-// the menu. Keeps a walked-away caller from pinning a flow (and its goroutine)
-// open indefinitely.
-const interactiveKeyTimeout = 20 * time.Second
+// scriptKeyTimeout bounds how long a script flow waits for the caller to press
+// a key (readKey()) before it gives up and returns null. Keeps a walked-away
+// caller from pinning a flow (and its goroutine) open indefinitely.
+const scriptKeyTimeout = 20 * time.Second
 
 // Session represents a single call session with isolated state.
 // Each incoming call gets its own Session instance.
@@ -52,28 +45,24 @@ type Session struct {
 	collector        *Collector
 	activeDispatcher functions.Dispatcher
 
-	// activeInteractive is true while a stateful interactive flow (see
-	// extensions/interactive) owns the call. While set, DTMF keys are routed
-	// to interactiveKeys instead of the menu/collector. It is only touched
-	// from the session goroutine (main loop + slamHook), never the flow
-	// goroutine, so it needs no lock. interactiveDone is signalled by the
-	// flow goroutine when Run returns.
-	activeInteractive bool
-	interactiveKeys   chan string
-	interactiveDone   chan struct{}
+	// activeScript is true while a script flow (an inline JS program, see
+	// script.go) owns the call. While set, DTMF keys are routed to scriptKeys
+	// instead of the menu/collector. It is only touched from the session
+	// goroutine (main loop + slamHook), never the script goroutine, so it needs
+	// no lock. scriptDone is signalled by the script goroutine when the program
+	// returns; its value is the fn to goto() next (empty = back to the menu).
+	activeScript bool
+	scriptKeys   chan string
+	scriptDone   chan string
 
 	// vars is the per-call flow state ("blackboard") that declarative flow
-	// nodes read and write: a genericjson/listmenu node stashes a jq-extracted
-	// value here, and later nodes reference it via `.Vars` in their URL / body /
-	// template. Written from action goroutines (then/store) and read from the
-	// main loop, so it's guarded by varsMu.
+	// nodes read and write: a genericjson node stashes a jq-extracted value
+	// here, a script vars.set()s one, and later nodes reference it via `.Vars`
+	// in their URL / body / template. Written from action goroutines
+	// (then/store, script) and read from the main loop, so it's guarded by
+	// varsMu.
 	vars   map[string]any
 	varsMu sync.RWMutex
-
-	// pendingList holds a dynamic listmenu awaiting the caller's selection —
-	// the same key-interception pattern as collector. Only touched from the
-	// session goroutine.
-	pendingList *listSelection
 
 	// advance carries the fn name an action wants to auto-advance to (its
 	// `then`) once its audio finishes — delivered from the play goroutine and
@@ -108,20 +97,11 @@ func NewSession(id string, ph phone.FlowPhone, audioSink audio.AudioSink, rec au
 		prefixSignal: make(chan bool, 100),
 		done:         make(chan struct{}),
 		// Buffered so a barge-in keypress (pressed while a prompt is still
-		// playing, before the flow reaches NextKey) isn't dropped.
-		interactiveKeys: make(chan string, 8),
-		interactiveDone: make(chan struct{}, 1),
-		advance:         make(chan string, 1),
+		// playing, before the script reaches readKey()) isn't dropped.
+		scriptKeys: make(chan string, 8),
+		scriptDone: make(chan string, 1),
+		advance:    make(chan string, 1),
 	}
-}
-
-// listSelection is the state of a dynamic listmenu waiting for a keypress:
-// the fetched items (index i → DTMF key i+1), the var to store the choice
-// under, and the fn to enter after.
-type listSelection struct {
-	items []any
-	store string
-	dst   string
 }
 
 // SetVars merges m into the per-call flow state. Safe to call from action
@@ -188,16 +168,14 @@ func (s *Session) Start() {
 			if s.HookState {
 				s.Audio.Clear()
 				switch {
-				case s.activeInteractive:
-					// Hand the key to the running flow. Non-blocking: if the
-					// buffer is full (flow isn't consuming) we drop it rather
+				case s.activeScript:
+					// Hand the key to the running script. Non-blocking: if the
+					// buffer is full (script isn't consuming) we drop it rather
 					// than stall the session loop.
 					select {
-					case s.interactiveKeys <- key:
+					case s.scriptKeys <- key:
 					default:
 					}
-				case s.pendingList != nil:
-					s.handleListSelect(key)
 				case s.collector == nil:
 					s.handleKey(key)
 				default:
@@ -209,12 +187,17 @@ func (s *Session) Start() {
 			if s.HookState {
 				s.checkError(s.enterFunction(dst))
 			}
-		case <-s.interactiveDone:
-			// The interactive flow's goroutine returned. Hand control back to
-			// the menu the caller triggered it from and replay its prompt.
-			s.activeInteractive = false
+		case dst := <-s.scriptDone:
+			// The script's goroutine returned. If it called goto(fnName) enter
+			// that fn; otherwise hand control back to the menu the caller
+			// triggered it from and replay its prompt.
+			s.activeScript = false
 			if s.HookState {
-				s.prefixSignal <- true
+				if dst != "" {
+					s.checkError(s.enterFunction(dst))
+				} else {
+					s.prefixSignal <- true
+				}
 			}
 		case <-s.prefixSignal:
 			err := s.handlePrefix()
@@ -331,136 +314,14 @@ func (s *Session) handleAction(action *functions.Action) {
 	case "genericjson":
 		err := s.runGenericJSONWithPmsg(action.GenericJSON, action.Pmsg, action.Then)
 		s.checkError(err)
-	case "interactive":
-		s.handleInteractive(action)
-	case "listmenu":
-		s.handleListMenu(action)
+	case "script":
+		s.handleScript(action)
 	}
-}
-
-// handleListMenu fetches a dynamic menu's list, speaks the numbered options,
-// and arms pendingList so the next keypress resolves to the chosen item. The
-// fetch blocks the loop like genericjson (scoped to callCtx, so a hangup
-// unblocks it).
-func (s *Session) handleListMenu(action *functions.Action) {
-	m := action.ListMenu
-	ctx := s.fetchCtx()
-	items, prompt, err := m.Build(ctx, s.VarsSnapshot())
-	if err != nil {
-		if ctx.Err() == nil {
-			s.checkError(err)
-		}
-		return
-	}
-	if len(items) == 0 {
-		s.play(s.Definition.ResolveTTS(m.TTS, "Inga val tillgängliga."))
-		return
-	}
-
-	audio, err := s.synth(m.TTS, prompt)
-	if err != nil {
-		if ctx.Err() == nil {
-			s.checkError(err)
-		}
-		return
-	}
-	s.pendingList = &listSelection{items: items, store: m.Store, dst: m.Dst}
-	go func() {
-		if err := s.Audio.PlayFromStream(audio); err != nil {
-			log.WithField("session", s.ID).Warnf("listmenu play: %v", err)
-		}
-	}()
-}
-
-// handleListSelect resolves a keypress against the armed listmenu: store the
-// chosen item into the flow state and advance to the menu's dst. "0" cancels
-// back to the parent; out-of-range digits are ignored (caller can retry).
-func (s *Session) handleListSelect(key string) {
-	sel := s.pendingList
-	if key == "0" {
-		s.pendingList = nil
-		s.exitFunction()
-		return
-	}
-	d, err := strconv.Atoi(key)
-	if err != nil || d < 1 || d > len(sel.items) {
-		return
-	}
-	s.pendingList = nil
-	if sel.store != "" {
-		s.SetVars(map[string]any{sel.store: sel.items[d-1]})
-	}
-	if sel.dst != "" {
-		s.checkError(s.enterFunction(sel.dst))
-	}
-}
-
-// handleInteractive starts a stateful interactive flow. The flow runs in its
-// own goroutine so the session loop keeps draining hook/key events (which is
-// how NextKey and barge-in work); when Run returns it signals interactiveDone
-// and the loop hands control back to the menu.
-func (s *Session) handleInteractive(action *functions.Action) {
-	h, ok := interactive.Lookup(action.Interactive.Destination)
-	if !ok {
-		s.checkError(fmt.Errorf("interactive flow %s is not loaded", action.Interactive.Destination))
-		return
-	}
-
-	// Drop any keys buffered from before the flow started (e.g. the digit
-	// that selected this action) so the flow's first NextKey blocks cleanly.
-drain:
-	for {
-		select {
-		case <-s.interactiveKeys:
-		default:
-			break drain
-		}
-	}
-
-	s.activeInteractive = true
-	io := &sessionIO{session: s, tts: action.Interactive.TTS}
-	ctx := s.fetchCtx()
-	dst := action.Interactive.Destination
-	args := action.Interactive.Arguments
-
-	go func() {
-		if err := h.Run(ctx, io, args); err != nil && ctx.Err() == nil {
-			log.WithField("session", s.ID).Warnf("interactive %s: %v", dst, err)
-		}
-		// Signal completion. Guard on s.done so a torn-down session doesn't
-		// block this goroutine forever if the loop has already exited.
-		select {
-		case s.interactiveDone <- struct{}{}:
-		case <-s.done:
-		}
-	}()
-}
-
-// sessionIO adapts a Session to the interactive.IO surface for one flow. It
-// only touches the audio sink, the TTS registry, the read-only Definition, and
-// the interactiveKeys channel — all safe to use from the flow goroutine.
-type sessionIO struct {
-	session *Session
-	tts     functions.TTS
-}
-
-// Speak synthesizes text (honoring the action's TTS overrides, then definition
-// defaults) and plays it to the caller, blocking until playback finishes or a
-// barge-in Clear() cuts it short.
-func (io *sessionIO) Speak(ctx context.Context, text string) error {
-	data, err := io.session.synth(io.tts, text)
-	if err != nil {
-		return err
-	}
-	if ctx.Err() != nil {
-		return ctx.Err()
-	}
-	return io.session.Audio.PlayFromStream(data)
 }
 
 // synth resolves TTS (node overrides → definition defaults) for text and
 // synthesizes it to mp3 bytes. Shared by every runtime-rendered readout
-// (interactive Speak, genericjson, listmenu).
+// (script speak(), genericjson).
 func (s *Session) synth(override functions.TTS, text string) ([]byte, error) {
 	t := s.Definition.ResolveTTS(override, text)
 	return s.TTS.Synthesize(t.Provider, tts.Request{
@@ -469,19 +330,6 @@ func (s *Session) synth(override functions.TTS, text string) ([]byte, error) {
 		Language: t.Language,
 		Engine:   t.Engine,
 	})
-}
-
-// NextKey blocks for the next DTMF key, giving up on hangup (ctx) or after
-// interactiveKeyTimeout of silence.
-func (io *sessionIO) NextKey(ctx context.Context) (string, error) {
-	select {
-	case k := <-io.session.interactiveKeys:
-		return k, nil
-	case <-ctx.Done():
-		return "", ctx.Err()
-	case <-time.After(interactiveKeyTimeout):
-		return "", fmt.Errorf("timeout waiting for key")
-	}
 }
 
 func (s *Session) handleTransfer(target string) {
@@ -574,8 +422,8 @@ func (s *Session) enterFunction(dst string) error {
 
 		// On-enter step: if the fn has an action flagged Auto, run it now
 		// (after queuing the prefix) without waiting for a keypress. This is
-		// how a fetch node runs "on arrival" in a declarative flow — e.g. the
-		// fn a listmenu selection lands on fetches detail for the chosen item.
+		// how a fetch node runs "on arrival" in a declarative flow — e.g. a
+		// genericjson node that fetches detail as soon as the fn is entered.
 		for i := range newFn.Actions {
 			if newFn.Actions[i].Auto {
 				a := newFn.Actions[i]
@@ -818,7 +666,6 @@ func (s *Session) liftHook() {
 	s.HookState = true
 	s.Audio.Clear()
 	s.collector = nil
-	s.pendingList = nil
 	s.varsMu.Lock()
 	s.vars = make(map[string]any)
 	s.varsMu.Unlock()
@@ -838,17 +685,16 @@ func (s *Session) slamHook() {
 
 	s.Callstack = s.Callstack[:0]
 	s.collector = nil
-	s.pendingList = nil
 
 	s.varsMu.Lock()
 	s.vars = nil
 	s.varsMu.Unlock()
 
-	// Any interactive flow is scoped to callCtx (cancelled just below), so its
+	// Any script flow is scoped to callCtx (cancelled just below), so its
 	// goroutine unwinds on its own; just stop routing keys to it. The pending
-	// interactiveDone it will send is harmless (HookState is now false, so the
-	// loop won't replay a prompt).
-	s.activeInteractive = false
+	// scriptDone it will send is harmless (HookState is now false, so the loop
+	// won't replay a prompt or goto).
+	s.activeScript = false
 
 	if s.callCancel != nil {
 		s.callCancel()

@@ -152,8 +152,9 @@ func (g *GenericJSON) FetchAndRender(ctx context.Context, vars map[string]any) (
 }
 
 // fetchSpec is the subset of a node's config needed to perform an HTTP JSON
-// fetch. Shared by GenericJSON and ListMenu so both get identical .Vars
-// templating of url/body/headers and the same decode/limits/redaction.
+// fetch, with .Vars templating of url/body/headers and shared
+// decode/limits/redaction. (Scripts use DoScriptRequest instead — no
+// templating and 4xx/5xx returned rather than errored.)
 type fetchSpec struct {
 	URL            string
 	Method         string
@@ -243,6 +244,61 @@ func fetchJSON(ctx context.Context, spec fetchSpec, vars map[string]any) (data a
 		if err := json.Unmarshal(rawBytes, &data); err != nil {
 			return nil, resp.StatusCode, "", fmt.Errorf("genericjson: decode JSON: %w", err)
 		}
+	}
+	return data, resp.StatusCode, string(rawBytes), nil
+}
+
+// DoScriptRequest performs an HTTP request on behalf of a Script node and
+// returns the decoded JSON (nil if the body isn't valid JSON), the status
+// code, and the raw body. Unlike fetchJSON it does NOT template the inputs
+// (the JS caller already built the final url/body/headers) and does NOT treat
+// 4xx/5xx as an error — it hands the status back so the script can branch on
+// it. A transport-level failure (DNS, connection, timeout) still returns err.
+// The shared httpClient + maxBodyBytes cap are reused.
+func DoScriptRequest(ctx context.Context, method, urlStr, body string, headers map[string]string, timeout time.Duration) (data any, status int, raw string, err error) {
+	if strings.TrimSpace(urlStr) == "" {
+		return nil, 0, "", fmt.Errorf("script http: missing url")
+	}
+	method = strings.ToUpper(strings.TrimSpace(method))
+	if method == "" {
+		method = "GET"
+	}
+	if timeout <= 0 {
+		timeout = defaultTimeout
+	}
+	reqCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	var bodyR io.Reader
+	if body != "" {
+		bodyR = strings.NewReader(body)
+	}
+	req, err := http.NewRequestWithContext(reqCtx, method, urlStr, bodyR)
+	if err != nil {
+		return nil, 0, "", fmt.Errorf("script http: build request: %w", err)
+	}
+	if bodyR != nil && req.Header.Get("Content-Type") == "" {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	req.Header.Set("Accept", "application/json")
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, 0, "", fmt.Errorf("script http: %s %s: %w", method, redactURL(urlStr), err)
+	}
+	defer resp.Body.Close()
+
+	rawBytes, err := io.ReadAll(io.LimitReader(resp.Body, maxBodyBytes))
+	if err != nil {
+		return nil, resp.StatusCode, "", fmt.Errorf("script http: read body: %w", err)
+	}
+	if len(bytes.TrimSpace(rawBytes)) > 0 {
+		// Best-effort decode; a non-JSON body leaves data nil and the caller
+		// falls back to the raw text.
+		_ = json.Unmarshal(rawBytes, &data)
 	}
 	return data, resp.StatusCode, string(rawBytes), nil
 }

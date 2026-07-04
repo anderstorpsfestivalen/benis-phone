@@ -23,8 +23,7 @@ export const actionSchema: z.ZodType<unknown> = z.lazy(() => z.object({
   dtmf: z.string().optional(),
   livefeed: liveFeedSchema.nullable().optional(),
   genericjson: genericJSONSchema.optional(),
-  interactive: interactiveSchema.optional(),
-  listmenu: listMenuSchema.optional(),
+  script: scriptSchema.optional(),
   then: z.string().optional(),
   auto: z.boolean().optional(),
 }).passthrough());
@@ -76,28 +75,6 @@ export const genericJSONSchema: z.ZodType<unknown> = z.lazy(() => z.object({
   tmpl: z.string().optional(),
   store: z.record(z.string(), z.string()).optional(),
   timeout_seconds: z.number().optional(),
-  tts: ttsSchema.optional(),
-}).passthrough());
-
-export const interactiveSchema: z.ZodType<unknown> = z.lazy(() => z.object({
-  dst: z.string().optional(),
-  args: z.record(z.string(), z.string()).optional(),
-  tts: ttsSchema.optional(),
-}).passthrough());
-
-export const listMenuSchema: z.ZodType<unknown> = z.lazy(() => z.object({
-  url: z.string().optional(),
-  method: z.string().optional(),
-  body: z.string().optional(),
-  headers: z.record(z.string(), z.string()).optional(),
-  timeout_seconds: z.number().optional(),
-  list: z.string().optional(),
-  label: z.string().optional(),
-  intro: z.string().optional(),
-  option: z.string().optional(),
-  store: z.string().optional(),
-  dst: z.string().optional(),
-  max: z.number().optional(),
   tts: ttsSchema.optional(),
 }).passthrough());
 
@@ -160,6 +137,12 @@ export const sipConfigSchema: z.ZodType<unknown> = z.lazy(() => z.object({
   expiry_seconds: z.number().optional(),
   external_ip: z.string().optional(),
   direct: z.boolean().optional(),
+}).passthrough());
+
+export const scriptSchema: z.ZodType<unknown> = z.lazy(() => z.object({
+  code: z.string().optional(),
+  args: z.record(z.string(), z.string()).optional(),
+  tts: ttsSchema.optional(),
 }).passthrough());
 
 export const serviceSchema: z.ZodType<unknown> = z.lazy(() => z.object({

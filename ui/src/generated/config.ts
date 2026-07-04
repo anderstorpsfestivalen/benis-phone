@@ -21,8 +21,7 @@ export interface Action {
   dtmf: string;
   livefeed?: LiveFeed | null;
   genericjson: GenericJSON;
-  interactive: Interactive;
-  listmenu: ListMenu;
+  script: Script;
   then: string;
   auto: boolean;
 }
@@ -74,28 +73,6 @@ export interface GenericJSON {
   tmpl: string;
   store: Record<string, string>;
   timeout_seconds: number;
-  tts: TTS;
-}
-
-export interface Interactive {
-  dst: string;
-  args: Record<string, string>;
-  tts: TTS;
-}
-
-export interface ListMenu {
-  url: string;
-  method: string;
-  body: string;
-  headers: Record<string, string>;
-  timeout_seconds: number;
-  list: string;
-  label: string;
-  intro: string;
-  option: string;
-  store: string;
-  dst: string;
-  max: number;
   tts: TTS;
 }
 
@@ -160,6 +137,12 @@ export interface SIPConfig {
   direct: boolean;
 }
 
+export interface Script {
+  code: string;
+  args: Record<string, string>;
+  tts: TTS;
+}
+
 export interface Service {
   dst: string;
   tmpl: string;
@@ -188,8 +171,7 @@ export type ActionKind =
   | "dtmf"
   | "livefeed"
   | "genericjson"
-  | "interactive"
-  | "listmenu"
+  | "script"
   | "clear";
 
 export const ACTION_KINDS: readonly ActionKind[] = [
@@ -205,8 +187,7 @@ export const ACTION_KINDS: readonly ActionKind[] = [
   "dtmf",
   "livefeed",
   "genericjson",
-  "interactive",
-  "listmenu",
+  "script",
   "clear",
 ];
 
@@ -225,8 +206,7 @@ export function actionKind(a: Action): ActionKind | null {
   if (a.dtmf) return "dtmf";
   if (a.livefeed) return "livefeed";
   if (a.genericjson && a.genericjson.url) return "genericjson";
-  if (a.interactive && a.interactive.dst) return "interactive";
-  if (a.listmenu && a.listmenu.url) return "listmenu";
+  if (a.script && a.script.code) return "script";
   if (a.clear) return "clear";
   return null;
 }

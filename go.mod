@@ -1,8 +1,6 @@
 module github.com/anderstorpsfestivalen/benis-phone
 
-go 1.24.0
-
-toolchain go1.24.5
+go 1.25
 
 require (
 	github.com/BurntSushi/toml v1.6.0
@@ -10,6 +8,7 @@ require (
 	github.com/aws/aws-sdk-go v1.55.8
 	github.com/coder/websocket v1.8.14
 	github.com/coral/trafikverket v0.0.0-20220410071233-72d98568d13e
+	github.com/dop251/goja v0.0.0-20260701091749-b07b74453ea9
 	github.com/emiago/diago v0.26.0
 	github.com/emiago/sipgo v1.1.1
 	github.com/faiface/beep v1.1.0
@@ -29,6 +28,7 @@ require (
 	github.com/bytedance/sonic v1.15.0 // indirect
 	github.com/bytedance/sonic/loader v0.5.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
+	github.com/dlclark/regexp2/v2 v2.2.1 // indirect
 	github.com/emiago/dtls/v3 v3.0.0-20260122183559-8b8d23e359c0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.12 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect
@@ -36,11 +36,13 @@ require (
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.30.1 // indirect
+	github.com/go-sourcemap/sourcemap v2.1.3+incompatible // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/gobwas/ws v1.4.0 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/goccy/go-yaml v1.19.2 // indirect
+	github.com/google/pprof v0.0.0-20230207041349-798e818bf904 // indirect
 	github.com/hajimehoshi/go-mp3 v0.3.4 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/icholy/digest v1.1.0 // indirect

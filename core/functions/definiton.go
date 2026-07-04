@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/BurntSushi/toml"
+	log "github.com/sirupsen/logrus"
 )
 
 func LoadFromFile(path string) (Definition, error) {
@@ -132,6 +133,17 @@ func (d *Definition) Prepare() {
 					d.General.DefaultTTSEngine,
 					d.General.DefaultTTSProvider,
 				)
+			}
+
+			// Pre-compile script actions so a syntax error surfaces now (at
+			// config load / hot-reload) instead of on the first live call.
+			if a.Script.Code != "" {
+				if err := d.UnsortedFunctions[i].Actions[n].Script.Compile(); err != nil {
+					log.WithFields(log.Fields{
+						"fn":     v.Name,
+						"action": a.Name,
+					}).Warnf("script compile error: %v", err)
+				}
 			}
 		}
 	}

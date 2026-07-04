@@ -100,8 +100,7 @@ function normalizeAction(raw: unknown): Action {
     dtmf: asStr(r.dtmf),
     livefeed,
     genericjson: normalizeGenericJSON(r.genericjson),
-    interactive: normalizeInteractive(r.interactive),
-    listmenu: normalizeListMenu(r.listmenu),
+    script: normalizeScript(r.script),
     then: asStr(r.then),
     auto: asBool(r.auto),
   };
@@ -115,34 +114,11 @@ function strMap(x: unknown): Record<string, string> {
   return out;
 }
 
-function normalizeListMenu(raw: unknown) {
+function normalizeScript(raw: unknown) {
   const r = asObj(raw);
   return {
-    url: asStr(r.url),
-    method: asStr(r.method),
-    body: asStr(r.body),
-    headers: strMap(r.headers),
-    timeout_seconds: asNum(r.timeout_seconds),
-    list: asStr(r.list),
-    label: asStr(r.label),
-    intro: asStr(r.intro),
-    option: asStr(r.option),
-    store: asStr(r.store),
-    dst: asStr(r.dst),
-    max: asNum(r.max),
-    tts: { ...emptyTTS(), ...asObj(r.tts) },
-  };
-}
-
-function normalizeInteractive(raw: unknown) {
-  const r = asObj(raw);
-  const args: Record<string, string> = {};
-  for (const [k, v] of Object.entries(asObj(r.args))) {
-    if (typeof v === "string") args[k] = v;
-  }
-  return {
-    dst: asStr(r.dst),
-    args,
+    code: asStr(r.code),
+    args: strMap(r.args),
     tts: { ...emptyTTS(), ...asObj(r.tts) },
   };
 }

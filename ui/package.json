@@ -14,9 +14,17 @@
     "d1:migrate:remote": "wrangler d1 migrations apply benis-pbx --remote"
   },
   "dependencies": {
+    "@codemirror/commands": "^6.10.4",
+    "@codemirror/lang-javascript": "^6.2.5",
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/lint": "^6.9.7",
+    "@codemirror/state": "^6.7.0",
+    "@codemirror/view": "^6.43.4",
     "@xyflow/react": "^12.10.2",
+    "codemirror": "^6.0.2",
     "dagre": "^0.8.5",
     "jq-wasm": "1.1.0-jq-1.8.1",
+    "prettier": "^3.9.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-dropzone": "^15.0.0",

@@ -86,8 +86,7 @@ func main() {
 		"QueuePrompt": true,
 		"Playable":    true,
 		"GenericJSON": true,
-		"Interactive": true,
-		"ListMenu":    true,
+		"Script":      true,
 	}
 	filtered := make([]Struct, 0, len(wanted))
 	for _, s := range structs {
@@ -871,8 +870,7 @@ const actionVariantSnippet = `export type ActionKind =
   | "dtmf"
   | "livefeed"
   | "genericjson"
-  | "interactive"
-  | "listmenu"
+  | "script"
   | "clear";
 
 export const ACTION_KINDS: readonly ActionKind[] = [
@@ -888,8 +886,7 @@ export const ACTION_KINDS: readonly ActionKind[] = [
   "dtmf",
   "livefeed",
   "genericjson",
-  "interactive",
-  "listmenu",
+  "script",
   "clear",
 ];
 
@@ -908,8 +905,7 @@ export function actionKind(a: Action): ActionKind | null {
   if (a.dtmf) return "dtmf";
   if (a.livefeed) return "livefeed";
   if (a.genericjson && a.genericjson.url) return "genericjson";
-  if (a.interactive && a.interactive.dst) return "interactive";
-  if (a.listmenu && a.listmenu.url) return "listmenu";
+  if (a.script && a.script.code) return "script";
   if (a.clear) return "clear";
   return null;
 }

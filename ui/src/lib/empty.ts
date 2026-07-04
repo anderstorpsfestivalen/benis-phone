@@ -6,8 +6,6 @@ import type {
   Gate,
   General,
   GenericJSON,
-  Interactive,
-  ListMenu,
   LiveFeed,
   Playable,
   Prefix,
@@ -15,6 +13,7 @@ import type {
   QueuePrompt,
   RandomFile,
   Recording,
+  Script,
   Service,
   SIPConfig,
   TTS,
@@ -66,24 +65,8 @@ export const emptyGenericJSON = (): GenericJSON => ({
   tts: emptyTTS(),
 });
 
-export const emptyListMenu = (): ListMenu => ({
-  url: "",
-  method: "",
-  body: "",
-  headers: {},
-  timeout_seconds: 0,
-  list: "",
-  label: "",
-  intro: "",
-  option: "",
-  store: "",
-  dst: "",
-  max: 0,
-  tts: emptyTTS(),
-});
-
-export const emptyInteractive = (): Interactive => ({
-  dst: "",
+export const emptyScript = (): Script => ({
+  code: "",
   args: {},
   tts: emptyTTS(),
 });
@@ -108,8 +91,7 @@ export const emptyAction = (): Action => ({
   dtmf: "",
   livefeed: null,
   genericjson: emptyGenericJSON(),
-  interactive: emptyInteractive(),
-  listmenu: emptyListMenu(),
+  script: emptyScript(),
   then: "",
   auto: false,
 });

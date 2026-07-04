@@ -1,15 +1,17 @@
 import { useState } from "react";
-import type { Action, ActionKind } from "../generated/config";
+import type { Action, ActionKind, Script } from "../generated/config";
 import { actionKind, ACTION_KINDS } from "../generated/config";
 import { SERVICE_NAMES } from "../generated/services";
 import { api } from "../lib/api";
-import { emptyGenericJSON, emptyInteractive, emptyListMenu } from "../lib/empty";
+import { emptyGenericJSON, emptyScript } from "../lib/empty";
 import { Field, TextInput, NumberInput, CheckboxInput } from "./Field";
 import HelpDot from "./HelpDot";
 import TTSEditor from "./TTSEditor";
 import ServiceArgsForm from "./ServiceArgsForm";
 import TemplateFieldPicker from "./TemplateFieldPicker";
 import FilePicker from "./FilePicker";
+import CodeEditor from "./CodeEditor";
+import { runScriptTest, type TranscriptEvent } from "../lib/script-runner";
 
 const ACTION_KIND_HELP: Record<ActionKind, string> = {
   dst: "Jump to another menu by name. Use this to chain menus together — pressing this DTMF key sends the caller to the chosen menu.",
@@ -24,8 +26,7 @@ const ACTION_KIND_HELP: Record<ActionKind, string> = {
   dtmf: "Transmit a string of DTMF digits to the remote end, 200 ms apart. Useful for chaining into upstream IVRs.",
   livefeed: "Stream a host audio capture device into the caller's outbound RTP. Device is a case-insensitive substring match; channel picks the audio channel.",
   genericjson: "Fetch a JSON HTTP endpoint, render the response through a Go text/template, and speak it through TTS. Navigate untyped JSON with {{.Data.foo.bar}}, iterate with {{range .Data.items}}, or use the full jq language via {{jq .Data \".[] | select(.name == \\\"X\\\") | .temperature\"}}. Helpers: int, round, default, jq, jqAll, first, last, join, add, sub, mul, div, keys, length.",
-  interactive: "Hand the caller to a named, stateful Go flow (registered in extensions/interactive, e.g. \"beer\") that builds dynamic menus, collects follow-up keys, and threads state across API calls. Args are passed to the handler (e.g. base_url).",
-  listmenu: "Build a dynamic menu from a fetched JSON array: speaks \"Tryck N för <label>\" and, on selection, stores the chosen item into a flow variable and advances to Dst. Use `list` (jq, e.g. sort_by(.id)) to select/order the array; `label` is a per-item template like {{.name}}. url/body/headers may reference prior state via {{.Vars.*}}.",
+  script: "Write the whole flow as JavaScript (run by goja). Bindings: speak(text), readKey() (returns a DTMF key or null), http.get(url, opts?) / http.post(url, bodyObjOrString, opts?) → { status, json, text } with json a native JS value, vars.get/set (shared .Vars), args (this node's args), goto(fn, param?) to hand off to another menu on exit, and log(...). Navigate JSON with plain JS (.find/.filter/?.) — no jq. Note: Test it runs in the browser (V8), the runtime is goja (ES5.1+), so avoid the newest JS APIs.",
   clear: "Stop any currently-playing audio in this call session without otherwise affecting state.",
 };
 
@@ -63,8 +64,7 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
       // GenericJSON has its own empty factory in lib/empty.ts — use it
       // here so kind-switch and "Add Action" stay in lockstep.
       genericjson: emptyGenericJSON(),
-      interactive: emptyInteractive(),
-      listmenu: emptyListMenu(),
+      script: emptyScript(),
       then: "",
       auto: false,
       clear: false,
@@ -114,15 +114,13 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
           tmpl: "The value is {{.Data.value}}.",
         };
         break;
-      case "interactive":
-        seeded.interactive = { ...emptyInteractive(), dst: "beer" };
-        break;
-      case "listmenu":
-        seeded.listmenu = {
-          ...emptyListMenu(),
-          url: "https://example.com/api/items",
-          label: "{{.name}}",
-          store: "choice",
+      case "script":
+        seeded.script = {
+          ...emptyScript(),
+          code:
+            '// Fetch, decide, speak — plain JS. See the ? for the full API.\n' +
+            'var res = http.get(args.base_url + "/api/example");\n' +
+            'speak("Status " + res.status);\n',
         };
         break;
       case "clear":
@@ -523,154 +521,11 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
         </div>
       )}
 
-      {kind === "interactive" && (
-        <div className="grid grid-cols-1 gap-3">
-          <Field
-            label="Flow"
-            help="Name of the interactive handler registered in extensions/interactive (e.g. beer)."
-          >
-            <TextInput
-              value={value.interactive.dst}
-              onChange={(v) => set("interactive", { ...value.interactive, dst: v })}
-              placeholder="beer"
-            />
-          </Field>
-          <Field
-            label="Args"
-            help="Handler-specific config as key/value rows. For beer: base_url → https://beer.anderstorpsfestivalen.se."
-          >
-            <HeadersGrid
-              value={value.interactive.args}
-              onChange={(a) => set("interactive", { ...value.interactive, args: a })}
-            />
-          </Field>
-          <details className="border border-shadow-grey rounded">
-            <summary className="px-3 py-2 cursor-pointer text-xs text-blue-slate uppercase tracking-wider">
-              TTS overrides (voice / lang / engine / provider)
-            </summary>
-            <div className="p-3">
-              <TTSEditor
-                value={value.interactive.tts}
-                onChange={(v) => set("interactive", { ...value.interactive, tts: v })}
-                hideMessage
-              />
-            </div>
-          </details>
-        </div>
-      )}
-
-      {kind === "listmenu" && (
-        <div className="grid grid-cols-1 gap-3">
-          <Field
-            label="URL"
-            help="Endpoint returning a JSON array to build the menu from. May reference prior state via {{.Vars.*}}."
-          >
-            <TextInput
-              value={value.listmenu.url}
-              onChange={(v) => set("listmenu", { ...value.listmenu, url: v })}
-              placeholder="https://api.example.com/items"
-            />
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field
-              label="Method"
-              help="HTTP method. Defaults to GET when empty."
-            >
-              <TextInput
-                value={value.listmenu.method}
-                onChange={(v) => set("listmenu", { ...value.listmenu, method: v })}
-                placeholder="GET"
-              />
-            </Field>
-            <Field
-              label="Max options"
-              help="Cap on how many options are offered (DTMF 1-9). 0 = default (9)."
-            >
-              <NumberInput
-                value={value.listmenu.max}
-                onChange={(v) => set("listmenu", { ...value.listmenu, max: v })}
-              />
-            </Field>
-          </div>
-          <Field
-            label="List (jq)"
-            help="jq expression selecting/ordering the array. Defaults to '.' (the whole response). Example: sort_by(.id)."
-          >
-            <TextInput
-              value={value.listmenu.list}
-              onChange={(v) => set("listmenu", { ...value.listmenu, list: v })}
-              placeholder="sort_by(.id)"
-            />
-          </Field>
-          <Field
-            label="Label (per-item template)"
-            help="Go template rendered per item (the item is the root dot). Example: {{.name}}."
-          >
-            <TextInput
-              value={value.listmenu.label}
-              onChange={(v) => set("listmenu", { ...value.listmenu, label: v })}
-              placeholder="{{.name}}"
-            />
-          </Field>
-          <Field
-            label="Intro (optional)"
-            help="Spoken before the options (may reference {{.Vars.*}}). Example: Välj en medlem."
-          >
-            <TextInput
-              value={value.listmenu.intro}
-              onChange={(v) => set("listmenu", { ...value.listmenu, intro: v })}
-            />
-          </Field>
-          <Field
-            label="Option phrase (optional)"
-            help="Per-option template. Context: {{.Num}} and {{.Label}}. Defaults to 'Tryck {{.Num}} för {{.Label}}. '."
-          >
-            <TextInput
-              value={value.listmenu.option}
-              onChange={(v) => set("listmenu", { ...value.listmenu, option: v })}
-              placeholder="Tryck {{.Num}} för {{.Label}}. "
-            />
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field
-              label="Store (variable)"
-              help="Flow variable the selected item is saved under. Later nodes read it via {{.Vars.<name>}}."
-            >
-              <TextInput
-                value={value.listmenu.store}
-                onChange={(v) => set("listmenu", { ...value.listmenu, store: v })}
-                placeholder="member"
-              />
-            </Field>
-            <Field
-              label="Destination menu"
-              help="Menu (fn) entered after the caller selects an option."
-            >
-              <select
-                value={value.listmenu.dst}
-                onChange={(e) => set("listmenu", { ...value.listmenu, dst: e.target.value })}
-                className="px-2 py-1 rounded font-mono text-sm"
-              >
-                <option value="">(none)</option>
-                {knownFnNames.map((n) => (
-                  <option key={n} value={n}>{n}</option>
-                ))}
-              </select>
-            </Field>
-          </div>
-          <details className="border border-shadow-grey rounded">
-            <summary className="px-3 py-2 cursor-pointer text-xs text-blue-slate uppercase tracking-wider">
-              TTS overrides (voice / lang / engine / provider)
-            </summary>
-            <div className="p-3">
-              <TTSEditor
-                value={value.listmenu.tts}
-                onChange={(v) => set("listmenu", { ...value.listmenu, tts: v })}
-                hideMessage
-              />
-            </div>
-          </details>
-        </div>
+      {kind === "script" && (
+        <ScriptEditor
+          value={value.script}
+          onChange={(s) => set("script", s)}
+        />
       )}
 
       {kind === "hangup" && (
@@ -846,6 +701,177 @@ function GenericJSONTemplateAndPreview({
       </span>
     </div>
   );
+}
+
+// ScriptEditor is the editor for a `script` action: a CodeMirror JS editor
+// with inline syntax linting, a Format button (Prettier), an `args` map, a
+// "Test it" harness that runs the script in an isolated Web Worker, and the
+// TTS overrides for speak().
+function ScriptEditor({
+  value,
+  onChange,
+}: {
+  value: Script;
+  onChange: (v: Script) => void;
+}) {
+  const [formatErr, setFormatErr] = useState<string | null>(null);
+
+  async function format() {
+    setFormatErr(null);
+    try {
+      // Dynamic import keeps Prettier (+ its babel/estree plugins) out of the
+      // main ConfigEditor bundle — only fetched when the user clicks Format.
+      const prettier = await import("prettier/standalone");
+      const babel = (await import("prettier/plugins/babel")).default;
+      const estree = (await import("prettier/plugins/estree")).default;
+      const formatted = await prettier.format(value.code, {
+        parser: "babel",
+        plugins: [babel, estree],
+        semi: true,
+      });
+      onChange({ ...value, code: formatted.replace(/\n$/, "") });
+    } catch (e) {
+      // Prettier throws a SyntaxError with a location on invalid JS.
+      setFormatErr(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  return (
+    <div className="grid grid-cols-1 gap-3">
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center justify-between">
+          <label className="text-xs text-blue-slate uppercase flex items-center">
+            Code (JavaScript, run by goja)
+            <HelpDot help="speak(text), readKey(), http.get/post → {status,json,text}, vars.get/set, args, goto(fn,param?), log(...). Use plain JS to navigate JSON (.find/.filter) — no jq. Runs in the browser (V8) for Test it; the runtime is goja (ES5.1+)." />
+          </label>
+          <button
+            type="button"
+            onClick={format}
+            className="text-xs px-2 py-1 border border-shadow-grey text-blue-slate hover:text-white rounded"
+          >
+            Format
+          </button>
+        </div>
+        <CodeEditor value={value.code} onChange={(c) => onChange({ ...value, code: c })} />
+        {formatErr && (
+          <pre className="text-xs text-red-300 bg-red-900/10 border border-red-900/40 rounded p-2 whitespace-pre-wrap">
+            {formatErr}
+          </pre>
+        )}
+      </div>
+
+      <Field
+        label="Args"
+        help="Static config exposed to the script as the `args` object (all string values). Example: base_url → https://beer.anderstorpsfestivalen.se."
+      >
+        <HeadersGrid value={value.args} onChange={(a) => onChange({ ...value, args: a })} />
+      </Field>
+
+      <ScriptTestPanel code={value.code} args={value.args} />
+
+      <details className="border border-shadow-grey rounded">
+        <summary className="px-3 py-2 cursor-pointer text-xs text-blue-slate uppercase tracking-wider">
+          TTS overrides (voice / lang / engine / provider)
+        </summary>
+        <div className="p-3">
+          <TTSEditor
+            value={value.tts}
+            onChange={(v) => onChange({ ...value, tts: v })}
+            hideMessage
+          />
+        </div>
+      </details>
+    </div>
+  );
+}
+
+// ScriptTestPanel runs the script in a Web Worker (see lib/script-runner) with
+// a simulated keypress sequence, and renders the resulting transcript. HTTP
+// goes through the same /api/genericjson/preview proxy the genericjson editor
+// uses, so no config save / live call is needed.
+function ScriptTestPanel({
+  code,
+  args,
+}: {
+  code: string;
+  args: Record<string, string>;
+}) {
+  const [keys, setKeys] = useState("");
+  const [state, setState] = useState<
+    | { kind: "idle" }
+    | { kind: "running" }
+    | { kind: "done"; transcript: TranscriptEvent[]; gotoTarget: string | null; error?: string }
+  >({ kind: "idle" });
+
+  async function run() {
+    setState({ kind: "running" });
+    const seq = keys
+      .split(/[\s,]+/)
+      .map((k) => k.trim())
+      .filter(Boolean);
+    const r = await runScriptTest({ code, args, keys: seq });
+    setState({ kind: "done", transcript: r.transcript, gotoTarget: r.gotoTarget, error: r.error });
+  }
+
+  return (
+    <div className="flex flex-col gap-2 border border-shadow-grey rounded p-3">
+      <div className="flex items-end gap-2">
+        <div className="flex flex-col flex-1">
+          <label className="text-xs text-blue-slate uppercase flex items-center">
+            Simulated keypresses
+            <HelpDot help="Comma/space-separated DTMF keys fed to readKey() in order (e.g. `4, 1, 1`). readKey() returns null once they run out." />
+          </label>
+          <TextInput value={keys} onChange={setKeys} placeholder="4, 1, 1" />
+        </div>
+        <button
+          type="button"
+          onClick={run}
+          disabled={state.kind === "running" || !code.trim()}
+          className="text-xs px-3 py-1 border border-shadow-grey text-blue-slate hover:text-white rounded disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {state.kind === "running" ? "Running…" : "Test it"}
+        </button>
+      </div>
+
+      {state.kind === "done" && (
+        <div className="flex flex-col gap-1">
+          {state.error && (
+            <pre className="text-xs text-red-300 bg-red-900/10 border border-red-900/40 rounded p-2 whitespace-pre-wrap">
+              {state.error}
+            </pre>
+          )}
+          {state.transcript.length === 0 && !state.error && (
+            <span className="text-xs text-blue-slate italic">No output.</span>
+          )}
+          {state.transcript.length > 0 && (
+            <pre className="text-xs text-white bg-ink-black border border-shadow-grey rounded p-2 whitespace-pre-wrap">
+              {state.transcript.map(transcriptLine).join("\n")}
+            </pre>
+          )}
+          {state.gotoTarget && (
+            <span className="text-xs text-blue-slate">
+              goto → <span className="text-white">{state.gotoTarget}</span>
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function transcriptLine(e: TranscriptEvent): string {
+  switch (e.type) {
+    case "speak":
+      return `🔊 ${e.text}`;
+    case "readKey":
+      return `⌨  readKey() → ${e.key === null ? "null" : e.key}`;
+    case "http":
+      return `🌐 ${e.method} ${e.url} → ${e.status}`;
+    case "goto":
+      return `➡  goto(${e.fn})`;
+    case "log":
+      return `· ${e.args.join(" ")}`;
+  }
 }
 
 // Best-effort: pretty-print JSON, fall back to the raw body if parsing
