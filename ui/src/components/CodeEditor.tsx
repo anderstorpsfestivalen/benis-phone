@@ -3,8 +3,15 @@ import { EditorView, keymap, lineNumbers, highlightActiveLine } from "@codemirro
 import { EditorState, type Extension } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { javascript } from "@codemirror/lang-javascript";
-import { syntaxTree, bracketMatching, indentOnInput } from "@codemirror/language";
+import {
+  syntaxTree,
+  bracketMatching,
+  indentOnInput,
+  HighlightStyle,
+  syntaxHighlighting,
+} from "@codemirror/language";
 import { linter, lintGutter, type Diagnostic } from "@codemirror/lint";
+import { tags as t } from "@lezer/highlight";
 
 // jsErrorLinter walks the Lezer tree and reports every error node as a
 // diagnostic. Lezer parses error-tolerantly, so an incomplete/invalid script
@@ -36,6 +43,22 @@ const palette = {
   text: "#fcfcfc", // white
   muted: "#5d737e", // blue-slate
 };
+
+// Dark-friendly syntax colors (basicSetup's defaultHighlightStyle is tuned for
+// light backgrounds, so we define our own against the ink-black editor bg).
+const highlightStyle = HighlightStyle.define([
+  { tag: t.keyword, color: "#c792ea" },
+  { tag: [t.controlKeyword, t.moduleKeyword], color: "#c792ea" },
+  { tag: [t.string, t.special(t.string)], color: "#c3e88d" },
+  { tag: [t.number, t.bool, t.null], color: "#f78c6c" },
+  { tag: t.comment, color: "#5d737e", fontStyle: "italic" },
+  { tag: [t.function(t.variableName), t.function(t.propertyName)], color: "#82aaff" },
+  { tag: t.propertyName, color: "#82aaff" },
+  { tag: [t.operator, t.operatorKeyword], color: "#89ddff" },
+  { tag: t.punctuation, color: "#89ddff" },
+  { tag: [t.definition(t.variableName), t.variableName], color: "#fcfcfc" },
+  { tag: t.regexp, color: "#f78c6c" },
+]);
 
 const theme = EditorView.theme(
   {
@@ -90,6 +113,7 @@ export default function CodeEditor({ value, onChange, minHeight = "220px" }: Pro
       indentOnInput(),
       keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
       javascript(),
+      syntaxHighlighting(highlightStyle),
       jsErrorLinter,
       lintGutter(),
       theme,

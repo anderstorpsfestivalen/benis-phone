@@ -11,6 +11,7 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import type { Action, Fn, Queue } from "../generated/config";
+import { actionKind } from "../generated/config";
 import {
 	buildNodesAndEdges,
 	sameSource,
@@ -186,6 +187,11 @@ export default function FnGraph({
 		return queues.find((q) => q.name === selection.queueName) ?? null;
 	}, [queues, selection]);
 
+	// Script actions get a much bigger code editor, so give the side panel a
+	// 60% share (graph keeps the remaining 40%) whenever one is selected.
+	const isScriptSelected =
+		!!actionForSelection && actionKind(actionForSelection.action) === "script";
+
 	function updateFnByName(name: string, next: Fn) {
 		const i = fns.findIndex((f) => f.name === name);
 		if (i < 0) return;
@@ -329,7 +335,11 @@ export default function FnGraph({
 				</ReactFlow>
 			</div>
 
-			<div className="w-[560px] shrink-0 border border-shadow-grey rounded bg-gunmetal/40 overflow-y-auto">
+			<div
+				className={`${
+					isScriptSelected ? "w-[60%]" : "w-[560px]"
+				} shrink-0 border border-shadow-grey rounded bg-gunmetal/40 overflow-y-auto transition-[width] duration-200`}
+			>
 				{!selection && (
 					<div className="p-6 text-sm text-blue-slate">
 						<p>

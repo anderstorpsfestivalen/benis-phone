@@ -715,6 +715,9 @@ function ScriptEditor({
   onChange: (v: Script) => void;
 }) {
   const [formatErr, setFormatErr] = useState<string | null>(null);
+  const [validation, setValidation] = useState<
+    { ok: true } | { ok: false; msg: string } | null
+  >(null);
 
   async function format() {
     setFormatErr(null);
@@ -736,6 +739,20 @@ function ScriptEditor({
     }
   }
 
+  function validate() {
+    setFormatErr(null);
+    try {
+      // Construct (don't run) the code as a function body — the same shape
+      // goja compiles at runtime (an IIFE), so a top-level `return` is legal
+      // and a syntax error throws exactly what the runtime would reject.
+      // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
+      new Function(value.code);
+      setValidation({ ok: true });
+    } catch (e) {
+      setValidation({ ok: false, msg: e instanceof Error ? e.message : String(e) });
+    }
+  }
+
   return (
     <div className="grid grid-cols-1 gap-3">
       <div className="flex flex-col gap-1">
@@ -744,15 +761,38 @@ function ScriptEditor({
             Code (JavaScript, run by goja)
             <HelpDot help="speak(text), readKey(), http.get/post → {status,json,text}, vars.get/set, args, goto(fn,param?), log(...). Use plain JS to navigate JSON (.find/.filter) — no jq. Runs in the browser (V8) for Test it; the runtime is goja (ES5.1+)." />
           </label>
-          <button
-            type="button"
-            onClick={format}
-            className="text-xs px-2 py-1 border border-shadow-grey text-blue-slate hover:text-white rounded"
-          >
-            Format
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={validate}
+              className="text-xs px-2 py-1 border border-shadow-grey text-blue-slate hover:text-white rounded"
+            >
+              Validate
+            </button>
+            <button
+              type="button"
+              onClick={format}
+              className="text-xs px-2 py-1 border border-shadow-grey text-blue-slate hover:text-white rounded"
+            >
+              Format
+            </button>
+          </div>
         </div>
-        <CodeEditor value={value.code} onChange={(c) => onChange({ ...value, code: c })} />
+        <CodeEditor
+          value={value.code}
+          onChange={(c) => {
+            setValidation(null);
+            onChange({ ...value, code: c });
+          }}
+        />
+        {validation?.ok === true && (
+          <span className="text-xs text-white">✓ Valid JavaScript</span>
+        )}
+        {validation?.ok === false && (
+          <pre className="text-xs text-red-300 bg-red-900/10 border border-red-900/40 rounded p-2 whitespace-pre-wrap">
+            ✗ {validation.msg}
+          </pre>
+        )}
         {formatErr && (
           <pre className="text-xs text-red-300 bg-red-900/10 border border-red-900/40 rounded p-2 whitespace-pre-wrap">
             {formatErr}
