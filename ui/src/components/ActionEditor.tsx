@@ -522,10 +522,20 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
       )}
 
       {kind === "script" && (
-        <ScriptEditor
-          value={value.script}
-          onChange={(s) => set("script", s)}
-        />
+        <div className="grid grid-cols-1 gap-3">
+          <div className="flex justify-end">
+            <CheckboxInput
+              label="auto (run on entry)"
+              value={value.auto}
+              onChange={(v) => set("auto", v)}
+              help="Run this script automatically when its menu is entered (after the prefix), instead of waiting for a key. Enable this when a SIP route enters the script's wrapper menu directly."
+            />
+          </div>
+          <ScriptEditor
+            value={value.script}
+            onChange={(s) => set("script", s)}
+          />
+        </div>
       )}
 
       {kind === "hangup" && (
@@ -1020,4 +1030,3 @@ function HeadersGrid({
     </div>
   );
 }
-
