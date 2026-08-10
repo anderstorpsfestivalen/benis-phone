@@ -8,6 +8,7 @@ export default function App() {
   const loc = useLocation();
   const inFiles = loc.pathname.startsWith("/files");
   const inRegistrations = loc.pathname.startsWith("/registrations");
+  const inAgents = loc.pathname.startsWith("/agents");
 
   return (
     <div className="min-h-screen bg-ink-black text-white flex flex-col">
@@ -17,11 +18,14 @@ export default function App() {
         </Link>
         <span className="text-shadow-grey">/</span>
         <nav className="flex items-center gap-1">
-          <NavTab to="/" active={!inFiles && !inRegistrations}>
+          <NavTab to="/" active={!inFiles && !inRegistrations && !inAgents}>
             config
           </NavTab>
           <NavTab to="/registrations" active={inRegistrations}>
             registrations
+          </NavTab>
+          <NavTab to="/agents" active={inAgents}>
+            agents
           </NavTab>
           <NavTab to="/files" active={inFiles}>
             files

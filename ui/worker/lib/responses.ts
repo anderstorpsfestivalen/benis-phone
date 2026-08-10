@@ -21,3 +21,6 @@ export function notFound(msg = "not found"): Response {
 export function unauthorized(): Response {
   return json({ error: "unauthorized" }, 401);
 }
+export function conflict(msg = "conflict"): Response {
+  return json({ error: msg }, 409);
+}

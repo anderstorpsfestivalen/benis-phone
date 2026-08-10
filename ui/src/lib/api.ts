@@ -85,6 +85,38 @@ export interface SIPStatusSnapshot {
   instances: RuntimeSIPStatus[];
 }
 
+export interface AgentGrant {
+  grant_id: string;
+  client_id: string;
+  client_name: string;
+  access_identity: string;
+  scopes: string[];
+  created_at: number;
+  last_used_at: number | null;
+  revoked_at: number | null;
+}
+
+export interface ConfigDiffItem {
+  op: "add" | "remove" | "replace" | "test";
+  path: string;
+  before?: unknown;
+  after?: unknown;
+}
+
+export interface ConfigChangeSummary {
+  change_id: string;
+  config_name: string;
+  actor_kind: "mcp" | "human";
+  actor_id: string;
+  actor_label: string;
+  before_hash: string;
+  after_hash: string;
+  patch: Array<{ op: string; path: string; value?: unknown }>;
+  diff: ConfigDiffItem[];
+  source_change_id: string | null;
+  created_at: number;
+}
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     ...init,
@@ -111,10 +143,17 @@ export const api = {
     toml: string,
     sipSecrets: Record<string, string | null> = {},
     draft = false,
+    expectedHash?: string,
   ) =>
     req<ConfigPayload>(`/api/configs/${encodeURIComponent(name)}`, {
       method: "PUT",
-      body: JSON.stringify({ doc, toml, sip_secrets: sipSecrets, draft }),
+      body: JSON.stringify({
+        doc,
+        toml,
+        sip_secrets: sipSecrets,
+        draft,
+        expected_hash: expectedHash,
+      }),
     }),
   duplicate: (from: string, to: string) =>
     req<ConfigPayload>(`/api/configs/${encodeURIComponent(from)}/duplicate`, {
@@ -134,10 +173,14 @@ export const api = {
   patchCredentials: (
     name: string,
     patch: Partial<Record<CredentialKey, string | null>>,
+    expectedHash: string,
   ) =>
     req<{ state: CredentialState; hash: string; updated_at: number }>(
       `/api/configs/${encodeURIComponent(name)}/credentials`,
-      { method: "PATCH", body: JSON.stringify({ patch }) },
+      {
+        method: "PATCH",
+        body: JSON.stringify({ patch, expected_hash: expectedHash }),
+      },
     ),
   rotateRegistration: (name: string) =>
     req<{ registration_id: string }>(
@@ -175,4 +218,19 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  agents: () => req<AgentGrant[]>("/api/agents"),
+  revokeAgent: (grantID: string) =>
+    req<{ ok: true; revoked_at: number }>(
+      `/api/agents/${encodeURIComponent(grantID)}/revoke`,
+      { method: "POST", body: "{}" },
+    ),
+  configHistory: (name: string) =>
+    req<ConfigChangeSummary[]>(
+      `/api/configs/${encodeURIComponent(name)}/history`,
+    ),
+  rollbackConfig: (name: string, changeID: string, expectedHash: string) =>
+    req<{ resulting_hash: string; change_id: string }>(
+      `/api/configs/${encodeURIComponent(name)}/history/${encodeURIComponent(changeID)}/rollback`,
+      { method: "POST", body: JSON.stringify({ expected_hash: expectedHash }) },
+    ),
 };

@@ -1,6 +1,9 @@
 name = "benis-pbx"
 main = "worker/index.ts"
 compatibility_date = "2025-01-15"
+# The authenticated custom domain is the only production entrypoint. This also
+# prevents callers from bypassing Cloudflare Access on a workers.dev hostname.
+workers_dev = false
 
 # Workers Assets: the Worker serves the React build for any path that
 # isn't /api/* or /bridge/*. The hostname is bound to this Worker via a
@@ -40,3 +43,8 @@ new_sqlite_classes = ["ConfigBroker"]
 # Wrangler secrets (set with `wrangler secret put`):
 #   SIP_SECRET_ENCRYPTION_KEY — base64-encoded 32-byte AES-GCM key used for
 #     existing SIP secrets and per-config credential bundles
+#
+# Cloudflare Access path policy:
+#   Interactive Access required: /oauth/authorize, /api/*, and the SPA
+#   Access bypass (Worker authenticates): /mcp, /.well-known/oauth-*,
+#     /oauth/register, /oauth/token, /oauth/revoke, and /bridge/*

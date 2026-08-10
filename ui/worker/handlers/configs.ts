@@ -3,6 +3,13 @@ import type { Definition } from "../../src/generated/config";
 import { validateSIPDefinition } from "../../src/lib/sip-validation";
 import { renderToml } from "../../src/lib/toml-render";
 import type { Env } from "../lib/auth";
+import { notifyConfigChanged } from "../lib/config-broker";
+import {
+  ConfigChangeError,
+  getConfigChange,
+  listConfigChanges,
+  rollbackConfigChange,
+} from "../lib/config-changes";
 import { sha256Hex } from "../lib/hash";
 import { getConfig, listConfigs, upsertConfigStatement } from "../lib/db";
 import {
@@ -18,7 +25,8 @@ import {
   putCredentialBundleStatement,
   staleSIPSecrets,
 } from "../lib/secrets";
-import { badRequest, json, notFound } from "../lib/responses";
+import { accessIdentity } from "../lib/oauth";
+import { badRequest, conflict, json, notFound } from "../lib/responses";
 
 const NAME_RE = /^[a-zA-Z0-9_-]{1,64}$/;
 
@@ -64,6 +72,21 @@ export async function handleApi(
   if (sub === "/registration/rotate") {
     if (req.method === "POST") return rotateRegistration(env, name);
     return badRequest("method not allowed");
+  }
+  if (sub === "/history") {
+    if (req.method !== "GET") return badRequest("method not allowed");
+    if (!(await getConfig(env, name))) return notFound();
+    return json(await listConfigChanges(env, name));
+  }
+  const history = sub.match(/^\/history\/([0-9a-f-]{36})(\/rollback)?$/i);
+  if (history) {
+    if (history[2] === "/rollback") {
+      if (req.method !== "POST") return badRequest("method not allowed");
+      return rollback(req, env, ctx, name, history[1]);
+    }
+    if (req.method !== "GET") return badRequest("method not allowed");
+    const change = await getConfigChange(env, name, history[1]);
+    return change ? json(change) : notFound("config change not found");
   }
 
   if (sub !== "") return notFound();
@@ -129,6 +152,7 @@ async function putOne(
     toml: string;
     sip_secrets?: Record<string, string | null>;
     draft?: boolean;
+    expected_hash?: string;
   };
   try {
     body = (await req.json()) as { doc: unknown; toml: string };
@@ -156,6 +180,11 @@ async function putOne(
   }
   const doc = candidate as Definition;
   const existing = await getConfig(env, name);
+  if (existing && body.expected_hash !== existing.hash) {
+    return conflict(
+      `config changed since it was loaded; current hash is ${existing.hash}`,
+    );
+  }
   const newDraft = body.draft === true && existing === null;
   const configErrors = validateSIPDefinition(doc).filter(
     (error) => !(newDraft && error === "Add at least one SIP connection."),
@@ -250,7 +279,7 @@ async function putOne(
   // Tell the broker so subscribed Go binaries pull the new config. Fire
   // and forget — failures here don't roll the save back; the binary will
   // catch up on next reconnect or SIGUSR1.
-  notifyBroker(env, ctx, row.name, row.hash);
+  notifyConfigChanged(env, ctx, row.name, row.hash);
   return json({
     name: row.name,
     doc: body.doc,
@@ -284,7 +313,7 @@ async function deleteOne(
   ]);
   // Notify subscribers — they'll find /bridge/runtime returns 404 on next pull
   // and can decide how to handle it (most likely: stay on current).
-  notifyBroker(env, ctx, name, "");
+  notifyConfigChanged(env, ctx, name, "");
   return new Response(null, { status: 204 });
 }
 
@@ -364,18 +393,6 @@ async function duplicate(
   });
 }
 
-export function notifyBroker(
-  env: Env,
-  ctx: ExecutionContext,
-  name: string,
-  hash: string,
-) {
-  const id = env.CONFIG_BROKER.idFromName("global");
-  const stub = env.CONFIG_BROKER.get(id);
-  const url = `https://broker/notify?name=${encodeURIComponent(name)}&hash=${encodeURIComponent(hash)}`;
-  ctx.waitUntil(stub.fetch(url, { method: "POST" }));
-}
-
 async function getCredentials(env: Env, name: string): Promise<Response> {
   if (!(await getConfig(env, name))) return notFound();
   return json({ state: credentialState(await getCredentialBundle(env, name)) });
@@ -389,11 +406,16 @@ async function patchCredentials(
 ): Promise<Response> {
   const config = await getConfig(env, name);
   if (!config) return notFound();
-  let body: { patch?: Record<string, unknown> };
+  let body: { patch?: Record<string, unknown>; expected_hash?: string };
   try {
     body = (await req.json()) as { patch?: Record<string, unknown> };
   } catch {
     return badRequest("invalid json");
+  }
+  if (body.expected_hash !== config.hash) {
+    return conflict(
+      `config changed since it was loaded; current hash is ${config.hash}`,
+    );
   }
   if (!body.patch || typeof body.patch !== "object") {
     return badRequest("patch is required");
@@ -432,8 +454,41 @@ async function patchCredentials(
       "UPDATE configs SET secret_revision = ?, hash = ?, updated_at = ? WHERE name = ?",
     ).bind(secretRevision, hash, now, name),
   ]);
-  notifyBroker(env, ctx, name, hash);
+  notifyConfigChanged(env, ctx, name, hash);
   return json({ state: credentialState(bundle), hash, updated_at: now });
+}
+
+async function rollback(
+  req: Request,
+  env: Env,
+  ctx: ExecutionContext,
+  name: string,
+  changeID: string,
+): Promise<Response> {
+  let body: { expected_hash?: string };
+  try {
+    body = (await req.json()) as { expected_hash?: string };
+  } catch {
+    return badRequest("invalid json");
+  }
+  if (typeof body.expected_hash !== "string")
+    return badRequest("expected_hash is required");
+  try {
+    return json(
+      await rollbackConfigChange(env, ctx, name, body.expected_hash, changeID, {
+        kind: "human",
+        id: accessIdentity(req),
+        label: accessIdentity(req),
+      }),
+    );
+  } catch (caught) {
+    if (caught instanceof ConfigChangeError) {
+      if (caught.code === "not_found") return notFound(caught.message);
+      if (caught.code === "conflict") return conflict(caught.message);
+      return badRequest(caught.errors.join(" "));
+    }
+    throw caught;
+  }
 }
 
 async function getRegistration(env: Env, name: string): Promise<Response> {

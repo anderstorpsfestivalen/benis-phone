@@ -45,7 +45,7 @@ Menu structure is defined in TOML files (`configurations/`). Actions specify des
 Runtime credentials are entered per config in the editor and encrypted with `SIP_SECRET_ENCRYPTION_KEY`. SIP passwords retain their per-connection encryption. Approved bridges fetch both through signed `/bridge/runtime` requests and retain them only in memory; the binary never reads `creds.json` or `sip.json`.
 
 ### Web editor (`/ui`)
-Single Cloudflare Worker (with bundled static assets via Workers Assets) + D1 + one Durable Object (`ConfigBroker`), served at `ivr.anderstorpsfestivalen.se`. The Worker handles Access-protected `/api/*`, public enrollment under `/bridge/enroll*`, signed runtime/hash/WebSocket endpoints under `/bridge/*`, and the React SPA. Cloudflare Access must bypass `/bridge/*` for headless phones.
+Single Cloudflare Worker (with bundled static assets via Workers Assets) + D1 + one Durable Object (`ConfigBroker`), served at `ivr.anderstorpsfestivalen.se`. The Worker handles Access-protected `/api/*`, public enrollment under `/bridge/enroll*`, signed runtime/hash/WebSocket endpoints under `/bridge/*`, OAuth-protected Streamable HTTP MCP under `/mcp`, and the React SPA. Cloudflare Access must bypass `/bridge/*` plus the MCP protocol/discovery/token endpoints, while `/oauth/authorize`, `/api/*`, and the SPA remain interactively protected. The Worker-managed MCP OAuth grants never expose runtime secrets.
 
 TypeScript types for the IVR config are generated from `core/functions/*.go` by `tools/typegen/`. Run `go generate ./...` from the repo root after editing any struct in `core/functions/`. CI fails if `ui/src/generated/` is out of date.
 

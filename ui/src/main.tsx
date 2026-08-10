@@ -12,6 +12,7 @@ const ConfigList = lazy(() => import("./routes/ConfigList"));
 const ConfigEditor = lazy(() => import("./routes/ConfigEditor"));
 const FilesPage = lazy(() => import("./routes/FilesPage"));
 const RegistrationsPage = lazy(() => import("./routes/RegistrationsPage"));
+const AgentsPage = lazy(() => import("./routes/AgentsPage"));
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -27,6 +28,7 @@ createRoot(document.getElementById("root")!).render(
             <Route path="/editor/:name" element={<ConfigEditor />} />
             <Route path="/files" element={<FilesPage />} />
             <Route path="/registrations" element={<RegistrationsPage />} />
+            <Route path="/agents" element={<AgentsPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

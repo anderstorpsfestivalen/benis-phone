@@ -40,6 +40,42 @@ Generate the encryption master once with `openssl rand -base64 32` and install
 it with `wrangler secret put SIP_SECRET_ENCRYPTION_KEY`. Existing SIP
 ciphertext continues to use the same key.
 
+# MCP access for Codex and Claude
+
+The Cloudflare Worker exposes a remote, non-secret config editor at
+`https://ivr.anderstorpsfestivalen.se/mcp`. It uses standard MCP Streamable
+HTTP and OAuth authorization-code login with PKCE. Agents never receive a
+Cloudflare API token and cannot read SIP passwords, runtime credentials,
+registration IDs, files, or bridge administration data.
+
+Connect Codex:
+
+```sh
+codex mcp add benis-phone --url https://ivr.anderstorpsfestivalen.se/mcp
+codex mcp login benis-phone
+```
+
+Connect Claude Code:
+
+```sh
+claude mcp add --transport http benis-phone https://ivr.anderstorpsfestivalen.se/mcp
+claude mcp login benis-phone
+```
+
+The login command opens a browser authorization page behind Cloudflare Access.
+Authorized clients appear in the editor's **Agents** page and can be revoked
+there immediately. Config changes must first be validated and then explicitly
+applied against the hash that the agent read. Every successful agent change is
+recorded in the config's **History** tab and can be rolled back as a new,
+validated change.
+
+For production, configure Cloudflare Access so `/oauth/authorize`, `/api/*`,
+and the SPA remain interactively protected. Bypass Access only for `/mcp`,
+`/.well-known/oauth-*`, `/oauth/register`, `/oauth/token`, `/oauth/revoke`, and
+the existing `/bridge/*` endpoints; those routes authenticate requests inside
+the Worker. The `workers.dev` route is disabled in `ui/wrangler.toml` so Access
+cannot be bypassed through a second hostname.
+
 # Multiple SIP connections
 
 One IVR config can expose the same function graph through any number of SIP

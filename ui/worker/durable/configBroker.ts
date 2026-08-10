@@ -86,7 +86,7 @@ export class ConfigBroker extends DurableObject<Env> {
       let fanout = 0;
       for (const ws of this.ctx.getWebSockets()) {
         const att = ws.deserializeAttachment() as Attachment | null;
-        if (att?.role !== "runtime" || att.name !== name) continue;
+        if (!att || att.name !== name) continue;
         try {
           ws.send(payload);
           fanout++;

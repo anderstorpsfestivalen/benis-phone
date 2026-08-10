@@ -7,6 +7,7 @@ export interface ConfigRow {
   hash: string;
   secret_revision: number;
   registration_id: string;
+  last_change_id?: string | null;
   created_at: number;
   updated_at: number;
 }

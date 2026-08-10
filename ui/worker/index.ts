@@ -5,6 +5,8 @@ import { handleRegistrationsApi } from "./handlers/registrations";
 import { handleFiles } from "./handlers/files";
 import { handlePreview } from "./handlers/preview";
 import { notFound, unauthorized } from "./lib/responses";
+import { handleMCP } from "./handlers/mcp";
+import { handleAgentsApi, handleOAuth, isOAuthPath } from "./lib/oauth";
 
 export { ConfigBroker } from "./durable/configBroker";
 
@@ -22,6 +24,16 @@ export default {
         return await handleBridge(req, env, url.pathname);
       }
 
+      // Remote MCP clients authenticate with the Worker's OAuth server.  The
+      // protocol and token endpoints must bypass Cloudflare Access; only the
+      // browser-facing /oauth/authorize page is Access protected.
+      if (isOAuthPath(url.pathname)) {
+        return await handleOAuth(req, env, url.pathname);
+      }
+      if (url.pathname === "/mcp") {
+        return await handleMCP(req, env, ctx);
+      }
+
       // Editor CRUD. Requires Cloudflare Access (Cf-Access-Jwt-Assertion).
       if (url.pathname.startsWith("/api/")) {
         if (!checkAccess(req)) return unauthorized();
@@ -30,6 +42,9 @@ export default {
           url.pathname.startsWith("/api/bridges")
         ) {
           return await handleRegistrationsApi(req, env, url.pathname);
+        }
+        if (url.pathname.startsWith("/api/agents")) {
+          return await handleAgentsApi(req, env, url.pathname);
         }
         if (url.pathname.startsWith("/api/configs")) {
           return await handleApi(req, env, url.pathname, ctx);

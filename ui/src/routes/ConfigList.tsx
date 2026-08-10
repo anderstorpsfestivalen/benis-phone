@@ -50,7 +50,8 @@ export default function ConfigList() {
       )
         return;
       const exists = configs?.some((c) => c.name === trimmed) ?? false;
-      await api.save(trimmed, doc, renderToml(doc), {}, !exists);
+      const expectedHash = configs?.find((c) => c.name === trimmed)?.hash;
+      await api.save(trimmed, doc, renderToml(doc), {}, !exists, expectedHash);
       nav(`/editor/${encodeURIComponent(trimmed)}`);
     } catch (e) {
       setErr(`Import failed: ${e instanceof Error ? e.message : String(e)}`);
