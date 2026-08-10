@@ -15,7 +15,7 @@ type SIPPhone struct {
 	dialog      *diago.DialogServerSession
 	keyChannel  chan string
 	hookChannel chan bool
-	dtmfReader  *media.RTPDtmfReader
+	dtmfReader  *rtpDTMFReader
 	onDTMF      func(rune)
 	ctx         context.Context
 	cancel      context.CancelFunc
@@ -54,8 +54,8 @@ func (p *SIPPhone) Init() error {
 	// Build the DTMF reader using whichever telephone-event payload type was
 	// actually negotiated. diago's dialog.AudioReaderDTMF() hardcodes PT 101,
 	// which breaks DTMF for clients like Linphone that use PT 100. We pick
-	// the codec out of the common-codec list and feed it to the lower-level
-	// media.NewRTPDTMFReader directly.
+	// the codec out of the common-codec list and feed it to our RFC 4733
+	// reader directly.
 	teCodec := media.CodecTelephoneEvent8000
 	if ms := p.dialog.MediaSession(); ms != nil {
 		for _, c := range ms.CommonCodecs() {
@@ -74,7 +74,7 @@ func (p *SIPPhone) Init() error {
 	if err != nil {
 		return err
 	}
-	p.dtmfReader = media.NewRTPDTMFReader(teCodec, p.dialog.RTPPacketReader, audioReader)
+	p.dtmfReader = newRTPDTMFReader(teCodec, p.dialog.RTPPacketReader, audioReader)
 
 	// Callback (formerly OnDTMF on diago's wrapper) — kept inline since the
 	// lower-level reader exposes ReadDTMF() polling instead of a callback.
@@ -128,14 +128,16 @@ func (p *SIPPhone) readDTMFLoop() {
 
 	buf := make([]byte, media.RTPBufSize)
 	readCount := 0
+	audioCount := 0
+	dtmfPacketCount := 0
 	for {
 		select {
 		case <-p.ctx.Done():
 			log.WithField("reads", readCount).Debug("DTMF read loop stopped (context canceled)")
 			return
 		default:
-			// Read from DTMF reader. RTPDtmfReader.Read inspects the RTP
-			// header on each packet and stashes any DTMF event for ReadDTMF.
+			// Read from the DTMF reader. It inspects each RTP header and
+			// stashes complete telephone-event digits for ReadDTMF.
 			n, err := p.dtmfReader.Read(buf)
 			if err != nil {
 				// Check if context was canceled
@@ -154,16 +156,26 @@ func (p *SIPPhone) readDTMFLoop() {
 				p.onDTMF(dtmf)
 			}
 			readCount++
-			if readCount == 1 {
-				log.WithField("bytes", n).Debug("First DTMF read - RTP stream active")
+			if p.dtmfReader.LastReadWasDTMF() {
+				dtmfPacketCount++
+			} else {
+				audioCount++
+				if audioCount == 1 {
+					log.WithField("bytes", n).Debug("First RTP audio packet received")
+				}
 			}
 			if readCount%100 == 0 {
-				log.WithField("reads", readCount).Trace("DTMF read loop active")
+				log.WithFields(log.Fields{
+					"audio_packets": audioCount,
+					"dtmf_packets":  dtmfPacketCount,
+				}).Trace("RTP read loop active")
 			}
 			// Tap for recording. No-op when recorder is nil or inactive.
 			// Hot path: a short mutex on FeedInbound when active, plain nil
 			// check otherwise.
-			p.recorder.FeedInbound(buf[:n])
+			if !p.dtmfReader.LastReadWasDTMF() {
+				p.recorder.FeedInbound(buf[:n])
+			}
 		}
 	}
 }
