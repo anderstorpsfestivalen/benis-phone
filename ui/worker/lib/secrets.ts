@@ -21,9 +21,9 @@ export function filterSIPSecrets(
 
 export function staleSIPSecrets(
   rows: SIPSecretRow[],
-  registeredConnectionIDs: ReadonlySet<string>,
+  configuredConnectionIDs: ReadonlySet<string>,
 ): SIPSecretRow[] {
-  return rows.filter((row) => !registeredConnectionIDs.has(row.connection_id));
+  return rows.filter((row) => !configuredConnectionIDs.has(row.connection_id));
 }
 
 function bytesToBase64(bytes: Uint8Array): string {

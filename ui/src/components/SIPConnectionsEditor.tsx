@@ -192,7 +192,6 @@ function ConnectionCard({
   }
 
   function switchRegistration(registration: string) {
-    if (registration === "inbound") onSecretEdit(null);
     onChange({ ...connection, registration });
   }
 
@@ -267,57 +266,72 @@ function ConnectionCard({
           />
         )}
 
-        {connection.registration === "registered" && (
-          <>
-            <div className="grid grid-cols-3 gap-3">
-              <Field label="Server">
-                <TextInput
-                  value={connection.server}
-                  onChange={(v) => set("server", v)}
-                  placeholder="pbx.example.com:5060"
-                />
-              </Field>
-              <Field label="Extension">
-                <TextInput
-                  value={connection.extension}
-                  onChange={(v) => set("extension", v)}
-                />
-              </Field>
-              <Field label="Username">
-                <TextInput
-                  value={connection.username}
-                  onChange={(v) => set("username", v)}
-                />
-              </Field>
-            </div>
-            <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
-              <Field
-                label={`Password — ${passwordEdit === null ? "cleared" : configured ? "configured" : "missing"}`}
-              >
-                <input
-                  type="password"
-                  value={typeof passwordEdit === "string" ? passwordEdit : ""}
-                  onChange={(event) =>
-                    onSecretEdit(event.target.value || undefined)
-                  }
-                  placeholder={
-                    configured
-                      ? "Enter a new password to replace"
-                      : "Enter SIP password"
-                  }
-                  className="px-2 py-1 rounded font-mono text-sm w-full"
-                  autoComplete="new-password"
-                />
-              </Field>
-              <button
-                onClick={() => onSecretEdit(null)}
-                className="px-3 py-1.5 border border-shadow-grey rounded text-xs text-danger"
-              >
-                clear
-              </button>
-            </div>
-          </>
+        {connection.registration === "registered" ? (
+          <div className="grid grid-cols-3 gap-3">
+            <Field label="Server">
+              <TextInput
+                value={connection.server}
+                onChange={(v) => set("server", v)}
+                placeholder="pbx.example.com:5060"
+              />
+            </Field>
+            <Field label="Extension">
+              <TextInput
+                value={connection.extension}
+                onChange={(v) => set("extension", v)}
+              />
+            </Field>
+            <Field label="Username">
+              <TextInput
+                value={connection.username}
+                onChange={(v) => set("username", v)}
+              />
+            </Field>
+          </div>
+        ) : (
+          <Field
+            label="Authentication username"
+            hint="Asterisk must use this username in its outbound auth object."
+          >
+            <TextInput
+              value={connection.username}
+              onChange={(v) => set("username", v)}
+              placeholder="asterisk"
+            />
+          </Field>
         )}
+
+        <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
+          <Field
+            label={`Password — ${passwordEdit === null ? "cleared" : configured ? "configured" : "missing"}`}
+            hint={
+              connection.registration === "inbound"
+                ? "Stored encrypted and verified using SIP Digest authentication."
+                : undefined
+            }
+          >
+            <input
+              type="password"
+              value={typeof passwordEdit === "string" ? passwordEdit : ""}
+              onChange={(event) =>
+                onSecretEdit(event.target.value || undefined)
+              }
+              placeholder={
+                configured
+                  ? "Enter a new password to replace"
+                  : "Enter SIP password"
+              }
+              className="px-2 py-1 rounded font-mono text-sm w-full"
+              autoComplete="new-password"
+            />
+          </Field>
+          <button
+            onClick={() => onSecretEdit(null)}
+            className="px-3 py-1.5 border border-shadow-grey rounded text-xs text-danger"
+          >
+            clear
+          </button>
+        </div>
 
         <button
           onClick={() => setAdvanced(!advanced)}

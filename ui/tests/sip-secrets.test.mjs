@@ -29,21 +29,25 @@ const rows = [
   },
 ];
 
-test("inbound and removed connections are selected for secret deletion", () => {
+test("only removed connections are selected for secret deletion", () => {
   assert.deepEqual(
-    staleSIPSecrets(rows, new Set(["registered"])).map(
+    staleSIPSecrets(rows, new Set(["registered", "inbound"])).map(
       (row) => row.connection_id,
     ),
-    ["inbound"],
+    [],
+  );
+  assert.deepEqual(
+    staleSIPSecrets(rows, new Set(["inbound"])).map((row) => row.connection_id),
+    ["registered"],
   );
 });
 
-test("runtime bundles include only explicitly allowed registered secrets", () => {
+test("runtime bundles include secrets for every explicitly allowed connection", () => {
   assert.deepEqual(
-    filterSIPSecrets(rows, new Set(["registered"])).map(
+    filterSIPSecrets(rows, new Set(["registered", "inbound"])).map(
       (row) => row.connection_id,
     ),
-    ["registered"],
+    ["registered", "inbound"],
   );
   assert.deepEqual(filterSIPSecrets(rows, new Set()), []);
 });

@@ -88,6 +88,9 @@ func (d Definition) Validate() error {
 			if len(c.AllowedCIDRs) == 0 {
 				return fmt.Errorf("%s inbound connections require allowed_cidrs", where)
 			}
+			if strings.TrimSpace(c.Username) == "" {
+				return fmt.Errorf("%s inbound connections require an authentication username", where)
+			}
 		}
 		for _, raw := range c.AllowedCIDRs {
 			if _, _, err := net.ParseCIDR(strings.TrimSpace(raw)); err != nil {

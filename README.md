@@ -70,6 +70,7 @@ id = "public-trunk"
 name = "Public numbers"
 kind = "trunk"
 registration = "inbound"
+username = "asterisk"
 transport = "udp"
 local_port = 5062
 allowed_cidrs = ["192.0.2.0/24"]
@@ -85,6 +86,35 @@ catch_all = true
 entrypoint = "main"
 ```
 
+For that inbound listener, Asterisk is the SIP client and must attach the same
+username/password after the IVR's `401` challenge:
+
+```ini
+[benis-ivr-auth]
+type=auth
+auth_type=userpass
+realm=*
+username=asterisk
+password=replace-with-the-password-entered-in-the-web-editor
+
+[benis-ivr-aor]
+type=aor
+contact=sip:192.0.2.20:5062
+
+[benis-ivr]
+type=endpoint
+transport=transport-udp
+aors=benis-ivr-aor
+outbound_auth=benis-ivr-auth
+disallow=all
+allow=ulaw,alaw
+dtmf_mode=rfc4733
+direct_media=no
+```
+
+Dial with `Dial(PJSIP/${EXTEN}@benis-ivr)` so the Request-URI user reaches the
+trunk route matcher.
+
 The web editor visualizes these as input nodes. It also shows registration and
 listener health per IVR instance, with the latest 50 events retained for seven
 days by the existing ConfigBroker Durable Object. Current state is replayed
@@ -98,9 +128,10 @@ and port swaps drain affected calls first and start the newest saved
 configuration automatically. A failure on one connection leaves its previous
 working configuration in place and does not roll healthy connections back.
 
-Passwords only belong to `registered` connections. Switching a connection to
-`inbound` deletes its encrypted password during the same save and excludes it
-from runtime bundles.
+Every SIP connection has an encrypted password. `registered` connections use
+it when the upstream PBX challenges REGISTER; `inbound` connections challenge
+each INVITE with SIP Digest authentication and also require the source to match
+`allowed_cidrs`.
 
 ## Bridge-only rollout
 

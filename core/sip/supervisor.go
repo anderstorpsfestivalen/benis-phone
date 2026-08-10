@@ -88,7 +88,7 @@ func (s *Supervisor) Apply(def functions.Definition, passwords map[string]string
 		cfg := clientConfigFromDefinition(def.SIP, conn, passwords[conn.ID])
 		ids = append(ids, conn.ID)
 		s.generation[conn.ID]++
-		if conn.Registration == functions.SIPRegistrationActive && cfg.Password == "" {
+		if cfg.Password == "" {
 			missingCredentials[conn.ID] = true
 			s.report(newStatus(conn.ID, "error", "missing_credentials", "SIP password has not been configured", cfg.LocalPort))
 			continue

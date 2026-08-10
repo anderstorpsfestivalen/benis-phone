@@ -72,7 +72,7 @@ type ClientConfig struct {
 	// ExternalIP is the public IP for NAT traversal (used in SDP for RTP)
 	ExternalIP string
 
-	// InboundOnly skips REGISTER. Calls still have to pass AllowedCIDRs.
+	// InboundOnly skips REGISTER. Calls must pass Digest auth and AllowedCIDRs.
 	InboundOnly bool
 }
 
@@ -99,9 +99,10 @@ type Client struct {
 	registered bool
 	regMu      sync.RWMutex
 
-	accepting bool
-	statusMu  sync.RWMutex
-	status    func(StatusEvent)
+	accepting  bool
+	statusMu   sync.RWMutex
+	status     func(StatusEvent)
+	digestAuth *sipDigestAuthenticator
 }
 
 // callContext holds per-call resources
@@ -207,6 +208,7 @@ func NewClient(config ClientConfig, def functions.Definition, manager *controlle
 		activeCalls: make(map[string]*callContext),
 		accepting:   true,
 		status:      status,
+		digestAuth:  newSIPDigestAuthenticator(),
 	}, nil
 }
 
@@ -505,6 +507,26 @@ func (c *Client) handleIncomingCall(dialog *diago.DialogServerSession) {
 		log.WithFields(log.Fields{"connection": cfg.ConnectionID, "source": dialog.InviteRequest.Source()}).Warn("Rejected SIP INVITE outside allowed CIDRs")
 		_ = dialog.Respond(403, "Forbidden", nil)
 		return
+	}
+	if cfg.InboundOnly {
+		authorized, response, err := c.digestAuth.authorize(
+			dialog.InviteRequest,
+			cfg.Username,
+			cfg.Password,
+			cfg.Domain,
+		)
+		if !authorized {
+			fields := log.Fields{"connection": cfg.ConnectionID, "source": dialog.InviteRequest.Source()}
+			if err != nil {
+				log.WithError(err).WithFields(fields).Warn("Rejected SIP INVITE with invalid digest credentials")
+			}
+			if response == nil {
+				_ = dialog.Respond(sip.StatusInternalServerError, "Internal Server Error", nil)
+			} else if writeErr := dialog.WriteResponse(response); writeErr != nil {
+				log.WithError(writeErr).WithFields(fields).Warn("Writing SIP digest challenge")
+			}
+			return
+		}
 	}
 	called := dialog.InviteRequest.Recipient.User
 	if called == "" {

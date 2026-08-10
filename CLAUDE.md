@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-benis-phone (Best Enterprise Network Integrated Soft-phone) is a Go-based IVR telephone system for the Anderstorpsfestivalen cultural event. It registers with a SIP PBX (or accepts unauthenticated direct INVITEs in debug mode) and runs an IVR per inbound call.
+benis-phone (Best Enterprise Network Integrated Soft-phone) is a Go-based IVR telephone system for the Anderstorpsfestivalen cultural event. It registers with a SIP PBX or accepts Digest-authenticated INVITEs from an allowlisted PBX and runs an IVR per inbound call.
 
 ## Build and Run Commands
 
@@ -36,7 +36,7 @@ Each inbound SIP call gets its own `Session` (in `core/controller/`) driven by a
 - **Gates** (`extensions/gates/`): Validation/gating logic for conditional menu access.
 
 ### Configuration
-Menu structure is defined in TOML files (`configurations/`). Actions specify destinations (`dst`), services (`srv`), dispatchers, or `livefeed = { device, channel }` to stream a host audio capture device into the call's outbound RTP. Files referenced are in `files/`. `[sip]` contains shared call/recording limits and one or more `[[sip.connection]]` blocks. A connection is `registered` or inbound-only; inbound connections require source CIDRs. `./benis-phone -list-audio-devices` enumerates capture devices for filling in the livefeed config.
+Menu structure is defined in TOML files (`configurations/`). Actions specify destinations (`dst`), services (`srv`), dispatchers, or `livefeed = { device, channel }` to stream a host audio capture device into the call's outbound RTP. Files referenced are in `files/`. `[sip]` contains shared call/recording limits and one or more `[[sip.connection]]` blocks. A connection is `registered` or inbound-only; inbound connections require a Digest username/password and source CIDRs. `./benis-phone -list-audio-devices` enumerates capture devices for filling in the livefeed config.
 
 ### Credentials
 Runtime credentials are entered per config in the editor and encrypted with `SIP_SECRET_ENCRYPTION_KEY`. SIP passwords retain their per-connection encryption. Approved bridges fetch both through signed `/bridge/runtime` requests and retain them only in memory; the binary never reads `creds.json` or `sip.json`.

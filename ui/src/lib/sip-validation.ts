@@ -47,6 +47,11 @@ export function validateSIPDefinition(doc: Definition): string[] {
         `${label}: inbound connections require an explicit port and at least one allowed CIDR.`,
       );
     }
+    if (connection.registration === "inbound" && !connection.username.trim()) {
+      errors.push(
+        `${label}: inbound connections require an authentication username.`,
+      );
+    }
     for (const cidr of connection.allowed_cidrs ?? []) {
       if (!validCIDR(cidr))
         errors.push(`${label}: ${cidr} is not a valid IPv4/IPv6 CIDR.`);

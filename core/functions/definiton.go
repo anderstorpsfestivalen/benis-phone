@@ -51,7 +51,7 @@ type SIPConfig struct {
 }
 
 // SIPConnection is one isolated SIP listener. Registered connections send
-// REGISTER to Server; inbound connections only accept calls from AllowedCIDRs.
+// REGISTER to Server; inbound connections require Digest auth and AllowedCIDRs.
 type SIPConnection struct {
 	ID            string   `toml:"id"`
 	Name          string   `toml:"name"`

@@ -252,14 +252,14 @@ async function runtime(req: Request, env: Env): Promise<Response> {
   if (!bridge) return unauthorized();
   const row = await getConfig(env, bridge.configName);
   if (!row) return notFound();
-  const registeredConnectionIDs = registeredConnections(row.doc);
+  const connectionIDs = configuredConnections(row.doc);
   const response = json({
     revision: row.hash,
     toml: row.toml,
     sip_passwords: await decryptedSIPPasswords(
       env,
       bridge.configName,
-      registeredConnectionIDs,
+      connectionIDs,
     ),
     credentials: runtimeCredentials(
       await getCredentialBundle(env, bridge.configName),
@@ -294,17 +294,14 @@ async function runtimeSocket(req: Request, env: Env): Promise<Response> {
   );
 }
 
-function registeredConnections(docJSON: string): Set<string> {
+function configuredConnections(docJSON: string): Set<string> {
   try {
     const doc = JSON.parse(docJSON) as {
-      sip?: { connection?: Array<{ id?: string; registration?: string }> };
+      sip?: { connection?: Array<{ id?: string }> };
     };
     return new Set(
       (doc.sip?.connection ?? [])
-        .filter(
-          (connection) =>
-            connection.registration === "registered" && !!connection.id,
-        )
+        .filter((connection) => !!connection.id)
         .map((connection) => connection.id as string),
     );
   } catch {

@@ -11,7 +11,7 @@ func preparedSIPDefinition() Definition {
 			MaxConcurrentCalls: 10,
 			Connections: []SIPConnection{
 				{ID: "endpoint", Kind: SIPKindEndpoint, Registration: SIPRegistrationActive, Server: "pbx.test:5060", Extension: "100", Entrypoint: "main"},
-				{ID: "trunk", Kind: SIPKindTrunk, Registration: SIPRegistrationInbound, LocalPort: 5061, AllowedCIDRs: []string{"192.0.2.0/24"}, Routes: []SIPRoute{
+				{ID: "trunk", Kind: SIPKindTrunk, Registration: SIPRegistrationInbound, Username: "asterisk", LocalPort: 5061, AllowedCIDRs: []string{"192.0.2.0/24"}, Routes: []SIPRoute{
 					{ID: "sales", Number: "+46123", Entrypoint: "sales"},
 					{ID: "fallback", CatchAll: true, Entrypoint: "main"},
 				}},
@@ -60,6 +60,13 @@ func TestSIPConfigValidation(t *testing.T) {
 		t.Fatalf("missing CIDR error = %v", err)
 	}
 
+	noUsername := d
+	noUsername.SIP.Connections = append([]SIPConnection(nil), d.SIP.Connections...)
+	noUsername.SIP.Connections[1].Username = ""
+	if err := noUsername.Validate(); err == nil || !strings.Contains(err.Error(), "authentication username") {
+		t.Fatalf("missing inbound username error = %v", err)
+	}
+
 	unsupported := d
 	unsupported.SIP.Connections = append([]SIPConnection(nil), d.SIP.Connections...)
 	unsupported.SIP.Connections[0].Transport = "wss"
@@ -79,6 +86,7 @@ id = "trunk"
 name = "Public trunk"
 kind = "trunk"
 registration = "inbound"
+username = "asterisk"
 transport = "udp"
 local_port = 5062
 allowed_cidrs = ["192.0.2.0/24"]

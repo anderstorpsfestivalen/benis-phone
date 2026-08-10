@@ -127,6 +127,7 @@ func validRuntimeDefinition(defaultProvider string) functions.Definition {
 			ID:           "inbound",
 			Kind:         functions.SIPKindEndpoint,
 			Registration: functions.SIPRegistrationInbound,
+			Username:     "asterisk",
 			LocalPort:    5099,
 			AllowedCIDRs: []string{"127.0.0.0/8"},
 			Entrypoint:   "main",

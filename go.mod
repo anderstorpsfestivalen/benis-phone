@@ -16,6 +16,7 @@ require (
 	github.com/gin-gonic/gin v1.11.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
+	github.com/icholy/digest v1.1.0
 	github.com/itchyny/gojq v0.12.19
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/mroth/weightedrand v1.0.0
@@ -45,7 +46,6 @@ require (
 	github.com/google/pprof v0.0.0-20230207041349-798e818bf904 // indirect
 	github.com/hajimehoshi/go-mp3 v0.3.4 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
-	github.com/icholy/digest v1.1.0 // indirect
 	github.com/icza/bitio v1.1.0 // indirect
 	github.com/itchyny/timefmt-go v0.1.8 // indirect
 	github.com/jfreymuth/oggvorbis v1.0.5 // indirect

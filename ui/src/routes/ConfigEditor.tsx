@@ -117,7 +117,7 @@ export default function ConfigEditor() {
             ? false
             : typeof secretEdits[connection.id] === "string" ||
               !!secretState[connection.id];
-        if (connection.registration === "registered" && !hasPassword) {
+        if (!hasPassword) {
           validationErrors.push(
             `${connection.name || connection.id}: enter a SIP password.`,
           );

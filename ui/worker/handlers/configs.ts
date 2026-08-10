@@ -167,11 +167,6 @@ async function putOne(
   const connectionIDs = new Set(
     (doc.sip?.connection ?? []).map((connection) => connection.id),
   );
-  const registeredConnectionIDs = new Set(
-    doc.sip.connection
-      .filter((connection) => connection.registration === "registered")
-      .map((connection) => connection.id),
-  );
   if (
     connectionIDs.size !== (doc.sip?.connection ?? []).length ||
     connectionIDs.has("")
@@ -183,11 +178,6 @@ async function putOne(
   )) {
     if (!connectionIDs.has(connectionID))
       return badRequest(`unknown SIP connection id ${connectionID}`);
-    if (!registeredConnectionIDs.has(connectionID) && password !== null) {
-      return badRequest(
-        `SIP password for inbound connection ${connectionID} must be null`,
-      );
-    }
     if (
       password !== null &&
       (typeof password !== "string" || password.length === 0)
@@ -201,10 +191,7 @@ async function putOne(
   const now = Date.now();
   const existingSecrets = await listSIPSecrets(env, name);
   const explicitChanges = Object.entries(body.sip_secrets ?? {});
-  const removedSecrets = staleSIPSecrets(
-    existingSecrets,
-    registeredConnectionIDs,
-  );
+  const removedSecrets = staleSIPSecrets(existingSecrets, connectionIDs);
   const finalSecretIDs = new Set(
     existingSecrets.map((secret) => secret.connection_id),
   );
@@ -215,11 +202,7 @@ async function putOne(
     else finalSecretIDs.add(connectionID);
   }
   for (const connection of doc.sip.connection) {
-    if (
-      !newDraft &&
-      connection.registration === "registered" &&
-      !finalSecretIDs.has(connection.id)
-    ) {
+    if (!newDraft && !finalSecretIDs.has(connection.id)) {
       return badRequest(
         `${connection.name || connection.id}: a SIP password is required`,
       );
@@ -279,7 +262,7 @@ async function putOne(
     sip_secret_state: Object.fromEntries(
       [...connectionIDs].map((id) => [
         id,
-        !registeredConnectionIDs.has(id) || body.sip_secrets?.[id] === null
+        body.sip_secrets?.[id] === null
           ? false
           : body.sip_secrets?.[id] !== undefined ||
             existingSecrets.some((secret) => secret.connection_id === id),
@@ -322,19 +305,17 @@ async function duplicate(
   if (await getConfig(env, body.name))
     return badRequest("target already exists");
   const now = Date.now();
-  let registeredSourceIDs = new Set<string>();
+  let sourceConnectionIDs = new Set<string>();
   try {
     const sourceDoc = JSON.parse(src.doc) as Definition;
-    registeredSourceIDs = new Set(
-      (sourceDoc.sip?.connection ?? [])
-        .filter((connection) => connection.registration === "registered")
-        .map((connection) => connection.id),
+    sourceConnectionIDs = new Set(
+      (sourceDoc.sip?.connection ?? []).map((connection) => connection.id),
     );
   } catch {
     // Preserve the config duplicate but fail closed for credential copying.
   }
   const sourceSecrets = (await listSIPSecrets(env, from)).filter((secret) =>
-    registeredSourceIDs.has(secret.connection_id),
+    sourceConnectionIDs.has(secret.connection_id),
   );
   const secretRevision = sourceSecrets.length > 0 ? 1 : 0;
   const row = {

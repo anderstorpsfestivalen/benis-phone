@@ -15,6 +15,7 @@
     name = "Local ATP endpoint"
     kind = "endpoint"
     registration = "inbound"
+    username = "asterisk"
     transport = "udp"
     local_port = 5060
     allowed_cidrs = ["127.0.0.0/8"]
