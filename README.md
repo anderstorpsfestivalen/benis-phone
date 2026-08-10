@@ -148,16 +148,23 @@ To get recording to work, create in the files a directory called "recoding".
 
 # Running
 
-The only runtime startup mode uses a config registration ID:
+The first runtime startup uses a config registration ID:
 
 ```sh
 go run benis-phone.go -register 123e4567-e89b-42d3-a456-426614174000
 ```
 
 The first run creates a private Ed25519 identity in the OS user config
-directory and waits for web approval. Later runs use the same command and
-identity. Override the exact identity path with `-bridge-identity`; delete that
-identity and exit with `-reset-bridge`:
+directory and waits for web approval. When exactly one identity is saved,
+later runs discover it automatically:
+
+```sh
+go run benis-phone.go
+```
+
+Use `-register` to select among multiple saved identities. Override the exact
+identity path with `-bridge-identity`; delete that identity and exit with
+`-reset-bridge`:
 
 ```sh
 go run benis-phone.go -register 123e4567-e89b-42d3-a456-426614174000 -reset-bridge

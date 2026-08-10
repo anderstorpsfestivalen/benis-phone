@@ -12,8 +12,11 @@ benis-phone (Best Enterprise Network Integrated Soft-phone) is a Go-based IVR te
 # Build
 go build benis-phone.go
 
-# The only startup mode enrolls/uses a local Ed25519 bridge identity.
+# First startup enrolls a local Ed25519 bridge identity.
 ./benis-phone -register <registration-id>
+
+# Later startup auto-discovers the sole saved identity.
+./benis-phone
 
 # Disable optional features
 ./benis-phone -s3=false -http=false

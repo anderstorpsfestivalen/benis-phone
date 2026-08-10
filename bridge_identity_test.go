@@ -29,6 +29,58 @@ func TestInterruptedEnrollmentIdentityIsRecovered(t *testing.T) {
 	}
 }
 
+func TestDiscoverSavedIdentity(t *testing.T) {
+	directory := t.TempDir()
+	if _, _, err := discoverSavedIdentity(filepath.Join(directory, "missing")); err == nil || !strings.Contains(err.Error(), "no saved bridge identity") {
+		t.Fatalf("missing identity error = %v", err)
+	}
+
+	firstID := "123e4567-e89b-42d3-a456-426614174000"
+	firstPath := filepath.Join(directory, firstID+".json")
+	first, err := bridge.NewIdentity(firstID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := bridge.SaveIdentity(firstPath, first); err != nil {
+		t.Fatal(err)
+	}
+	path, registrationID, err := discoverSavedIdentity(directory)
+	if err != nil || path != firstPath || registrationID != firstID {
+		t.Fatalf("single identity = path %q, registration %q, err %v", path, registrationID, err)
+	}
+
+	secondID := "123e4567-e89b-42d3-a456-426614174001"
+	second, err := bridge.NewIdentity(secondID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := bridge.SaveIdentity(filepath.Join(directory, secondID+".json"), second); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := discoverSavedIdentity(directory); err == nil ||
+		!strings.Contains(err.Error(), "multiple saved bridge identities") ||
+		!strings.Contains(err.Error(), firstID) ||
+		!strings.Contains(err.Error(), secondID) {
+		t.Fatalf("multiple identity error = %v", err)
+	}
+}
+
+func TestIdentityOverrideInfersRegistrationID(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "bridge.json")
+	registrationID := "123e4567-e89b-42d3-a456-426614174000"
+	identity, err := bridge.NewIdentity(registrationID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := bridge.SaveIdentity(path, identity); err != nil {
+		t.Fatal(err)
+	}
+	gotPath, gotRegistrationID, err := resolveIdentitySelection("", path)
+	if err != nil || gotPath != path || gotRegistrationID != registrationID {
+		t.Fatalf("override selection = path %q, registration %q, err %v", gotPath, gotRegistrationID, err)
+	}
+}
+
 type namedProvider string
 
 func (provider namedProvider) Name() string                { return string(provider) }

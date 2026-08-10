@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -36,7 +37,7 @@ func main() {
 	enableHTTP := flag.Bool("http", true, "run the local HTTP recording server")
 	debug := flag.Bool("debug", false, "verbose logging (DebugLevel + SIP wire tracing)")
 	listAudioDevices := flag.Bool("list-audio-devices", false, "list host audio capture devices and exit")
-	registrationID := flag.String("register", "", "config registration ID (required to run)")
+	registrationID := flag.String("register", "", "config registration ID (required for first enrollment or when selecting among identities)")
 	identityOverride := flag.String("bridge-identity", "", "override the bridge identity file path")
 	resetBridge := flag.Bool("reset-bridge", false, "delete the exact bridge identity file and exit")
 	remoteURL := flag.String("remote-url", "https://ivr.anderstorpsfestivalen.se", "base URL of the bridge worker")
@@ -65,22 +66,27 @@ func main() {
 		logrus.SetLevel(logrus.InfoLevel)
 	}
 
-	identityPath, err := resolveIdentityPath(*registrationID, *identityOverride)
+	if *resetBridge && *identityOverride != "" {
+		if err := resetBridgeIdentity(*identityOverride); err != nil {
+			log.Fatal(err)
+		}
+		log.WithField("path", *identityOverride).Info("Bridge identity reset")
+		return
+	}
+
+	identityPath, effectiveRegistrationID, err := resolveIdentitySelection(*registrationID, *identityOverride)
 	if err != nil {
 		log.Fatal(err)
 	}
 	if *resetBridge {
-		if err := os.Remove(identityPath); err != nil && !errors.Is(err, os.ErrNotExist) {
-			log.Fatalf("reset bridge identity %s: %v", identityPath, err)
+		if err := resetBridgeIdentity(identityPath); err != nil {
+			log.Fatal(err)
 		}
 		log.WithField("path", identityPath).Info("Bridge identity reset")
 		return
 	}
-	if *registrationID == "" {
-		log.Fatal("-register is required")
-	}
 
-	identity, err := loadOrCreateIdentity(identityPath, *registrationID)
+	identity, err := loadOrCreateIdentity(identityPath, effectiveRegistrationID)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -215,14 +221,88 @@ func main() {
 // to exercise without storing a process-global context.
 func contextBackground() context.Context { return context.Background() }
 
-func resolveIdentityPath(registrationID, override string) (string, error) {
+func resolveIdentitySelection(registrationID, override string) (path string, effectiveRegistrationID string, err error) {
 	if override != "" {
-		return override, nil
+		if registrationID != "" {
+			return override, registrationID, nil
+		}
+		identity, loadErr := bridge.LoadIdentity(override)
+		if loadErr != nil {
+			if errors.Is(loadErr, os.ErrNotExist) {
+				return "", "", fmt.Errorf(
+					"bridge identity %s does not exist; use -register <registration-id> to create it",
+					override,
+				)
+			}
+			return "", "", fmt.Errorf("load bridge identity %s: %w", override, loadErr)
+		}
+		return override, identity.RegistrationID, nil
 	}
-	if registrationID == "" {
-		return "", fmt.Errorf("-register or -bridge-identity is required")
+	if registrationID != "" {
+		path, pathErr := bridge.DefaultIdentityPath(registrationID)
+		return path, registrationID, pathErr
 	}
-	return bridge.DefaultIdentityPath(registrationID)
+
+	root, rootErr := os.UserConfigDir()
+	if rootErr != nil {
+		return "", "", fmt.Errorf("resolve OS user config directory: %w", rootErr)
+	}
+	return discoverSavedIdentity(filepath.Join(root, "benis-phone", "bridges"))
+}
+
+func discoverSavedIdentity(directory string) (path string, registrationID string, err error) {
+	entries, readErr := os.ReadDir(directory)
+	if readErr != nil {
+		if errors.Is(readErr, os.ErrNotExist) {
+			return "", "", fmt.Errorf(
+				"no saved bridge identity found in %s; use -register <registration-id> for first enrollment",
+				directory,
+			)
+		}
+		return "", "", fmt.Errorf("list saved bridge identities in %s: %w", directory, readErr)
+	}
+
+	type candidate struct {
+		path     string
+		identity bridge.Identity
+	}
+	candidates := make([]candidate, 0, len(entries))
+	for _, entry := range entries {
+		if !entry.Type().IsRegular() || !strings.HasSuffix(strings.ToLower(entry.Name()), ".json") {
+			continue
+		}
+		candidatePath := filepath.Join(directory, entry.Name())
+		identity, loadErr := bridge.LoadIdentity(candidatePath)
+		if loadErr != nil {
+			return "", "", fmt.Errorf("load saved bridge identity %s: %w", candidatePath, loadErr)
+		}
+		candidates = append(candidates, candidate{path: candidatePath, identity: identity})
+	}
+	if len(candidates) == 0 {
+		return "", "", fmt.Errorf(
+			"no saved bridge identity found in %s; use -register <registration-id> for first enrollment",
+			directory,
+		)
+	}
+	if len(candidates) > 1 {
+		registrations := make([]string, 0, len(candidates))
+		for _, candidate := range candidates {
+			registrations = append(registrations, candidate.identity.RegistrationID)
+		}
+		return "", "", fmt.Errorf(
+			"multiple saved bridge identities found in %s (%s); select one with -register <registration-id> or -bridge-identity <path>",
+			directory,
+			strings.Join(registrations, ", "),
+		)
+	}
+	return candidates[0].path, candidates[0].identity.RegistrationID, nil
+}
+
+func resetBridgeIdentity(path string) error {
+	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("reset bridge identity %s: %w", path, err)
+	}
+	return nil
 }
 
 func loadOrCreateIdentity(path, registrationID string) (bridge.Identity, error) {
