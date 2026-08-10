@@ -2,6 +2,7 @@ package sip
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -42,7 +43,21 @@ func (c *sipController) ID() string { return c.callID }
 
 func (c *sipController) Hangup(ctx context.Context) error {
 	log.WithField("call_id", c.callID).Info("Hangup requested")
-	return c.dialog.Hangup(ctx)
+	return hangupAndClose(ctx, c.dialog)
+}
+
+// hangupAndClose sends the SIP termination request and always closes the local
+// dialog afterward. diago's Hangup sends BYE but does not close the media
+// session for a locally initiated hangup. Without the explicit Close, the RTP
+// reader remains blocked, SIPPhone.Done is never signalled, and the call stays
+// registered in SessionManager indefinitely.
+func hangupAndClose(ctx context.Context, dialog interface {
+	Hangup(context.Context) error
+	Close() error
+}) error {
+	hangupErr := dialog.Hangup(ctx)
+	closeErr := dialog.Close()
+	return errors.Join(hangupErr, closeErr)
 }
 
 func (c *sipController) Transfer(ctx context.Context, target string) error {
