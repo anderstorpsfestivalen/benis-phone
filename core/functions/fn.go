@@ -11,6 +11,11 @@ type Fn struct {
 	Prefix         Prefix
 	Gate           Gate `toml:"gate"`
 	ClearCallstack bool `toml:"clear_callstack"`
+	// HangupOnReturn ends a SIP call instead of replaying this function's
+	// prefix when a child flow returns. It is intended for direct-dial wrapper
+	// functions that auto-run a shared action but must not leave the caller in
+	// a silent menu after that action finishes.
+	HangupOnReturn bool `toml:"hangup_on_return"`
 	InputLength    int
 
 	Actions []Action

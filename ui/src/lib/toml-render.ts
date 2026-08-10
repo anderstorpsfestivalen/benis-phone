@@ -92,6 +92,7 @@ function renderFn(fn: Fn): string {
   if (notEmpty(fn.prefix)) body.push(`prefix = ${inline(prune(fn.prefix))}`);
   if (notEmpty(fn.gate)) body.push(`gate = ${inline(prune(fn.gate))}`);
   if (fn.clear_callstack) body.push(`clear_callstack = true`);
+  if (fn.hangup_on_return) body.push(`hangup_on_return = true`);
   if (fn.inputlength && fn.inputlength > 0)
     body.push(`inputlength = ${fn.inputlength}`);
   if (fn.actions && fn.actions.length) {

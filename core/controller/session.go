@@ -192,22 +192,40 @@ func (s *Session) Start() {
 				s.checkError(s.enterFunction(dst))
 			}
 		case dst := <-s.scriptDone:
-			// The script's goroutine returned. If it called goto(fnName) enter
-			// that fn; otherwise hand control back to the menu the caller
-			// triggered it from and replay its prompt.
-			s.activeScript = false
-			if s.HookState {
-				if dst != "" {
-					s.checkError(s.enterFunction(dst))
-				} else {
-					s.prefixSignal <- true
-				}
-			}
+			s.handleScriptDone(dst)
 		case <-s.prefixSignal:
 			err := s.handlePrefix()
 			s.checkError(err)
 		}
 	}
+}
+
+// handleScriptDone applies the completion policy of the function that invoked
+// the script. Reused actions do not change the call stack, so a script reused by
+// a direct-dial wrapper returns here with that wrapper still current. A script
+// that explicitly called goto() takes precedence over the wrapper's return
+// policy.
+func (s *Session) handleScriptDone(dst string) {
+	s.activeScript = false
+	if !s.HookState {
+		return
+	}
+	if dst != "" {
+		s.checkError(s.enterFunction(dst))
+		return
+	}
+	s.returnToCurrentFunction()
+}
+
+// returnToCurrentFunction is used whenever control comes back to the current
+// menu. Normal menus replay their prefix; direct-dial wrappers may terminate
+// the SIP call instead.
+func (s *Session) returnToCurrentFunction() {
+	if s.getCurrent().HangupOnReturn {
+		s.handleHangup()
+		return
+	}
+	s.prefixSignal <- true
 }
 
 // Stop gracefully terminates the session.
@@ -467,7 +485,7 @@ func (s *Session) exitFunction() {
 	if len(s.Callstack) > 1 {
 		s.Callstack = s.Callstack[:len(s.Callstack)-1]
 		s.collector = nil
-		s.prefixSignal <- true
+		s.returnToCurrentFunction()
 	}
 }
 

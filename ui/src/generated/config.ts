@@ -51,6 +51,7 @@ export interface Fn {
   prefix: Prefix;
   gate: Gate;
   clear_callstack: boolean;
+  hangup_on_return: boolean;
   inputlength: number;
   actions: Action[];
 }

@@ -67,6 +67,12 @@ export default function FnEditor({
           onChange={(v) => set("clear_callstack", v)}
           help="When entered, drop any prior menu history so pressing 0 won't pop the caller back to a previous menu. Useful for top-level entries."
         />
+        <CheckboxInput
+          label="hang up on return"
+          value={value.hangup_on_return}
+          onChange={(v) => set("hangup_on_return", v)}
+          help="End the SIP call when a child flow or automatically-run script returns to this menu. Use this on direct-dial bypass menus; the shared source action is unaffected."
+        />
       </div>
 
       <details

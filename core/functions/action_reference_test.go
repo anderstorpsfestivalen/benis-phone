@@ -94,6 +94,7 @@ actions = [{ num = 4, name = "beer", script = { code = "return;" } }]
 
 [[fn]]
 name = "bypass"
+hangup_on_return = true
 actions = [{ num = 1, auto = true, reuse = { fn = "main", key = 4 } }]
 `
 	d, err := Decode([]byte(raw))
@@ -101,6 +102,9 @@ actions = [{ num = 1, auto = true, reuse = { fn = "main", key = 4 } }]
 		t.Fatalf("decode reusable action: %v", err)
 	}
 	got := d.Functions["bypass"].Actions[0]
+	if !d.Functions["bypass"].HangupOnReturn {
+		t.Fatal("decoded bypass menu did not retain hangup_on_return")
+	}
 	if !got.Auto || got.Reuse.Function != "main" || got.Reuse.Key != 4 {
 		t.Fatalf("decoded reusable action = %#v", got)
 	}

@@ -105,6 +105,7 @@ export const emptyFn = (name = ""): Fn => ({
   prefix: emptyPrefix(),
   gate: emptyGate(),
   clear_callstack: false,
+  hangup_on_return: false,
   inputlength: 0,
   actions: [],
 });

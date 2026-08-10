@@ -133,6 +133,7 @@ function normalizeFn(raw: unknown): Fn {
     prefix: normalizePrefix(r.prefix),
     gate: { ...e.gate, ...asObj(r.gate) },
     clear_callstack: asBool(r.clear_callstack),
+    hangup_on_return: asBool(r.hangup_on_return),
     inputlength: asNum(r.inputlength),
     actions: asArr(r.actions).map(normalizeAction),
   };

@@ -53,6 +53,7 @@ export const fnSchema: z.ZodType<unknown> = z.lazy(() => z.object({
   prefix: prefixSchema.optional(),
   gate: gateSchema.optional(),
   clear_callstack: z.boolean().optional(),
+  hangup_on_return: z.boolean().optional(),
   inputlength: z.number().optional(),
   actions: z.array(actionSchema).optional(),
 }).passthrough());
