@@ -13,7 +13,9 @@ import "@xyflow/react/dist/style.css";
 import type { Action, Fn, Queue, SIPConfig } from "../generated/config";
 import { actionKind } from "../generated/config";
 import {
+  actionDetail,
   buildNodesAndEdges,
+  dtmfLabel,
   sameSource,
   type ActionNodeData,
   type ActionSource,
@@ -200,6 +202,34 @@ export default function FnGraph({
   // 60% share (graph keeps the remaining 40%) whenever one is selected.
   const isScriptSelected =
     !!actionForSelection && actionKind(actionForSelection.action) === "script";
+
+  const reusableActions = useMemo(() => {
+    const selectedSource =
+      selection?.kind === "action" && selection.source.kind === "fn"
+        ? selection.source
+        : null;
+    return fns.flatMap((fn) =>
+      fn.actions.flatMap((action, actionIndex) => {
+        const kind = actionKind(action);
+        if (
+          !kind ||
+          kind === "reuse" ||
+          (selectedSource?.fnName === fn.name &&
+            selectedSource.actionIndex === actionIndex)
+        ) {
+          return [];
+        }
+        const key = action.num || actionIndex + 1;
+        const detail = action.name || actionDetail(action) || kind;
+        return [
+          {
+            ref: { fn: fn.name, key },
+            label: `${fn.name} / ${dtmfLabel(key)} / ${detail}`,
+          },
+        ];
+      }),
+    );
+  }, [fns, selection]);
 
   function updateFnByName(name: string, next: Fn) {
     const i = fns.findIndex((f) => f.name === name);
@@ -406,6 +436,7 @@ export default function FnGraph({
             <ActionEditor
               value={actionForSelection.action}
               knownFnNames={fns.map((f) => f.name).filter(Boolean)}
+              reusableActions={reusableActions}
               onChange={actionForSelection.onChange}
               onRemove={actionForSelection.onRemove ?? (() => {})}
             />

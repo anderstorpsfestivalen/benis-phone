@@ -166,6 +166,10 @@ function normalizeAction(raw: unknown): Action {
     prefix: normalizePrefix(r.prefix),
     pmsg: normalizePrefix(r.pmsg),
     dst: asStr(r.dst),
+    reuse: {
+      fn: asStr(asObj(r.reuse).fn),
+      key: asNum(asObj(r.reuse).key),
+    },
     file: { ...e.file, ...asObj(r.file) },
     randomfile: { ...e.randomfile, ...asObj(r.randomfile) },
     tts: { ...e.tts, ...asObj(r.tts) },

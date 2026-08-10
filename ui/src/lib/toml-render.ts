@@ -115,6 +115,7 @@ function actionForToml(a: Action): Record<string, unknown> {
     prefix: a.prefix,
     pmsg: a.pmsg,
     dst: a.dst,
+    reuse: a.reuse,
     file: a.file,
     randomfile: a.randomfile,
     tts: a.tts,

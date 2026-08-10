@@ -9,6 +9,7 @@ export interface Action {
   prefix: Prefix;
   pmsg: Prefix;
   dst: string;
+  reuse: ActionReference;
   file: File;
   randomfile: RandomFile;
   tts: TTS;
@@ -24,6 +25,11 @@ export interface Action {
   script: Script;
   then: string;
   auto: boolean;
+}
+
+export interface ActionReference {
+  fn: string;
+  key: number;
 }
 
 export interface Definition {
@@ -175,6 +181,7 @@ export interface TTS {
 }
 
 export type ActionKind =
+  | "reuse"
   | "dst"
   | "file"
   | "randomfile"
@@ -191,6 +198,7 @@ export type ActionKind =
   | "clear";
 
 export const ACTION_KINDS: readonly ActionKind[] = [
+  "reuse",
   "dst",
   "file",
   "randomfile",
@@ -210,6 +218,7 @@ export const ACTION_KINDS: readonly ActionKind[] = [
 /** Inspect an Action and report which kind it currently represents,
  *  mirroring core/functions/action.go:Action.Type(). */
 export function actionKind(a: Action): ActionKind | null {
+  if (a.reuse && a.reuse.fn) return "reuse";
   if (a.dst) return "dst";
   if (a.file && a.file.src) return "file";
   if (a.randomfile && a.randomfile.folder) return "randomfile";

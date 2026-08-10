@@ -27,6 +27,10 @@ type Action struct {
 	Pmsg Prefix `toml:"pmsg"`
 	// Links to another menu
 	Dst string
+	// Reuse executes an action defined on another menu without duplicating its
+	// configuration. The target is identified by its owning function and DTMF
+	// key; the referenced action's prefix and behavior run normally.
+	Reuse ActionReference `toml:"reuse"`
 	// Plays a file (mp3, ogg, etc)
 	File File `toml:"file"`
 	// Plays a random file from a folder
@@ -98,6 +102,10 @@ type LiveFeed struct {
 }
 
 func (a *Action) Type() (string, error) {
+	if a.Reuse.Function != "" {
+		return "reuse", nil
+	}
+
 	if a.Dst != "" {
 		return "fn", nil
 	}
@@ -162,6 +170,14 @@ func (a *Action) Type() (string, error) {
 	}
 
 	return "", fmt.Errorf("cannot determine action type")
+}
+
+// ActionReference identifies an action owned by a function. Key uses the
+// action's configured DTMF number (0-9, 10 for *, 11 for #), matching the
+// same selection rule used when a caller presses that key in the menu.
+type ActionReference struct {
+	Function string `toml:"fn"`
+	Key      int    `toml:"key"`
 }
 
 func (a *Action) GetPrefix() (Prefix, error) {

@@ -273,6 +273,10 @@ func (s *Session) handleCollect(key string) {
 }
 
 func (s *Session) handleAction(action *functions.Action) {
+	s.handleActionDepth(action, 0)
+}
+
+func (s *Session) handleActionDepth(action *functions.Action, reuseDepth int) {
 	actionType, err := action.Type()
 	if err != nil {
 		s.checkError(err)
@@ -286,6 +290,17 @@ func (s *Session) handleAction(action *functions.Action) {
 	}
 
 	switch actionType {
+	case "reuse":
+		if reuseDepth >= 32 {
+			s.checkError(fmt.Errorf("reused action chain is too deep"))
+			return
+		}
+		target, err := s.Definition.ResolveActionReference(action.Reuse)
+		if err != nil {
+			s.checkError(err)
+			return
+		}
+		s.handleActionDepth(target, reuseDepth+1)
 	case "fn":
 		s.checkError(s.enterFunction(action.Dst))
 	case "file":

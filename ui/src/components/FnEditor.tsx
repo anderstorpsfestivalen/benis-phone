@@ -165,8 +165,8 @@ export default function FnEditor({
                 key={i}
                 className="flex items-center gap-2 px-2 py-1 border border-shadow-grey rounded text-xs font-mono"
               >
-                <span className="text-blue-slate w-6 text-center">
-                  {dtmfLabel(a.num)}
+                <span className="text-blue-slate w-10 text-center">
+                  {a.auto ? "auto" : dtmfLabel(a.num || i + 1)}
                 </span>
                 <span className="text-white">{kind ?? "empty"}</span>
                 <span className="text-blue-slate truncate flex-1">

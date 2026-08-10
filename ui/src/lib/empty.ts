@@ -81,6 +81,7 @@ export const emptyAction = (): Action => ({
   prefix: emptyPrefix(),
   pmsg: emptyPrefix(),
   dst: "",
+  reuse: { fn: "", key: 0 },
   file: emptyFile(),
   randomfile: emptyRandomFile(),
   tts: emptyTTS(),

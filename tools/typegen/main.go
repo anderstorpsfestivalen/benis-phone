@@ -69,26 +69,27 @@ func main() {
 	// internal/unexported state (Queue's chans/timers, ServiceResponse) we
 	// don't want to leak into TS — restrict to the data-model surface.
 	wanted := map[string]bool{
-		"Definition":    true,
-		"General":       true,
-		"SIPConfig":     true,
-		"SIPConnection": true,
-		"SIPRoute":      true,
-		"Fn":            true,
-		"Action":        true,
-		"LiveFeed":      true,
-		"Prefix":        true,
-		"TTS":           true,
-		"File":          true,
-		"RandomFile":    true,
-		"Service":       true,
-		"Gate":          true,
-		"Recording":     true,
-		"Queue":         true,
-		"QueuePrompt":   true,
-		"Playable":      true,
-		"GenericJSON":   true,
-		"Script":        true,
+		"Definition":      true,
+		"General":         true,
+		"SIPConfig":       true,
+		"SIPConnection":   true,
+		"SIPRoute":        true,
+		"Fn":              true,
+		"Action":          true,
+		"ActionReference": true,
+		"LiveFeed":        true,
+		"Prefix":          true,
+		"TTS":             true,
+		"File":            true,
+		"RandomFile":      true,
+		"Service":         true,
+		"Gate":            true,
+		"Recording":       true,
+		"Queue":           true,
+		"QueuePrompt":     true,
+		"Playable":        true,
+		"GenericJSON":     true,
+		"Script":          true,
 	}
 	filtered := make([]Struct, 0, len(wanted))
 	for _, s := range structs {
@@ -860,6 +861,7 @@ func fatal(format string, args ...interface{}) {
 // match the Go struct / TOML roundtrip — the variant type is a UI
 // convenience layered on top.
 const actionVariantSnippet = `export type ActionKind =
+  | "reuse"
   | "dst"
   | "file"
   | "randomfile"
@@ -876,6 +878,7 @@ const actionVariantSnippet = `export type ActionKind =
   | "clear";
 
 export const ACTION_KINDS: readonly ActionKind[] = [
+  "reuse",
   "dst",
   "file",
   "randomfile",
@@ -895,6 +898,7 @@ export const ACTION_KINDS: readonly ActionKind[] = [
 /** Inspect an Action and report which kind it currently represents,
  *  mirroring core/functions/action.go:Action.Type(). */
 export function actionKind(a: Action): ActionKind | null {
+  if (a.reuse && a.reuse.fn) return "reuse";
   if (a.dst) return "dst";
   if (a.file && a.file.src) return "file";
   if (a.randomfile && a.randomfile.folder) return "randomfile";

@@ -101,7 +101,10 @@ export type GraphEdge = {
   source: string;
   target: string;
   label: string;
-  data: { kind: "key" | "dst" | "dispatcher" | "sip"; broken: boolean };
+  data: {
+    kind: "key" | "reuse" | "dst" | "dispatcher" | "sip";
+    broken: boolean;
+  };
 };
 
 const FN_NODE_WIDTH = 220;
@@ -128,6 +131,16 @@ export function buildNodesAndEdges(
 
   const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];
+  const reusableActionTargets = new Map<string, string>();
+  for (const fn of fns) {
+    fn.actions.forEach((action, actionIndex) => {
+      const key = action.num || actionIndex + 1;
+      reusableActionTargets.set(
+        `${fn.name}/${key}`,
+        actionNodeId({ kind: "fn", fnName: fn.name, actionIndex }),
+      );
+    });
+  }
   const entrypoints = new Set<string>();
   for (const connection of sip.connection ?? []) {
     const inputs =
@@ -203,7 +216,7 @@ export function buildNodesAndEdges(
         id: `e_${fn.name}_${j}_key`,
         source: fnId,
         target: actionId,
-        label: dtmfLabel(action.num),
+        label: action.auto ? "auto" : dtmfLabel(action.num || j + 1),
         data: { kind: "key", broken: false },
       });
 
@@ -216,6 +229,7 @@ export function buildNodesAndEdges(
         fnNames,
         queueNames,
         danglingQueueRefs,
+        reusableActionTargets,
       );
     });
   });
@@ -263,6 +277,7 @@ export function buildNodesAndEdges(
       fnNames,
       queueNames,
       danglingQueueRefs,
+      reusableActionTargets,
     );
   });
   // Broken dispatcher targets — placeholder nodes so the red edge has
@@ -327,7 +342,22 @@ function appendActionTargetEdge(
   fnNames: Set<string>,
   queueNames: Set<string>,
   danglingQueueRefs: Set<string>,
+  reusableActionTargets: Map<string, string>,
 ) {
+  if (action.reuse?.fn) {
+    const selector = `${action.reuse.fn}/${action.reuse.key}`;
+    const target = reusableActionTargets.get(selector);
+    if (target) {
+      edges.push({
+        id: `${edgeId}_reuse`,
+        source: sourceId,
+        target,
+        label: "reuse",
+        data: { kind: "reuse", broken: false },
+      });
+    }
+  }
+
   const target = dispatcherOrDst(action);
   if (target) {
     if (target.kind === "dispatcher" && !queueNames.has(target.target)) {
@@ -479,6 +509,8 @@ export function dtmfLabel(num: number): string {
 export function actionDetail(a: Action): string {
   const k = actionKind(a);
   switch (k) {
+    case "reuse":
+      return `→ ${a.reuse.fn} / ${dtmfLabel(a.reuse.key)}`;
     case "dst":
       return `→ ${a.dst}`;
     case "dispatcher":
@@ -524,6 +556,7 @@ export type ActionCategory =
 
 export function categoryFor(kind: ActionKind | null): ActionCategory {
   switch (kind) {
+    case "reuse":
     case "dst":
     case "dispatcher":
       return "route";

@@ -3,6 +3,7 @@ package functions
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/BurntSushi/toml"
 	log "github.com/sirupsen/logrus"
@@ -195,6 +196,22 @@ func (d *Definition) ResolveDispatcher(name string) (Dispatcher, error) {
 	}
 
 	return &EmptyDispatcher{}, fmt.Errorf("could not find queue %v", name)
+}
+
+// ResolveActionReference returns the single source action named by ref.
+// References deliberately point to the owning function/key pair rather than
+// copying the action, so edits to the source immediately apply everywhere it
+// is reused.
+func (d *Definition) ResolveActionReference(ref ActionReference) (*Action, error) {
+	fn, ok := d.Functions[ref.Function]
+	if !ok {
+		return nil, fmt.Errorf("reused action function %q does not exist", ref.Function)
+	}
+	action, err := fn.ResolveAction(strconv.Itoa(ref.Key))
+	if err != nil {
+		return nil, fmt.Errorf("reused action %s/%d: %w", ref.Function, ref.Key, err)
+	}
+	return action, nil
 }
 
 type General struct {

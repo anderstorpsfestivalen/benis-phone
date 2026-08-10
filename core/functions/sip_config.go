@@ -150,5 +150,57 @@ func (d Definition) Validate() error {
 			}
 		}
 	}
+	return d.validateActionReferences()
+}
+
+func (d Definition) validateActionReferences() error {
+	for _, fn := range d.UnsortedFunctions {
+		for i := range fn.Actions {
+			action := &fn.Actions[i]
+			origin := fmt.Sprintf("fn %q action %d", fn.Name, action.Num)
+			selector := fmt.Sprintf("%s/%d", fn.Name, action.Num)
+			if err := d.validateActionReference(origin, selector, action); err != nil {
+				return err
+			}
+		}
+	}
+	for i := range d.Queues {
+		action := &d.Queues[i].End
+		if err := d.validateActionReference(
+			fmt.Sprintf("queue %q end action", d.Queues[i].Name),
+			"queue/"+d.Queues[i].Name,
+			action,
+		); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+func (d Definition) validateActionReference(origin, originSelector string, action *Action) error {
+	if action.Reuse.Function == "" {
+		return nil
+	}
+
+	seen := map[string]bool{originSelector: true}
+	ref := action.Reuse
+	for depth := 0; ; depth++ {
+		if depth >= 32 {
+			return fmt.Errorf("%s has an excessively deep reuse chain", origin)
+		}
+		selector := fmt.Sprintf("%s/%d", ref.Function, ref.Key)
+		if seen[selector] {
+			return fmt.Errorf("%s has a cyclic reuse reference through %s", origin, selector)
+		}
+		seen[selector] = true
+
+		target, err := d.ResolveActionReference(ref)
+		if err != nil {
+			return fmt.Errorf("%s: %w", origin, err)
+		}
+		if target.Reuse.Function == "" {
+			return nil
+		}
+		ref = target.Reuse
+	}
 }

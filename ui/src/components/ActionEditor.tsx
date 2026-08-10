@@ -14,6 +14,7 @@ import CodeEditor from "./CodeEditor";
 import { runScriptTest, type TranscriptEvent } from "../lib/script-runner";
 
 const ACTION_KIND_HELP: Record<ActionKind, string> = {
+  reuse: "Run an existing action from another menu without copying it. Changes to the source action apply everywhere it is reused.",
   dst: "Jump to another menu by name. Use this to chain menus together — pressing this DTMF key sends the caller to the chosen menu.",
   file: "Play an audio file from disk (ogg/wav/mp3). Block holds the call until playback finishes; clear stops any prior audio first.",
   randomfile: "Pick a random file from a folder and play it. Useful for jingles, hold music variations, etc.",
@@ -35,9 +36,19 @@ type Props = {
   onChange: (v: Action) => void;
   onRemove: () => void;
   knownFnNames: string[];
+  reusableActions: Array<{
+    ref: Action["reuse"];
+    label: string;
+  }>;
 };
 
-export default function ActionEditor({ value, onChange, onRemove, knownFnNames }: Props) {
+export default function ActionEditor({
+  value,
+  onChange,
+  onRemove,
+  knownFnNames,
+  reusableActions,
+}: Props) {
   const kind = actionKind(value) ?? "dst";
   const set = <K extends keyof Action>(k: K, v: Action[K]) =>
     onChange({ ...value, [k]: v });
@@ -51,6 +62,7 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
     // sentinel default so actionKind() returns it.
     const reset: Partial<Action> = {
       dst: "",
+      reuse: { fn: "", key: 0 },
       file: { src: "", block: false, clear: false },
       randomfile: { folder: "" },
       tts: { msg: "", voice: "", lang: "", engine: "", provider: "" },
@@ -71,6 +83,12 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
     };
     const seeded: Partial<Action> = {};
     switch (k) {
+      case "reuse":
+        seeded.reuse = reusableActions[0]?.ref ?? {
+          fn: "(choose source action)",
+          key: 0,
+        };
+        break;
       case "dst":
         seeded.dst = "(choose menu)";
         break;
@@ -217,6 +235,52 @@ export default function ActionEditor({ value, onChange, onRemove, knownFnNames }
           />
         </div>
       </details>
+
+      {kind === "reuse" && (
+        <div className="grid grid-cols-1 gap-3">
+          <Field
+            label="Source action"
+            help="Select the original action to execute. The action remains stored once; this node only holds a reference to its menu and key."
+          >
+            <select
+              value={JSON.stringify(value.reuse)}
+              onChange={(e) => {
+                const selected = reusableActions.find(
+                  (option) => JSON.stringify(option.ref) === e.target.value,
+                );
+                if (selected) set("reuse", selected.ref);
+              }}
+              className="px-2 py-1 rounded font-mono text-sm"
+            >
+              {!reusableActions.some(
+                (option) => JSON.stringify(option.ref) === JSON.stringify(value.reuse),
+              ) && (
+                <option value={JSON.stringify(value.reuse)}>
+                  {value.reuse.fn
+                    ? `(missing) ${value.reuse.fn} / ${value.reuse.key}`
+                    : "(choose source action)"}
+                </option>
+              )}
+              {reusableActions.map((option) => (
+                <option
+                  key={`${option.ref.fn}/${option.ref.key}`}
+                  value={JSON.stringify(option.ref)}
+                >
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <div className="flex justify-end">
+            <CheckboxInput
+              label="auto (run on entry)"
+              value={value.auto}
+              onChange={(v) => set("auto", v)}
+              help="Run the referenced action immediately when this menu is entered. Enable this for a SIP-route bypass menu."
+            />
+          </div>
+        </div>
+      )}
 
       {kind === "dst" && (
         <Field

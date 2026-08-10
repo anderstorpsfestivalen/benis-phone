@@ -11,6 +11,7 @@ export const actionSchema: z.ZodType<unknown> = z.lazy(() => z.object({
   prefix: prefixSchema.optional(),
   pmsg: prefixSchema.optional(),
   dst: z.string().optional(),
+  reuse: actionReferenceSchema.optional(),
   file: fileSchema.optional(),
   randomfile: randomFileSchema.optional(),
   tts: ttsSchema.optional(),
@@ -26,6 +27,11 @@ export const actionSchema: z.ZodType<unknown> = z.lazy(() => z.object({
   script: scriptSchema.optional(),
   then: z.string().optional(),
   auto: z.boolean().optional(),
+}).passthrough());
+
+export const actionReferenceSchema: z.ZodType<unknown> = z.lazy(() => z.object({
+  fn: z.string().optional(),
+  key: z.number().optional(),
 }).passthrough());
 
 export const definitionSchema: z.ZodType<unknown> = z.lazy(() => z.object({
