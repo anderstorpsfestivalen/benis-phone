@@ -18,16 +18,25 @@ func TestHandleReusableActionRunsSourceScript(t *testing.T) {
 					Script: functions.Script{Code: `return;`},
 				}},
 			},
-			{Name: "bypass"},
+			{
+				Name: "bypass",
+				Actions: []functions.Action{{
+					Auto:  true,
+					Reuse: functions.ActionReference{Function: "main", Key: 4},
+				}},
+			},
 		},
 		Functions: make(map[string]*functions.Fn),
 	}
 	def.Prepare()
 
 	session := NewSession("test", "bypass", nil, nil, nil, nil, def, nil)
-	session.handleAction(&functions.Action{
-		Reuse: functions.ActionReference{Function: "main", Key: 4},
-	})
+	if err := session.enterFunction("bypass"); err != nil {
+		t.Fatalf("enter bypass function: %v", err)
+	}
+	if err := session.handlePrefix(); err != nil {
+		t.Fatalf("empty bypass prefix must be a no-op: %v", err)
+	}
 	if !session.activeScript {
 		t.Fatal("referenced script did not start")
 	}

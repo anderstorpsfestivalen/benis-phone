@@ -238,6 +238,13 @@ func (s *Session) handlePrefix() error {
 	if err != nil {
 		return err
 	}
+	// A function does not need an announcement. Prefix.GetPlayable represents
+	// that case with a zero Playable, which is intentionally a no-op here. Do
+	// not pass it to Play: Play rejects zero values because a zero-valued action
+	// playable usually indicates a malformed action.
+	if pr == (functions.Playable{}) {
+		return nil
+	}
 	return pr.Play(s.Audio, s.TTS)
 }
 
