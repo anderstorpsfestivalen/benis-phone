@@ -34,11 +34,12 @@ func GetPromilleForPhoneNumber(number string) (PromilleResp, error) {
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Add("Content-Length", strconv.Itoa(len(form.Encode())))
 
-	username := secrets.Loaded.Backend.Username
-	password := secrets.Loaded.Backend.Password
+	credentials := secrets.Current()
+	username := credentials.Backend.Username
+	password := credentials.Backend.Password
 
-	// Error check for missing credentials in creds.json
-	if secrets.Loaded.Backend.Username == "" || secrets.Loaded.Backend.Password == "" {
+	// Error check for missing live runtime credentials.
+	if username == "" || password == "" {
 		return PromilleResp{}, fmt.Errorf("No credentials for backend loaded.")
 	}
 

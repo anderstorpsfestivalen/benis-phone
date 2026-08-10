@@ -9,6 +9,7 @@
     "noUnusedParameters": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
+    "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "types": ["@cloudflare/workers-types"],

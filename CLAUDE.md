@@ -12,20 +12,8 @@ benis-phone (Best Enterprise Network Integrated Soft-phone) is a Go-based IVR te
 # Build
 go build benis-phone.go
 
-# Default: -source=remote. Subscribes to the worker's ConfigBroker DO
-# over WebSocket and hot-swaps the IVR tree when the editor saves.
-# In-flight calls keep their old snapshot; new calls pick up the new
-# config. Pass -poll to add the legacy HTTP poll fallback (use only when
-# the WS upgrade is blocked).
-./benis-phone -config simonstorp
-./benis-phone -c simonstorp                  # short alias
-
-# Local TOML instead of the worker
-./benis-phone -source file -def configurations/atp.toml
-
-# Direct/local mode is an inbound SIP connection in the config. Restrict it
-# with allowed_cidrs and point a softphone at its local_port.
-./benis-phone -source file -def configurations/atp.toml -debug
+# The only startup mode enrolls/uses a local Ed25519 bridge identity.
+./benis-phone -register <registration-id>
 
 # Disable optional features
 ./benis-phone -s3=false -http=false
@@ -51,13 +39,13 @@ Each inbound SIP call gets its own `Session` (in `core/controller/`) driven by a
 Menu structure is defined in TOML files (`configurations/`). Actions specify destinations (`dst`), services (`srv`), dispatchers, or `livefeed = { device, channel }` to stream a host audio capture device into the call's outbound RTP. Files referenced are in `files/`. `[sip]` contains shared call/recording limits and one or more `[[sip.connection]]` blocks. A connection is `registered` or inbound-only; inbound connections require source CIDRs. `./benis-phone -list-audio-devices` enumerates capture devices for filling in the livefeed config.
 
 ### Credentials
-Required in `creds/creds.json` with keys for R2 (S3-compatible Access Key ID + Secret Access Key + AccountID + Bucket — used by `core/filesync/` to mirror the bucket into `files/`), Polly, Backend, Trafiklab, Systemet, HTTPServerAuth, and optionally ElevenLabs and `PBXConfigToken` (required when `-source=remote`; matches the Worker's `CONFIG_BEARER_TOKEN` secret). SIP passwords are encrypted per config by the Worker. File-source mode reads a separate connection-id-to-password map from `creds/sip.json` (override with `-sip-secrets`).
+Runtime credentials are entered per config in the editor and encrypted with `SIP_SECRET_ENCRYPTION_KEY`. SIP passwords retain their per-connection encryption. Approved bridges fetch both through signed `/bridge/runtime` requests and retain them only in memory; the binary never reads `creds.json` or `sip.json`.
 
 ### Web editor (`/ui`)
-Single Cloudflare Worker (with bundled static assets via Workers Assets) + D1 + one Durable Object (`ConfigBroker`), served at `ivr.anderstorpsfestivalen.se`. The Worker handles `/api/*` (Cloudflare Access-protected editor CRUD), `/config` (bearer-token TOML / hash pull for backwards-compat polling), `/config/ws` (bearer-token long-lived WebSocket the binary subscribes to for push updates), and falls through to the bundled React build for everything else (Cloudflare Access in front of the hostname, with a bypass policy on `/config*`). Source under `ui/` — React 19 + TS + Tailwind (5-color palette in `tailwind.config.ts`) + pnpm + Vite + Wrangler. `pnpm deploy` builds Vite into `ui/dist` and ships Worker + assets in one shot.
+Single Cloudflare Worker (with bundled static assets via Workers Assets) + D1 + one Durable Object (`ConfigBroker`), served at `ivr.anderstorpsfestivalen.se`. The Worker handles Access-protected `/api/*`, public enrollment under `/bridge/enroll*`, signed runtime/hash/WebSocket endpoints under `/bridge/*`, and the React SPA. Cloudflare Access must bypass `/bridge/*` for headless phones.
 
 TypeScript types for the IVR config are generated from `core/functions/*.go` by `tools/typegen/`. Run `go generate ./...` from the repo root after editing any struct in `core/functions/`. CI fails if `ui/src/generated/` is out of date.
 
-Local dev: `cd ui && pnpm install`, then `pnpm worker:dev` (Worker on :8787 with local D1) and `pnpm dev` (Vite on :5173 proxying `/api` + `/config` to the Worker). Apply migrations once with `pnpm d1:migrate:local`.
+Local dev: `cd ui && pnpm install`, then `pnpm worker:dev` (Worker on :8787 with local D1) and `pnpm dev` (Vite on :5173 proxying `/api` + `/bridge` to the Worker). Apply migrations once with `pnpm d1:migrate:local`.
 
-Hot-reload: with `-source=remote`, the binary opens a long-lived WebSocket to `/config/ws?name=...&instance_id=...`. The worker's `ConfigBroker` Durable Object holds the subscription and is poked by `PUT /api/configs/:name` after each save. On a config event the binary fetches `/config/runtime`, prepares the Definition, and asks the SIP supervisor to reconcile registrations/listeners/routes. In-flight calls keep their snapshot and entrypoint. The same socket carries per-connection status and heartbeats back to the editor. `SIGUSR1` still forces this path; `-poll` adds the legacy hash poll fallback.
+Hot-reload: the binary opens a signed WebSocket to `/bridge/ws`; the validated bridge UUID is the runtime instance ID. On a broker event it fetches `/bridge/runtime`, rebuilds credential-dependent resources, syncs R2, and reconciles SIP. In-flight calls keep their definition snapshot. `SIGUSR1` forces this path; `-poll` adds signed hash polling.

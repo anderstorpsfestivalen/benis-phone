@@ -43,7 +43,7 @@ func (f *FlacOrNot) Get(input string, tmpl string, arguments map[string]string) 
 	// temp for testing
 	//res, err := http.Get("https://files.anderstorpsfestivalen.se/dump/playing.json")
 	// ATP prod IP
-	credentials := secrets.Loaded
+	credentials := secrets.Current()
 	res, err := http.Get(credentials.MediaServer)
 
 	if err != nil {

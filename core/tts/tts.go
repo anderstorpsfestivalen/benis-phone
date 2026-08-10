@@ -73,8 +73,32 @@ func (r *Registry) Register(p Provider) {
 	r.providers[p.Name()] = p
 }
 
+// Replace swaps the complete provider set and default under one write lock.
+// Calls already holding a provider continue safely; later calls see only the
+// new complete registry.
+func (r *Registry) Replace(defaultName string, providers ...Provider) error {
+	next := make(map[string]Provider, len(providers))
+	for _, provider := range providers {
+		if provider != nil {
+			next[provider.Name()] = provider
+		}
+	}
+	if _, ok := next[defaultName]; !ok {
+		return fmt.Errorf("tts: default provider %q is not registered", defaultName)
+	}
+	r.mu.Lock()
+	r.defaultName = defaultName
+	r.providers = next
+	r.mu.Unlock()
+	return nil
+}
+
 // DefaultName returns the configured default provider name.
-func (r *Registry) DefaultName() string { return r.defaultName }
+func (r *Registry) DefaultName() string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.defaultName
+}
 
 // Has reports whether a provider is registered under the given name.
 func (r *Registry) Has(name string) bool {

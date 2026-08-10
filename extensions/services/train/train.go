@@ -41,7 +41,7 @@ func (f *Train) Get(input string, tmpl string, arguments map[string]string) (str
 		return "", err
 	}
 
-	credentials := secrets.Loaded
+	credentials := secrets.Current()
 
 	var searchstation = "Reftele"
 
@@ -50,7 +50,7 @@ func (f *Train) Get(input string, tmpl string, arguments map[string]string) (str
 		searchstation = v
 	}
 
-	tf := trafikverket.New(credentials.Trafiklab)
+	tf := trafikverket.New(credentials.Trafikverket)
 
 	station, err := tf.LookupStation(searchstation)
 	if err != nil {

@@ -67,10 +67,9 @@ func Create(cfg Config) (sync, error) {
 	}, nil
 }
 
-func (f *sync) Start(path string) {
+func (f *sync) Start(path string) error {
 	if f.cfg.SecretAccessKey == "" {
-		log.Error("Empty R2 creds, cannot sync")
-		return
+		return fmt.Errorf("filesync: empty R2 secret, cannot sync")
 	}
 
 	log.WithFields(log.Fields{
@@ -83,13 +82,16 @@ func (f *sync) Start(path string) {
 	f.path = path
 	if _, err := os.Stat(f.path); os.IsNotExist(err) {
 		log.Info("Folder '" + f.path + "' does not exist, creating.")
-		os.MkdirAll(f.path, os.ModePerm)
+		if err := os.MkdirAll(f.path, os.ModePerm); err != nil {
+			return fmt.Errorf("filesync: create local directory: %w", err)
+		}
 	}
 
 	input := &s3.ListObjectsInput{Bucket: &f.cfg.Bucket}
 	if f.cfg.Prefix != "" {
 		input.Prefix = aws.String(f.cfg.Prefix)
 	}
+	var downloadErr error
 	err := f.svc.ListObjectsPages(input, func(p *s3.ListObjectsOutput, last bool) bool {
 		prefix := ""
 		if p.Prefix != nil {
@@ -116,30 +118,37 @@ func (f *sync) Start(path string) {
 			// A trailing slash in the key denotes a directory marker — just
 			// create the directory and move on.
 			if strings.HasSuffix(*obj.Key, "/") {
-				os.MkdirAll(filepath.Dir(localPath), os.ModePerm)
+				if err := os.MkdirAll(localPath, os.ModePerm); err != nil {
+					downloadErr = fmt.Errorf("filesync: create directory marker %s: %w", localPath, err)
+					return false
+				}
 			} else {
-				f.download(*obj.Key, localPath)
+				if err := f.download(*obj.Key, localPath); err != nil {
+					downloadErr = err
+					return false
+				}
 			}
 		}
 		return true
 	})
 	if err != nil {
-		log.Error(err)
-		return
+		return fmt.Errorf("filesync: list R2 objects: %w", err)
+	}
+	if downloadErr != nil {
+		return downloadErr
 	}
 
 	log.Info("R2 sync completed")
+	return nil
 }
 
-func (f *sync) download(key, localPath string) {
-	os.MkdirAll(filepath.Dir(localPath), os.ModePerm)
+func (f *sync) download(key, localPath string) error {
+	if err := os.MkdirAll(filepath.Dir(localPath), os.ModePerm); err != nil {
+		return fmt.Errorf("filesync: create directory for %s: %w", localPath, err)
+	}
 	nf, err := os.Create(localPath)
 	if err != nil {
-		log.WithFields(log.Fields{
-			"Filename": localPath,
-			"Err":      err,
-		}).Error("Failed to create file")
-		return
+		return fmt.Errorf("filesync: create %s: %w", localPath, err)
 	}
 	defer nf.Close()
 
@@ -148,8 +157,10 @@ func (f *sync) download(key, localPath string) {
 		Key:    aws.String(key),
 	})
 	if err != nil {
-		log.WithError(err).WithField("key", key).Error("Failed to download file")
-		return
+		_ = nf.Close()
+		_ = os.Remove(localPath)
+		return fmt.Errorf("filesync: download %s: %w", key, err)
 	}
 	log.WithField("Bytes", n).Info("Downloaded " + key)
+	return nil
 }

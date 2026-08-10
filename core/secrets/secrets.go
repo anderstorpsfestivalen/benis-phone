@@ -1,13 +1,12 @@
 package secrets
 
 import (
-	"encoding/json"
-	"io/ioutil"
+	"sync/atomic"
 )
 
 type AWSCred struct {
-	Key    string
-	Secret string
+	Key    string `json:"key"`
+	Secret string `json:"secret"`
 }
 
 // R2Cred carries the S3-compatible credentials for Cloudflare R2. Both keys
@@ -15,51 +14,43 @@ type AWSCred struct {
 // permissions" creation page. AccountID is the Cloudflare account UUID
 // (used to derive the S3 endpoint host).
 type R2Cred struct {
-	AccessKeyID     string
-	SecretAccessKey string
-	AccountID       string
-	Bucket          string
+	AccessKeyID     string `json:"access_key_id"`
+	SecretAccessKey string `json:"secret_access_key"`
+	AccountID       string `json:"account_id"`
+	Bucket          string `json:"bucket"`
 }
 
 type PWCombo struct {
-	Username string
-	Password string
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 type Credentials struct {
-	S3        AWSCred
-	R2        R2Cred
-	Polly     AWSCred
-	Backend   PWCombo
-	Trafiklab string
-	Systemet  string
+	R2      R2Cred  `json:"r2"`
+	Polly   AWSCred `json:"polly"`
+	Backend PWCombo `json:"backend"`
 
-	HTTPServerAuth PWCombo
-	MediaServer    string
+	Trafikverket string `json:"trafikverket_key"`
+
+	HTTPServerAuth PWCombo `json:"http_server_auth"`
+	MediaServer    string  `json:"media_server_url"`
 
 	// ElevenLabs API key (single-key auth). Optional; provider is only
 	// registered when a non-empty value is present.
-	ElevenLabs string
-
-	// PBXConfigToken is the bearer token the binary sends to the remote
-	// config worker (pbx.<zone>/config) when -source=remote. Required for
-	// remote mode; ignored otherwise.
-	PBXConfigToken string
+	ElevenLabs string `json:"elevenlabs_api_key"`
 }
 
-var Loaded Credentials
+var loaded atomic.Pointer[Credentials]
 
-func LoadSecrets() (Credentials, error) {
+func Replace(credentials Credentials) {
+	copy := credentials
+	loaded.Store(&copy)
+}
 
-	var c Credentials
-	data, err := ioutil.ReadFile("./creds/creds.json")
-	if err != nil {
-		return Credentials{}, err
+func Current() Credentials {
+	credentials := loaded.Load()
+	if credentials == nil {
+		return Credentials{}
 	}
-
-	json.Unmarshal(data, &c)
-
-	Loaded = c
-
-	return c, nil
+	return *credentials
 }

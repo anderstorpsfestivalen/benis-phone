@@ -1,12 +1,9 @@
-import { checkAccess, checkBearer, type Env } from "./lib/auth";
+import { checkAccess, type Env } from "./lib/auth";
 import { handleApi } from "./handlers/configs";
+import { handleBridge } from "./handlers/bridge";
+import { handleRegistrationsApi } from "./handlers/registrations";
 import { handleFiles } from "./handlers/files";
 import { handlePreview } from "./handlers/preview";
-import {
-  handleConfig,
-  handleConfigWS,
-  handleRuntimeConfig,
-} from "./handlers/serve";
 import { notFound, unauthorized } from "./lib/responses";
 
 export { ConfigBroker } from "./durable/configBroker";
@@ -19,28 +16,21 @@ export default {
   ): Promise<Response> {
     const url = new URL(req.url);
     try {
-      // Bearer-token WebSocket endpoint (Go binary). Long-lived push
-      // channel for config-changed events; replaces the old hash-polling
-      // loop. Outside the Access perimeter because phones are headless.
-      if (url.pathname === "/config/ws") {
-        if (!checkBearer(req, env)) return unauthorized();
-        return await handleConfigWS(req, env);
-      }
-      if (url.pathname === "/config/runtime") {
-        if (!checkBearer(req, env)) return unauthorized();
-        return await handleRuntimeConfig(req, env);
-      }
-
-      // Bearer-token endpoint (Go binary). Outside the Access perimeter on
-      // purpose — phones are headless clients.
-      if (url.pathname === "/config") {
-        if (!checkBearer(req, env)) return unauthorized();
-        return await handleConfig(req, env);
+      // Credentialless bridge enrollment and Ed25519-authenticated runtime
+      // endpoints live outside Cloudflare Access for headless phones.
+      if (url.pathname.startsWith("/bridge/")) {
+        return await handleBridge(req, env, url.pathname);
       }
 
       // Editor CRUD. Requires Cloudflare Access (Cf-Access-Jwt-Assertion).
       if (url.pathname.startsWith("/api/")) {
         if (!checkAccess(req)) return unauthorized();
+        if (
+          url.pathname.startsWith("/api/registrations") ||
+          url.pathname.startsWith("/api/bridges")
+        ) {
+          return await handleRegistrationsApi(req, env, url.pathname);
+        }
         if (url.pathname.startsWith("/api/configs")) {
           return await handleApi(req, env, url.pathname, ctx);
         }

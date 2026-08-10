@@ -11,16 +11,22 @@ import App from "./App";
 const ConfigList = lazy(() => import("./routes/ConfigList"));
 const ConfigEditor = lazy(() => import("./routes/ConfigEditor"));
 const FilesPage = lazy(() => import("./routes/FilesPage"));
+const RegistrationsPage = lazy(() => import("./routes/RegistrationsPage"));
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
-      <Suspense fallback={<div className="p-6 text-blue-slate text-sm font-mono">loading…</div>}>
+      <Suspense
+        fallback={
+          <div className="p-6 text-blue-slate text-sm font-mono">loading…</div>
+        }
+      >
         <Routes>
           <Route element={<App />}>
             <Route path="/" element={<ConfigList />} />
             <Route path="/editor/:name" element={<ConfigEditor />} />
             <Route path="/files" element={<FilesPage />} />
+            <Route path="/registrations" element={<RegistrationsPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

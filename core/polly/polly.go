@@ -64,7 +64,7 @@ func New(key string, secret string, haschcache string) (Polly, error) {
 
 	os.MkdirAll(haschcache, os.ModePerm)
 
-	// Error check for missing credentials in creds.json
+	// Fail clearly when the runtime credential bundle is incomplete.
 	if key == "" || secret == "" {
 		return Polly{}, fmt.Errorf("No credentials for Polly found.")
 	}
@@ -78,13 +78,13 @@ func New(key string, secret string, haschcache string) (Polly, error) {
 	}, nil
 }
 
-//TTS generates a message in Swedish
+// TTS generates a message in Swedish
 func (p *Polly) TTS(message string, voice string) ([]byte, error) {
 
 	return p.internalTTS(message, "sv-SE", voice, "standard")
 }
 
-//TTSLang allows you to define the speaking language in addition to voice.
+// TTSLang allows you to define the speaking language in addition to voice.
 // Yes we are quite lazy.
 func (p *Polly) TTSLang(message string, language string, voice string, engine string) ([]byte, error) {
 

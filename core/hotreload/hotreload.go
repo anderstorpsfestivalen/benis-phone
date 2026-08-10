@@ -1,6 +1,6 @@
 // Package hotreload owns the runtime config reload behaviour for the IVR
 // binary: it subscribes to the worker's ConfigBroker over WebSocket,
-// optionally polls /config?...&hash=1 as a fallback, listens for SIGUSR1,
+// optionally polls the signed /bridge/hash endpoint as a fallback, listens for SIGUSR1,
 // and on every trigger re-syncs the R2 file mirror before reconciling the
 // active flow definition, SIP listeners, registrations, and routes.
 //
@@ -11,6 +11,7 @@ package hotreload
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"sync"
@@ -23,23 +24,18 @@ import (
 	"github.com/anderstorpsfestivalen/benis-phone/core/sip"
 )
 
-// Config is the set of dependencies and tunables a Manager needs. All
-// fields except SyncFiles are required; SyncFiles may be nil when the
-// binary was started with -s3=false.
+// Config is the set of dependencies and tunables a Manager needs.
 type Config struct {
-	// RemoteClient is the HTTP client for /config and /config/runtime.
+	// RemoteClient signs requests to /bridge/hash, /bridge/runtime, and /bridge/ws.
 	RemoteClient *functions.RemoteClient
 	// SIPSupervisor reconciles both flow snapshots and connection lifecycles.
 	SIPSupervisor *sip.Supervisor
-	// SyncFiles is invoked before each Definition swap when non-nil.
-	// Typically wraps filesync.Start("files/").
-	SyncFiles func()
-	// BaseURL / Name / Token are forwarded to the WSWatcher.
-	BaseURL    string
-	Name       string
-	Token      string
-	InstanceID string
-	Status     <-chan []byte
+	// ApplyRuntime atomically prepares and installs every credential-dependent
+	// resource before reconciling SIP. When nil, the legacy supervisor-only
+	// apply is used by focused tests.
+	ApplyRuntime func(functions.RuntimeConfig) error
+	InstanceID   string
+	Status       <-chan []byte
 	// StatusSnapshot is replayed after each WebSocket reconnect.
 	StatusSnapshot func() [][]byte
 	// InitialHash is the hash observed at startup. Used to short-circuit
@@ -96,13 +92,11 @@ func (m *Manager) Start() {
 	go func() {
 		defer m.wg.Done()
 		w := &functions.WSWatcher{
-			BaseURL:    m.cfg.BaseURL,
-			Name:       m.cfg.Name,
-			Token:      m.cfg.Token,
-			InstanceID: m.cfg.InstanceID,
-			Outgoing:   m.cfg.Status,
-			Snapshot:   m.cfg.StatusSnapshot,
-			Logger:     m.log,
+			RemoteClient: m.cfg.RemoteClient,
+			InstanceID:   m.cfg.InstanceID,
+			Outgoing:     m.cfg.Status,
+			Snapshot:     m.cfg.StatusSnapshot,
+			Logger:       m.log,
 			OnUpdate: func(_ string) {
 				m.reloadOnce(false)
 			},
@@ -179,15 +173,19 @@ func (m *Manager) reloadOnce(force bool) {
 	if !force && h == m.hash {
 		return
 	}
-	if m.cfg.SyncFiles != nil {
-		m.cfg.SyncFiles()
-	}
 	runtime, err := m.cfg.RemoteClient.LoadRuntimeConfig()
 	if err != nil {
 		m.log.Warnf("hot-reload: definition fetch failed: %v", err)
 		return
 	}
-	if err := m.cfg.SIPSupervisor.Apply(runtime.Definition, runtime.SIPPasswords); err != nil {
+	if m.cfg.ApplyRuntime != nil {
+		err = m.cfg.ApplyRuntime(runtime)
+	} else if m.cfg.SIPSupervisor != nil {
+		err = m.cfg.SIPSupervisor.Apply(runtime.Definition, runtime.SIPPasswords)
+	} else {
+		err = fmt.Errorf("no runtime applier configured")
+	}
+	if err != nil {
 		m.log.Warnf("hot-reload: apply failed: %v", err)
 		return
 	}

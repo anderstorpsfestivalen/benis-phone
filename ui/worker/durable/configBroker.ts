@@ -4,7 +4,7 @@ import type { Env } from "../lib/auth";
 type Attachment = {
   role: "runtime" | "editor";
   name: string;
-  instanceId?: string;
+  bridgeId?: string;
 };
 
 export interface StoredStatusEvent {
@@ -47,12 +47,12 @@ export class ConfigBroker extends DurableObject<Env> {
         return new Response("expected websocket upgrade", { status: 426 });
       }
       const role = url.pathname === "/subscribe" ? "runtime" : "editor";
-      const instanceId = url.searchParams.get("instance_id") ?? undefined;
+      const bridgeId = url.searchParams.get("bridge_id") ?? undefined;
       if (
         role === "runtime" &&
-        (!instanceId || !/^[A-Za-z0-9_.-]{1,128}$/.test(instanceId))
+        (!bridgeId || !/^[0-9a-f-]{36}$/i.test(bridgeId))
       ) {
-        return new Response("missing instance_id", { status: 400 });
+        return new Response("missing bridge_id", { status: 400 });
       }
       const pair = new WebSocketPair();
       const [client, server] = Object.values(pair);
@@ -60,7 +60,7 @@ export class ConfigBroker extends DurableObject<Env> {
       server.serializeAttachment({
         role,
         name,
-        instanceId,
+        bridgeId,
       } satisfies Attachment);
       if (role === "editor") {
         server.send(
@@ -97,12 +97,28 @@ export class ConfigBroker extends DurableObject<Env> {
       return Response.json({ ok: true, fanout });
     }
 
+    if (url.pathname === "/revoke" && req.method === "POST") {
+      const bridgeId = url.searchParams.get("bridge_id") ?? "";
+      let closed = 0;
+      for (const ws of this.ctx.getWebSockets()) {
+        const att = ws.deserializeAttachment() as Attachment | null;
+        if (att?.role !== "runtime" || att.bridgeId !== bridgeId) continue;
+        try {
+          ws.close(4003, "bridge revoked");
+          closed++;
+        } catch {
+          /* already disconnected */
+        }
+      }
+      return Response.json({ ok: true, closed });
+    }
+
     return new Response("not found", { status: 404 });
   }
 
   async webSocketMessage(ws: WebSocket, raw: ArrayBuffer | string) {
     const att = ws.deserializeAttachment() as Attachment | null;
-    if (att?.role !== "runtime" || !att.instanceId || typeof raw !== "string")
+    if (att?.role !== "runtime" || !att.bridgeId || typeof raw !== "string")
       return;
     let msg: Record<string, unknown>;
     try {
@@ -112,10 +128,10 @@ export class ConfigBroker extends DurableObject<Env> {
     }
     const type = typeof msg.type === "string" ? msg.type : "";
     if (type === "runtime-hello" || type === "heartbeat") {
-      await this.touchInstance(att.name, att.instanceId);
+      await this.touchInstance(att.name, att.bridgeId);
       return;
     }
-    if (type !== "sip-status" || msg.instance_id !== att.instanceId) return;
+    if (type !== "sip-status" || msg.instance_id !== att.bridgeId) return;
     const connectionID =
       typeof msg.connection_id === "string"
         ? msg.connection_id.slice(0, 128)
@@ -133,7 +149,7 @@ export class ConfigBroker extends DurableObject<Env> {
         typeof msg.local_port === "number" ? msg.local_port : undefined,
       at: now,
     };
-    const key = this.connectionKey(att.name, att.instanceId, connectionID);
+    const key = this.connectionKey(att.name, att.bridgeId, connectionID);
     const existing = await this.ctx.storage.get<ConnectionStatus>(key);
     const cutoff = Date.now() - RETENTION_MS;
     const events = [...(existing?.events ?? []), event]
@@ -141,14 +157,14 @@ export class ConfigBroker extends DurableObject<Env> {
       .slice(-MAX_EVENTS);
     await this.ctx.storage.put({
       [key]: { current: event, events } satisfies ConnectionStatus,
-      [this.instanceKey(att.name, att.instanceId)]: {
-        instance_id: att.instanceId,
+      [this.instanceKey(att.name, att.bridgeId)]: {
+        instance_id: att.bridgeId,
         last_seen: now,
       } satisfies InstanceStatus,
     });
     this.fanoutEditors(att.name, {
       type: "sip-status",
-      instance_id: att.instanceId,
+      instance_id: att.bridgeId,
       last_seen: now,
       event,
     });
@@ -177,6 +193,11 @@ export class ConfigBroker extends DurableObject<Env> {
 
   private async touchInstance(name: string, instanceId: string) {
     const last_seen = new Date().toISOString();
+    await this.env.DB.prepare(
+      "UPDATE bridges SET last_seen = ? WHERE bridge_id = ? AND revoked_at IS NULL",
+    )
+      .bind(Date.now(), instanceId)
+      .run();
     await this.ctx.storage.put(this.instanceKey(name, instanceId), {
       instance_id: instanceId,
       last_seen,

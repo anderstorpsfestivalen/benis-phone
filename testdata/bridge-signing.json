@@ -1,0 +1,12 @@
+{
+  "seed": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+  "public_key": "A6EHv/POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg=",
+  "bridge_id": "123e4567-e89b-42d3-a456-426614174000",
+  "method": "GET",
+  "escaped_path": "/bridge/runtime",
+  "body_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "timestamp": "1786370400",
+  "nonce": "00112233445566778899aabbccddeeff",
+  "canonical": "v1\nGET\n/bridge/runtime\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\n1786370400\n00112233445566778899aabbccddeeff",
+  "signature": "87wYJ5QmpEQYG9FU8NgRRG2hGlJ9mmBrNRD4SSEBAwqgSVBwRPJcwnasVQ9BRWYX7FGvpaVdSiQQh+xXj3NdCw=="
+}

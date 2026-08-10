@@ -6,6 +6,7 @@ export interface ConfigRow {
   toml: string;
   hash: string;
   secret_revision: number;
+  registration_id: string;
   created_at: number;
   updated_at: number;
 }
@@ -38,13 +39,14 @@ export function upsertConfigStatement(
   row: ConfigRow,
 ): D1PreparedStatement {
   return env.DB.prepare(
-    `INSERT INTO configs (name, doc, toml, hash, secret_revision, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO configs (name, doc, toml, hash, secret_revision, registration_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(name) DO UPDATE SET
        doc = excluded.doc,
        toml = excluded.toml,
        hash = excluded.hash,
 	   secret_revision = excluded.secret_revision,
+       registration_id = excluded.registration_id,
        updated_at = excluded.updated_at`,
   ).bind(
     row.name,
@@ -52,6 +54,7 @@ export function upsertConfigStatement(
     row.toml,
     row.hash,
     row.secret_revision,
+    row.registration_id,
     row.created_at,
     row.updated_at,
   );

@@ -1,31 +1,18 @@
-import { timingSafeEqual } from "./hash";
-
 export interface Env {
   DB: D1Database;
-  CONFIG_BEARER_TOKEN: string;
-  // Base64-encoded 32-byte AES-GCM key for write-only SIP credentials.
+  // Base64-encoded 32-byte AES-GCM key for all write-only credentials.
+  // SIP ciphertext keeps its existing AAD and remains readable.
   SIP_SECRET_ENCRYPTION_KEY: string;
   // Static assets binding (the built React app in ./dist). Calling
   // env.ASSETS.fetch(req) serves a file if one exists.
   ASSETS: Fetcher;
   // ConfigBroker DO namespace — used by the editor save path to notify
-  // subscribers and by /config/ws to upgrade incoming subscriptions.
+  // subscribers and by /bridge/ws to upgrade incoming subscriptions.
   CONFIG_BROKER: DurableObjectNamespace;
   // R2 bucket holding audio assets. Read/written by /api/files/* (the
   // editor's Files tab) and read by the Go binary at startup via the S3
   // API (see core/filesync/).
   BUCKET: R2Bucket;
-}
-
-// /config (consumed by the Go binary). Plain bearer token. Cloudflare
-// Access is not used here because the Go phones are headless clients.
-export function checkBearer(req: Request, env: Env): boolean {
-  const expected = env.CONFIG_BEARER_TOKEN;
-  if (!expected) return false;
-  const header = req.headers.get("Authorization") ?? "";
-  if (!header.startsWith("Bearer ")) return false;
-  const got = header.slice("Bearer ".length).trim();
-  return timingSafeEqual(got, expected);
 }
 
 // /api/* (consumed by the React editor). Cloudflare Access is configured

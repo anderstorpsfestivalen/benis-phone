@@ -27,47 +27,18 @@ blacklist snd_bcm2835
 
 Reboot the RPI!
 
-# Credentials
-Create a dir called "creds" in the root, then create a file called creds.json, the file should look like this:
+# Credentials and bridge enrollment
 
-```
-{
-        "S3": {
-                "Key": "xxx",
-                "Secret": "xxx"
-        },
-        "Polly": {
-                "Key": "xxx",
-                "Secret": "xxx"
-        },
-        "Backend": {
-                "Username": "xxx",
-                "Password": "xxx"
-        },
-        "Trafiklab": "xxx",
-        "Systemet": "xxx",
-        "MediaServer": "xxx",
-        "HTTPServerAuth": {
-                "Username": "xxx",
-                "Password": "xxx"
-        }
-}
-```
+Runtime credentials are configured in the web editor for each config. The
+editor API returns only configured/unconfigured indicators. Credential bundles
+and per-connection SIP passwords are encrypted in D1 with the
+`SIP_SECRET_ENCRYPTION_KEY` Wrangler secret and are released only to an
+approved Ed25519 bridge bound to that config. The binary does not read
+`creds.json` or `sip.json` and never persists fetched credentials.
 
-SIP passwords are not stored in that file when using the web editor. They are
-entered per SIP connection, encrypted by the Worker with the
-`SIP_SECRET_ENCRYPTION_KEY` Wrangler secret, and delivered only to an IVR that
-has the bearer token. Generate a key with `openssl rand -base64 32` and install
-it with `wrangler secret put SIP_SECRET_ENCRYPTION_KEY`.
-
-For `-source=file`, put passwords in `creds/sip.json`, keyed by the stable
-connection ID:
-
-```json
-{
-  "primary": "the-sip-password"
-}
-```
+Generate the encryption master once with `openssl rand -base64 32` and install
+it with `wrangler secret put SIP_SECRET_ENCRYPTION_KEY`. Existing SIP
+ciphertext continues to use the same key.
 
 # Multiple SIP connections
 
@@ -131,34 +102,32 @@ Passwords only belong to `registered` connections. Switching a connection to
 `inbound` deletes its encrypted password during the same save and excludes it
 from runtime bundles.
 
-## Multi-SIP rollout
+## Bridge-only rollout
 
-This is an intentional configuration migration: the new runtime rejects the
-old single `[sip]` shape. For a remote deployment, stop the old IVR instances,
-apply D1 migration `0002_sip_secrets.sql`, set the encryption key, and deploy
-the Worker/UI. Open each legacy config in the editor, review its prefilled SIP
-connection, enter its password, and save it. The new IVR instances can then be
-started with the migrated configs. Keeping the old instances stopped during
-the config saves prevents them from hot-loading a shape they do not understand.
+Apply all D1 migrations and deploy the Worker/UI first. Enter the config's
+runtime credentials and SIP passwords, copy its registration ID, and start the
+new binary. Compare the printed fingerprint with the pending row in the
+Registrations tab before approving it. Stop the corresponding old SIP runtime
+before the newly approved bridge takes ownership of its listeners. After every
+bridge is active, old local credential files and the obsolete shared bearer
+secret can be removed.
 
 # Recoding
 To get recording to work, create in the files a directory called "recoding".
 
 # Running
 
-Remote mode is the default and requires a config name:
+The only runtime startup mode uses a config registration ID:
 
 ```sh
-./benis-phone -config simonstorp
+go run benis-phone.go -register 123e4567-e89b-42d3-a456-426614174000
 ```
 
-For local development, use a file containing a registered or inbound SIP
-connection. An inbound connection replaces the old direct-call debug flags:
+The first run creates a private Ed25519 identity in the OS user config
+directory and waits for web approval. Later runs use the same command and
+identity. Override the exact identity path with `-bridge-identity`; delete that
+identity and exit with `-reset-bridge`:
 
 ```sh
-./benis-phone -source=file -def configurations/atp.toml -s3=false
+go run benis-phone.go -register 123e4567-e89b-42d3-a456-426614174000 -reset-bridge
 ```
-
-Call the configured listener from a SIP client whose source address is covered
-by `allowed_cidrs`. Use `-sip-secrets` when registered file-mode connections
-store their password somewhere other than `creds/sip.json`.

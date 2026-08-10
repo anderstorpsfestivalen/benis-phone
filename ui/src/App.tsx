@@ -7,6 +7,7 @@ import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 export default function App() {
   const loc = useLocation();
   const inFiles = loc.pathname.startsWith("/files");
+  const inRegistrations = loc.pathname.startsWith("/registrations");
 
   return (
     <div className="min-h-screen bg-ink-black text-white flex flex-col">
@@ -16,8 +17,15 @@ export default function App() {
         </Link>
         <span className="text-shadow-grey">/</span>
         <nav className="flex items-center gap-1">
-          <NavTab to="/" active={!inFiles}>config</NavTab>
-          <NavTab to="/files" active={inFiles}>files</NavTab>
+          <NavTab to="/" active={!inFiles && !inRegistrations}>
+            config
+          </NavTab>
+          <NavTab to="/registrations" active={inRegistrations}>
+            registrations
+          </NavTab>
+          <NavTab to="/files" active={inFiles}>
+            files
+          </NavTab>
         </nav>
       </header>
       <main className="flex-1 p-3">

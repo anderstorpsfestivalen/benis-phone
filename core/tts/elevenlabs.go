@@ -24,7 +24,7 @@ const elevenLabsCacheRev = "v2"
 // /v1/text-to-speech/{voice_id} API). The Request carries BCP-47 (en-US);
 // ElevenLabs wants ISO 639-1 (en), so we strip the region tag below.
 const (
-	elevenLabsEndpoint    = "https://api.elevenlabs.io/v1/text-to-speech"
+	elevenLabsEndpoint     = "https://api.elevenlabs.io/v1/text-to-speech"
 	defaultElevenLabsModel = "eleven_multilingual_v2"
 )
 

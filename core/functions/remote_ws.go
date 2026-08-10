@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -19,10 +18,8 @@ import (
 // the new TOML (the existing reloadOnce flow). On disconnect it reconnects
 // with exponential backoff up to a 60-second cap.
 type WSWatcher struct {
-	BaseURL    string // e.g. "https://ivr.anderstorpsfestivalen.se"
-	Name       string // config name we care about
-	Token      string // bearer (PBXConfigToken)
-	InstanceID string
+	RemoteClient *RemoteClient
+	InstanceID   string
 	// Outgoing carries already-encoded control-plane messages such as
 	// per-connection SIP status events.
 	Outgoing <-chan []byte
@@ -65,15 +62,26 @@ func (w *WSWatcher) Run(ctx context.Context) {
 }
 
 func (w *WSWatcher) runOnce(ctx context.Context) error {
-	u, err := buildWSURL(w.BaseURL, w.Name, w.InstanceID)
+	if w.RemoteClient == nil {
+		return fmt.Errorf("missing remote client")
+	}
+	signed, err := w.RemoteClient.SignedRequest(http.MethodGet, "/bridge/ws")
 	if err != nil {
 		return err
+	}
+	u := signed.URL.String()
+	if strings.HasPrefix(u, "https://") {
+		u = "wss://" + strings.TrimPrefix(u, "https://")
+	} else if strings.HasPrefix(u, "http://") {
+		u = "ws://" + strings.TrimPrefix(u, "http://")
+	} else {
+		return fmt.Errorf("base url scheme must be http or https")
 	}
 
 	dialCtx, cancelDial := context.WithTimeout(ctx, 15*time.Second)
 	defer cancelDial()
 	c, _, err := websocket.Dial(dialCtx, u, &websocket.DialOptions{
-		HTTPHeader: http.Header{"Authorization": {"Bearer " + w.Token}},
+		HTTPHeader: signed.Header.Clone(),
 	})
 	if err != nil {
 		return fmt.Errorf("dial: %w", err)
@@ -81,8 +89,8 @@ func (w *WSWatcher) runOnce(ctx context.Context) error {
 	defer c.CloseNow()
 
 	w.Logger.WithFields(logrus.Fields{
-		"url":  u,
-		"name": w.Name,
+		"url":       u,
+		"bridge_id": w.InstanceID,
 	}).Info("config-ws connected")
 
 	// One writer owns all outgoing frames: status events and a heartbeat that
@@ -155,7 +163,7 @@ func (w *WSWatcher) runOnce(ctx context.Context) error {
 			w.Logger.WithError(err).WithField("raw", string(data)).Warn("config-ws: bad payload")
 			continue
 		}
-		if msg.Type != "config-updated" || msg.Name != w.Name {
+		if msg.Type != "config-updated" {
 			continue
 		}
 		w.Logger.WithField("hash", shortHashStr(msg.Hash)).Info("config-ws update")
@@ -175,28 +183,6 @@ func (w *WSWatcher) initialMessages() [][]byte {
 		messages = append(messages, w.Snapshot()...)
 	}
 	return messages
-}
-
-// buildWSURL turns "https://host" + name into "wss://host/config/ws?name=...".
-func buildWSURL(baseURL, name, instanceID string) (string, error) {
-	u, err := url.Parse(baseURL)
-	if err != nil {
-		return "", fmt.Errorf("invalid base url %q: %w", baseURL, err)
-	}
-	switch strings.ToLower(u.Scheme) {
-	case "https":
-		u.Scheme = "wss"
-	case "http":
-		u.Scheme = "ws"
-	default:
-		return "", fmt.Errorf("base url scheme must be http or https, got %q", u.Scheme)
-	}
-	u.Path = "/config/ws"
-	q := u.Query()
-	q.Set("name", name)
-	q.Set("instance_id", instanceID)
-	u.RawQuery = q.Encode()
-	return u.String(), nil
 }
 
 func shortHashStr(h string) string {

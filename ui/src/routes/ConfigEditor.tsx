@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { api, type SIPStatusSnapshot } from "../lib/api";
+import {
+  api,
+  credentialKeys,
+  type CredentialKey,
+  type CredentialState,
+  type SIPStatusSnapshot,
+} from "../lib/api";
 import { emptyDefinition } from "../lib/empty";
 import { isLegacySIPToml, parseTomlConfig } from "../lib/toml-parse";
 import { renderToml } from "../lib/toml-render";
@@ -12,7 +18,7 @@ import { validateSIPDefinition } from "../lib/sip-validation";
 
 // Tabs other than `fn` are secondary configuration — fn is the primary view
 // the editor opens to and the only one that gets the full viewport width.
-type Tab = "fn" | "general" | "sip" | "toml";
+type Tab = "fn" | "general" | "sip" | "credentials" | "toml";
 
 export default function ConfigEditor() {
   const { name = "" } = useParams();
@@ -29,6 +35,13 @@ export default function ConfigEditor() {
     instances: [],
   });
   const [legacySIP, setLegacySIP] = useState(false);
+  const [credentialState, setCredentialState] =
+    useState<CredentialState | null>(null);
+  const [credentialEdits, setCredentialEdits] = useState<
+    Partial<Record<CredentialKey, string | null>>
+  >({});
+  const [registrationID, setRegistrationID] = useState("");
+  const [savingCredentials, setSavingCredentials] = useState(false);
 
   useEffect(() => {
     api
@@ -49,7 +62,12 @@ export default function ConfigEditor() {
         }
         setSavedHash(p.hash);
         setSecretState(p.sip_secret_state ?? {});
+        setRegistrationID(p.registration_id);
       })
+      .catch((e) => setErr(String(e)));
+    api
+      .credentials(name)
+      .then((payload) => setCredentialState(payload.state))
       .catch((e) => setErr(String(e)));
   }, [name]);
 
@@ -132,6 +150,37 @@ export default function ConfigEditor() {
     });
   };
 
+  async function saveCredentials() {
+    if (Object.keys(credentialEdits).length === 0) return;
+    setSavingCredentials(true);
+    setErr(null);
+    try {
+      const result = await api.patchCredentials(name, credentialEdits);
+      setCredentialState(result.state);
+      setSavedHash(result.hash);
+      setCredentialEdits({});
+    } catch (caught) {
+      setErr(String(caught));
+    } finally {
+      setSavingCredentials(false);
+    }
+  }
+
+  async function rotateRegistration() {
+    if (
+      !confirm(
+        "Rotate this registration ID? Existing bridges stay active, but the old ID can no longer enroll new bridges.",
+      )
+    )
+      return;
+    try {
+      const result = await api.rotateRegistration(name);
+      setRegistrationID(result.registration_id);
+    } catch (caught) {
+      setErr(String(caught));
+    }
+  }
+
   return (
     <div className={tab === "fn" ? "px-4" : "max-w-5xl mx-auto px-4"}>
       <div className="flex items-center gap-3 py-2">
@@ -144,19 +193,21 @@ export default function ConfigEditor() {
         </span>
 
         <div className="flex gap-1 ml-4">
-          {(["fn", "general", "sip", "toml"] as Tab[]).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`px-3 py-1 text-xs font-mono rounded ${
-                tab === t
-                  ? "bg-blue-slate text-white"
-                  : "text-blue-slate hover:text-white border border-shadow-grey"
-              }`}
-            >
-              {t}
-            </button>
-          ))}
+          {(["fn", "general", "sip", "credentials", "toml"] as Tab[]).map(
+            (t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`px-3 py-1 text-xs font-mono rounded ${
+                  tab === t
+                    ? "bg-blue-slate text-white"
+                    : "text-blue-slate hover:text-white border border-shadow-grey"
+                }`}
+              >
+                {t}
+              </button>
+            ),
+          )}
         </div>
 
         <div className="ml-auto flex gap-2">
@@ -237,11 +288,170 @@ export default function ConfigEditor() {
         />
       )}
 
+      {tab === "credentials" && (
+        <CredentialsEditor
+          registrationID={registrationID}
+          state={credentialState}
+          edits={credentialEdits}
+          saving={savingCredentials}
+          onChange={(key, value) =>
+            setCredentialEdits((current) => {
+              const next = { ...current };
+              if (value === undefined) delete next[key];
+              else next[key] = value;
+              return next;
+            })
+          }
+          onSave={saveCredentials}
+          onRotate={rotateRegistration}
+        />
+      )}
+
       {tab === "toml" && (
         <pre className="bg-ink-black border border-shadow-grey rounded p-4 text-xs font-mono whitespace-pre-wrap overflow-x-auto">
           {toml}
         </pre>
       )}
+    </div>
+  );
+}
+
+const credentialLabels: Record<CredentialKey, string> = {
+  r2_access_key: "R2 access key",
+  r2_secret_key: "R2 secret key",
+  r2_account_id: "R2 account ID",
+  r2_bucket: "R2 bucket",
+  polly_key: "Polly access key",
+  polly_secret: "Polly secret key",
+  elevenlabs_api_key: "ElevenLabs API key",
+  backend_username: "Backend username",
+  backend_password: "Backend password",
+  trafikverket_key: "Trafikverket key",
+  media_server_url: "Media-server URL",
+  http_username: "Local HTTP username",
+  http_password: "Local HTTP password",
+};
+
+function CredentialsEditor({
+  registrationID,
+  state,
+  edits,
+  saving,
+  onChange,
+  onSave,
+  onRotate,
+}: {
+  registrationID: string;
+  state: CredentialState | null;
+  edits: Partial<Record<CredentialKey, string | null>>;
+  saving: boolean;
+  onChange: (key: CredentialKey, value: string | null | undefined) => void;
+  onSave: () => void;
+  onRotate: () => void;
+}) {
+  async function copyRegistration() {
+    await navigator.clipboard.writeText(registrationID);
+  }
+
+  return (
+    <div className="space-y-6 max-w-3xl">
+      <section className="border border-shadow-grey rounded p-4 bg-gunmetal">
+        <h2 className="font-mono text-sm mb-2">Registration ID</h2>
+        <p className="text-xs text-blue-slate mb-3">
+          Start a new bridge with{" "}
+          <span className="font-mono">
+            go run benis-phone.go -register &lt;registration-id&gt;
+          </span>
+          .
+        </p>
+        <div className="flex gap-2">
+          <code className="flex-1 border border-shadow-grey rounded px-3 py-2 text-xs break-all">
+            {registrationID || "loading…"}
+          </code>
+          <button
+            className="px-3 py-1 border border-shadow-grey rounded text-xs"
+            disabled={!registrationID}
+            onClick={copyRegistration}
+          >
+            Copy
+          </button>
+          <button
+            className="px-3 py-1 border border-shadow-grey rounded text-xs"
+            onClick={onRotate}
+          >
+            Rotate
+          </button>
+        </div>
+      </section>
+
+      <section className="border border-shadow-grey rounded p-4 bg-gunmetal">
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h2 className="font-mono text-sm">Runtime credentials</h2>
+            <p className="text-xs text-blue-slate mt-1">
+              Values are write-only. The API returns configured state only.
+            </p>
+          </div>
+          <button
+            className="px-4 py-1.5 bg-blue-slate rounded text-sm disabled:opacity-50"
+            disabled={saving || Object.keys(edits).length === 0}
+            onClick={onSave}
+          >
+            {saving ? "Saving…" : "Save credentials"}
+          </button>
+        </div>
+        <div className="grid gap-3">
+          {credentialKeys.map((key) => {
+            const edit = edits[key];
+            const configured = state?.[key] ?? false;
+            return (
+              <div
+                key={key}
+                className="grid grid-cols-[180px_1fr_auto_auto] gap-2 items-center"
+              >
+                <label className="text-xs">{credentialLabels[key]}</label>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  className="px-3 py-2 rounded text-sm font-mono"
+                  placeholder={
+                    configured ? "enter replacement" : "not configured"
+                  }
+                  value={typeof edit === "string" ? edit : ""}
+                  onChange={(event) =>
+                    onChange(key, event.target.value || undefined)
+                  }
+                />
+                <span className="text-xs text-blue-slate w-24">
+                  {edit === null
+                    ? "will clear"
+                    : typeof edit === "string"
+                      ? "will replace"
+                      : configured
+                        ? "configured"
+                        : "unconfigured"}
+                </span>
+                {edit !== undefined ? (
+                  <button
+                    className="text-xs px-2 py-1 border border-shadow-grey rounded"
+                    onClick={() => onChange(key, undefined)}
+                  >
+                    Undo
+                  </button>
+                ) : (
+                  <button
+                    className="text-xs px-2 py-1 border border-shadow-grey rounded disabled:opacity-40"
+                    disabled={!configured}
+                    onClick={() => onChange(key, null)}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
     </div>
   );
 }

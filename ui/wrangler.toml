@@ -3,13 +3,13 @@ main = "worker/index.ts"
 compatibility_date = "2025-01-15"
 
 # Workers Assets: the Worker serves the React build for any path that
-# isn't /api/* or /config. The hostname is bound to this Worker via a
+# isn't /api/* or /bridge/*. The hostname is bound to this Worker via a
 # Custom Domain (set up in the Cloudflare dashboard, not here).
 [assets]
 directory = "./dist"
 binding = "ASSETS"
 # We handle SPA fallback ourselves in worker/index.ts so /api/* and
-# /config never accidentally return index.html.
+# /bridge never accidentally returns index.html.
 not_found_handling = "none"
 
 [[d1_databases]]
@@ -38,5 +38,5 @@ tag = "v1"
 new_sqlite_classes = ["ConfigBroker"]
 
 # Wrangler secrets (set with `wrangler secret put`):
-#   CONFIG_BEARER_TOKEN — shared with the Go binary via creds/creds.json
-#   SIP_SECRET_ENCRYPTION_KEY — base64-encoded 32-byte AES-GCM key
+#   SIP_SECRET_ENCRYPTION_KEY — base64-encoded 32-byte AES-GCM key used for
+#     existing SIP secrets and per-config credential bundles

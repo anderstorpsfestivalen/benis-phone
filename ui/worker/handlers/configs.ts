@@ -8,9 +8,14 @@ import { getConfig, listConfigs, upsertConfigStatement } from "../lib/db";
 import {
   deleteSIPSecretStatement,
   decryptSIPPassword,
+  CREDENTIAL_KEYS,
+  credentialState,
+  encryptCredentialBundle,
+  getCredentialBundle,
   encryptSIPPassword,
   listSIPSecrets,
   putSIPSecretStatement,
+  putCredentialBundleStatement,
   staleSIPSecrets,
 } from "../lib/secrets";
 import { badRequest, json, notFound } from "../lib/responses";
@@ -46,6 +51,19 @@ export async function handleApi(
   }
   if (sub === "/sip-status/ws" && req.headers.get("Upgrade") === "websocket") {
     return statusSocket(req, env, name);
+  }
+  if (sub === "/credentials") {
+    if (req.method === "GET") return getCredentials(env, name);
+    if (req.method === "PATCH") return patchCredentials(req, env, name, ctx);
+    return badRequest("method not allowed");
+  }
+  if (sub === "/registration") {
+    if (req.method === "GET") return getRegistration(env, name);
+    return badRequest("method not allowed");
+  }
+  if (sub === "/registration/rotate") {
+    if (req.method === "POST") return rotateRegistration(env, name);
+    return badRequest("method not allowed");
   }
 
   if (sub !== "") return notFound();
@@ -90,6 +108,7 @@ async function getOne(env: Env, name: string): Promise<Response> {
     hash: row.hash,
     created_at: row.created_at,
     updated_at: row.updated_at,
+    registration_id: row.registration_id,
     sip_secret_state: Object.fromEntries(
       (await listSIPSecrets(env, name)).map((secret) => [
         secret.connection_id,
@@ -216,6 +235,7 @@ async function putOne(
     toml: body.toml,
     hash: await sha256Hex(`${body.toml}\nsecret-revision:${secretRevision}`),
     secret_revision: secretRevision,
+    registration_id: existing?.registration_id ?? crypto.randomUUID(),
     created_at: existing?.created_at ?? now,
     updated_at: now,
   };
@@ -255,6 +275,7 @@ async function putOne(
     hash: row.hash,
     created_at: row.created_at,
     updated_at: row.updated_at,
+    registration_id: row.registration_id,
     sip_secret_state: Object.fromEntries(
       [...connectionIDs].map((id) => [
         id,
@@ -278,7 +299,7 @@ async function deleteOne(
     deleteSIPSecretStatement(env, name),
     env.DB.prepare("DELETE FROM configs WHERE name = ?").bind(name),
   ]);
-  // Notify subscribers — they'll find /config returns 404 on next pull
+  // Notify subscribers — they'll find /bridge/runtime returns 404 on next pull
   // and can decide how to handle it (most likely: stay on current).
   notifyBroker(env, ctx, name, "");
   return new Response(null, { status: 204 });
@@ -322,6 +343,7 @@ async function duplicate(
     toml: src.toml,
     hash: await sha256Hex(`${src.toml}\nsecret-revision:${secretRevision}`),
     secret_revision: secretRevision,
+    registration_id: crypto.randomUUID(),
     created_at: now,
     updated_at: now,
   };
@@ -354,13 +376,14 @@ async function duplicate(
     hash: row.hash,
     created_at: row.created_at,
     updated_at: row.updated_at,
+    registration_id: row.registration_id,
     sip_secret_state: Object.fromEntries(
       sourceSecrets.map((secret) => [secret.connection_id, true]),
     ),
   });
 }
 
-function notifyBroker(
+export function notifyBroker(
   env: Env,
   ctx: ExecutionContext,
   name: string,
@@ -370,4 +393,81 @@ function notifyBroker(
   const stub = env.CONFIG_BROKER.get(id);
   const url = `https://broker/notify?name=${encodeURIComponent(name)}&hash=${encodeURIComponent(hash)}`;
   ctx.waitUntil(stub.fetch(url, { method: "POST" }));
+}
+
+async function getCredentials(env: Env, name: string): Promise<Response> {
+  if (!(await getConfig(env, name))) return notFound();
+  return json({ state: credentialState(await getCredentialBundle(env, name)) });
+}
+
+async function patchCredentials(
+  req: Request,
+  env: Env,
+  name: string,
+  ctx: ExecutionContext,
+): Promise<Response> {
+  const config = await getConfig(env, name);
+  if (!config) return notFound();
+  let body: { patch?: Record<string, unknown> };
+  try {
+    body = (await req.json()) as { patch?: Record<string, unknown> };
+  } catch {
+    return badRequest("invalid json");
+  }
+  if (!body.patch || typeof body.patch !== "object") {
+    return badRequest("patch is required");
+  }
+  const allowed = new Set<string>(CREDENTIAL_KEYS);
+  const changes = Object.entries(body.patch);
+  if (changes.length === 0) return badRequest("credential patch is empty");
+  for (const [key, value] of changes) {
+    if (!allowed.has(key)) return badRequest(`unknown credential ${key}`);
+    if (value !== null && (typeof value !== "string" || value.length === 0)) {
+      return badRequest(`${key} must be a non-empty string or null`);
+    }
+  }
+  const bundle = await getCredentialBundle(env, name);
+  for (const [key, value] of changes) {
+    bundle[key as keyof typeof bundle] =
+      value === null ? "" : (value as string);
+  }
+  const encrypted = await encryptCredentialBundle(
+    env.SIP_SECRET_ENCRYPTION_KEY,
+    name,
+    bundle,
+  );
+  const now = Date.now();
+  const secretRevision = config.secret_revision + 1;
+  const hash = await sha256Hex(
+    `${config.toml}\nsecret-revision:${secretRevision}`,
+  );
+  await env.DB.batch([
+    putCredentialBundleStatement(env, {
+      config_name: name,
+      ...encrypted,
+      updated_at: now,
+    }),
+    env.DB.prepare(
+      "UPDATE configs SET secret_revision = ?, hash = ?, updated_at = ? WHERE name = ?",
+    ).bind(secretRevision, hash, now, name),
+  ]);
+  notifyBroker(env, ctx, name, hash);
+  return json({ state: credentialState(bundle), hash, updated_at: now });
+}
+
+async function getRegistration(env: Env, name: string): Promise<Response> {
+  const config = await getConfig(env, name);
+  if (!config) return notFound();
+  return json({ registration_id: config.registration_id });
+}
+
+async function rotateRegistration(env: Env, name: string): Promise<Response> {
+  if (!(await getConfig(env, name))) return notFound();
+  const registrationId = crypto.randomUUID();
+  await env.DB.prepare(
+    "UPDATE configs SET registration_id = ?, updated_at = ? WHERE name = ?",
+  )
+    .bind(registrationId, Date.now(), name)
+    .run();
+  return json({ registration_id: registrationId });
 }

@@ -32,6 +32,119 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
+export const CREDENTIAL_KEYS = [
+  "r2_access_key",
+  "r2_secret_key",
+  "r2_account_id",
+  "r2_bucket",
+  "polly_key",
+  "polly_secret",
+  "elevenlabs_api_key",
+  "backend_username",
+  "backend_password",
+  "trafikverket_key",
+  "media_server_url",
+  "http_username",
+  "http_password",
+] as const;
+
+export type CredentialKey = (typeof CREDENTIAL_KEYS)[number];
+export type CredentialBundle = Record<CredentialKey, string>;
+
+export interface CredentialBundleRow extends EncryptedSecret {
+  config_name: string;
+  updated_at: number;
+}
+
+export function emptyCredentialBundle(): CredentialBundle {
+  return Object.fromEntries(
+    CREDENTIAL_KEYS.map((key) => [key, ""]),
+  ) as CredentialBundle;
+}
+
+function credentialAAD(configName: string): Uint8Array {
+  return new TextEncoder().encode(`benis-pbx:credentials:v1:${configName}`);
+}
+
+export async function encryptCredentialBundle(
+  encodedKey: string,
+  configName: string,
+  bundle: CredentialBundle,
+): Promise<EncryptedSecret> {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv, additionalData: credentialAAD(configName) },
+    await encryptionKey(encodedKey),
+    new TextEncoder().encode(JSON.stringify(bundle)),
+  );
+  return {
+    version: 1,
+    iv: bytesToBase64(iv),
+    ciphertext: bytesToBase64(new Uint8Array(ciphertext)),
+  };
+}
+
+export async function decryptCredentialBundle(
+  encodedKey: string,
+  row: CredentialBundleRow,
+): Promise<CredentialBundle> {
+  if (row.version !== 1)
+    throw new Error(`unsupported credential bundle version ${row.version}`);
+  const cleartext = await crypto.subtle.decrypt(
+    {
+      name: "AES-GCM",
+      iv: base64ToBytes(row.iv),
+      additionalData: credentialAAD(row.config_name),
+    },
+    await encryptionKey(encodedKey),
+    base64ToBytes(row.ciphertext),
+  );
+  const decoded = JSON.parse(new TextDecoder().decode(cleartext)) as Record<
+    string,
+    unknown
+  >;
+  const bundle = emptyCredentialBundle();
+  for (const key of CREDENTIAL_KEYS) {
+    if (typeof decoded[key] === "string") bundle[key] = decoded[key];
+  }
+  return bundle;
+}
+
+export async function getCredentialBundle(
+  env: Env,
+  configName: string,
+): Promise<CredentialBundle> {
+  const row = await env.DB.prepare(
+    "SELECT config_name, version, iv, ciphertext, updated_at FROM credential_bundles WHERE config_name = ?",
+  )
+    .bind(configName)
+    .first<CredentialBundleRow>();
+  return row
+    ? decryptCredentialBundle(env.SIP_SECRET_ENCRYPTION_KEY, row)
+    : emptyCredentialBundle();
+}
+
+export function credentialState(
+  bundle: CredentialBundle,
+): Record<CredentialKey, boolean> {
+  return Object.fromEntries(
+    CREDENTIAL_KEYS.map((key) => [key, bundle[key] !== ""]),
+  ) as Record<CredentialKey, boolean>;
+}
+
+export function putCredentialBundleStatement(
+  env: Env,
+  row: CredentialBundleRow,
+): D1PreparedStatement {
+  return env.DB.prepare(
+    `INSERT INTO credential_bundles (config_name, version, iv, ciphertext, updated_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(config_name) DO UPDATE SET
+       version = excluded.version, iv = excluded.iv,
+       ciphertext = excluded.ciphertext, updated_at = excluded.updated_at`,
+  ).bind(row.config_name, row.version, row.iv, row.ciphertext, row.updated_at);
+}
+
 function base64ToBytes(value: string): Uint8Array {
   const binary = atob(value);
   return Uint8Array.from(binary, (c) => c.charCodeAt(0));
