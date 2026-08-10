@@ -212,11 +212,21 @@ export default function ConfigEditor() {
 
         <div className="ml-auto flex gap-2">
           <button
-            onClick={save}
-            disabled={saving}
+            onClick={tab === "credentials" ? saveCredentials : save}
+            disabled={
+              tab === "credentials"
+                ? savingCredentials || Object.keys(credentialEdits).length === 0
+                : saving
+            }
             className="px-4 py-1.5 bg-blue-slate text-white rounded hover:bg-shadow-grey disabled:opacity-50 text-sm"
           >
-            {saving ? "Saving…" : "Save"}
+            {tab === "credentials"
+              ? savingCredentials
+                ? "Saving credentials…"
+                : "Save credentials"
+              : saving
+                ? "Saving…"
+                : "Save"}
           </button>
         </div>
       </div>
