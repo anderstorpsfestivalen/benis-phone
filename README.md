@@ -51,6 +51,12 @@ Automatically allocated ports remain attached to their connection IDs across
 hot reloads, so inserting or reordering another connection does not restart
 healthy listeners.
 
+Inbound listeners bind `0.0.0.0` so a PBX can reach the same connection over
+loopback, a LAN address, or the host's public interface. They still advertise
+the detected address (or `external_ip`) in SIP and SDP. Keep
+`allowed_cidrs` narrow because the signaling socket is reachable on every IPv4
+interface.
+
 ```toml
 [sip]
 max_concurrent_calls = 20

@@ -133,8 +133,8 @@ func NewClient(config ClientConfig, def functions.Definition, manager *controlle
 		return nil, fmt.Errorf("failed to create SIP user agent: %w", err)
 	}
 
-	// Detect local IP for binding/SDP. In inbound-only mode there's no server to
-	// route towards, so we just discover a reasonable LAN IP.
+	// Detect the address to advertise in SIP/SDP. Inbound listeners bind all
+	// IPv4 interfaces separately so local PBXes can reach them over loopback.
 	var localIP string
 	if config.InboundOnly {
 		localIP, err = getLANIP()
@@ -148,39 +148,31 @@ func NewClient(config ClientConfig, def functions.Definition, manager *controlle
 		}
 	}
 
-	log.WithField("local_ip", localIP).Info("Detected local IP for SIP")
+	log.WithField("advertised_ip", localIP).Info("Selected SIP advertised IP")
 
-	// Configure transport - bind to the detected local IP directly
-	transport := diago.Transport{
-		Transport: config.Transport,
-		BindHost:  localIP,
-		BindPort:  config.LocalPort,
+	transport, err := buildTransport(config, localIP)
+	if err != nil {
+		return nil, err
 	}
-
-	// If external IP is configured, use it for NAT traversal
 	if config.ExternalIP != "" {
-		extIP := net.ParseIP(config.ExternalIP)
-		if extIP == nil {
-			return nil, fmt.Errorf("invalid external IP: %s", config.ExternalIP)
-		}
-		transport.ExternalHost = config.ExternalIP
-		transport.MediaExternalIP = extIP
 		log.WithField("external_ip", config.ExternalIP).Info("Using external IP for NAT traversal")
 	}
 
-	// Pre-create the sipgo client bound to the same local addr the listener will use,
-	// so REGISTER and other outbound requests share the listening socket. Without this,
-	// diago creates its per-transport client before the listener starts, falls back to
-	// an ephemeral source port, and PBX responses (sent to Via host:port) can't be
-	// associated with the outbound transaction.
+	// Registered connections must force REGISTER onto their interface-specific
+	// listener socket. Inbound connections instead leave the local address
+	// unforced so in-dialog requests reuse the wildcard listener connection.
 	clientOpts := []sipgo.ClientOption{
 		sipgo.WithClientNAT(),
-		sipgo.WithClientConnectionAddr(net.JoinHostPort(localIP, strconv.Itoa(config.LocalPort))),
 	}
-	if config.ExternalIP != "" {
-		// Make outgoing Via headers advertise the external IP:port pair.
+	if !config.InboundOnly {
 		clientOpts = append(clientOpts,
-			sipgo.WithClientHostname(config.ExternalIP),
+			sipgo.WithClientConnectionAddr(net.JoinHostPort(localIP, strconv.Itoa(config.LocalPort))),
+		)
+	}
+	if transport.ExternalHost != "" {
+		// Make outgoing Via headers advertise the same address as Contact/SDP.
+		clientOpts = append(clientOpts,
+			sipgo.WithClientHostname(transport.ExternalHost),
 			sipgo.WithClientPort(config.LocalPort),
 		)
 	}
@@ -210,6 +202,32 @@ func NewClient(config ClientConfig, def functions.Definition, manager *controlle
 		status:      status,
 		digestAuth:  newSIPDigestAuthenticator(),
 	}, nil
+}
+
+func buildTransport(config ClientConfig, localIP string) (diago.Transport, error) {
+	bindHost := localIP
+	if config.InboundOnly {
+		bindHost = "0.0.0.0"
+	}
+	transport := diago.Transport{
+		Transport: config.Transport,
+		BindHost:  bindHost,
+		BindPort:  config.LocalPort,
+	}
+
+	advertisedIP := config.ExternalIP
+	if advertisedIP == "" && config.InboundOnly {
+		advertisedIP = localIP
+	}
+	if advertisedIP != "" {
+		mediaIP := net.ParseIP(advertisedIP)
+		if mediaIP == nil {
+			return diago.Transport{}, fmt.Errorf("invalid external IP: %s", advertisedIP)
+		}
+		transport.ExternalHost = advertisedIP
+		transport.MediaExternalIP = mediaIP
+	}
+	return transport, nil
 }
 
 func normalizeClientConfig(config ClientConfig) ClientConfig {

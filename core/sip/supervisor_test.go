@@ -93,6 +93,47 @@ func TestListenerChangeClassification(t *testing.T) {
 	}
 }
 
+func TestInboundTransportListensOnAllIPv4Interfaces(t *testing.T) {
+	transport, err := buildTransport(ClientConfig{
+		Transport:   "udp",
+		LocalPort:   5010,
+		InboundOnly: true,
+	}, "45.154.28.21")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if transport.BindHost != "0.0.0.0" || transport.BindPort != 5010 {
+		t.Fatalf("inbound bind = %s:%d, want 0.0.0.0:5010", transport.BindHost, transport.BindPort)
+	}
+	if transport.ExternalHost != "45.154.28.21" || !transport.MediaExternalIP.Equal([]byte{45, 154, 28, 21}) {
+		t.Fatalf("inbound advertised address = %q/%v, want detected IP", transport.ExternalHost, transport.MediaExternalIP)
+	}
+
+	transport, err = buildTransport(ClientConfig{
+		Transport:   "udp",
+		LocalPort:   5010,
+		InboundOnly: true,
+		ExternalIP:  "203.0.113.7",
+	}, "10.0.0.7")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if transport.BindHost != "0.0.0.0" || transport.ExternalHost != "203.0.113.7" || !transport.MediaExternalIP.Equal([]byte{203, 0, 113, 7}) {
+		t.Fatalf("NAT transport = bind %q, external %q/%v", transport.BindHost, transport.ExternalHost, transport.MediaExternalIP)
+	}
+
+	registered, err := buildTransport(ClientConfig{
+		Transport: "udp",
+		LocalPort: 5060,
+	}, "10.0.0.7")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if registered.BindHost != "10.0.0.7" || registered.ExternalHost != "" || registered.MediaExternalIP != nil {
+		t.Fatalf("registered transport unexpectedly changed: %#v", registered)
+	}
+}
+
 func TestStatusSnapshotKeepsLatestEvent(t *testing.T) {
 	s := &Supervisor{current: make(map[string]StatusEvent)}
 	s.report(newStatus("b", "starting", "", "", 5061))
