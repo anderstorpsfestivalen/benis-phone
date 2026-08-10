@@ -24,6 +24,9 @@ const scriptKeyTimeout = 20 * time.Second
 // Each incoming call gets its own Session instance.
 type Session struct {
 	ID string
+	// Entrypoint is selected by the SIP connection/route that accepted this
+	// call. It is immutable for the lifetime of the session.
+	Entrypoint string
 
 	// Per-session components
 	Phone    phone.FlowPhone
@@ -85,9 +88,10 @@ type Session struct {
 // NewSession creates a new call session with the given components.
 // callCtl may be nil (e.g. local-audio mode) — call-control handlers will
 // surface a friendly error to the caller.
-func NewSession(id string, ph phone.FlowPhone, audioSink audio.AudioSink, rec audio.AudioSource, ttsReg *tts.Registry, def functions.Definition, callCtl callctl.Controller) *Session {
+func NewSession(id, entrypoint string, ph phone.FlowPhone, audioSink audio.AudioSink, rec audio.AudioSource, ttsReg *tts.Registry, def functions.Definition, callCtl callctl.Controller) *Session {
 	return &Session{
 		ID:           id,
+		Entrypoint:   entrypoint,
 		Phone:        ph,
 		Audio:        audioSink,
 		Recorder:     rec,
@@ -448,7 +452,7 @@ func (s *Session) exitFunction() {
 func (s *Session) clearCallstack() {
 	s.Callstack = s.Callstack[:0]
 	s.collector = nil
-	s.Callstack = append(s.Callstack, s.Definition.General.Entrypoint)
+	s.Callstack = append(s.Callstack, s.Entrypoint)
 	s.prefixSignal <- true
 }
 
@@ -650,7 +654,7 @@ func (s *Session) getCurrent() *functions.Fn {
 		if s.activeDispatcher != nil {
 			s.activeDispatcher.Stop()
 		}
-		return s.Definition.Functions[s.Definition.General.Entrypoint]
+		return s.Definition.Functions[s.Entrypoint]
 	}
 
 	current := s.Callstack[len(s.Callstack)-1]
@@ -670,7 +674,7 @@ func (s *Session) liftHook() {
 	s.vars = make(map[string]any)
 	s.varsMu.Unlock()
 	s.callCtx, s.callCancel = context.WithCancel(context.Background())
-	s.enterFunction(s.Definition.General.Entrypoint)
+	s.enterFunction(s.Entrypoint)
 
 	log.WithField("session", s.ID).Info("Hook lifted")
 }

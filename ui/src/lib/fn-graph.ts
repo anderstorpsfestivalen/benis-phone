@@ -5,7 +5,7 @@
 // to its parent fn by a DTMF-key-labelled edge; dst/dispatcher actions get
 // outgoing edges to their target fn/queue node.
 
-import type { Action, Fn, Queue } from "../generated/config";
+import type { Action, Fn, Queue, SIPConfig } from "../generated/config";
 import { actionKind, type ActionKind } from "../generated/config";
 
 export type FnNodeData = {
@@ -52,20 +52,56 @@ export type QueueNodeData = {
   name: string;
 };
 
+export type SIPInputNodeData = {
+  kind: "sip";
+  connectionID: string;
+  label: string;
+  detail: string;
+};
+
 // width/height are stamped by runTreeLayout from the layout dimensions.
 // React Flow needs explicit node geometry for the MiniMap to draw the node
 // rectangles (custom nodes aren't always measured by the time it renders).
 export type GraphNode =
-  | { id: string; type: "fnNode"; position: { x: number; y: number }; width?: number; height?: number; data: FnNodeData }
-  | { id: string; type: "actionNode"; position: { x: number; y: number }; width?: number; height?: number; data: ActionNodeData }
-  | { id: string; type: "queueNode"; position: { x: number; y: number }; width?: number; height?: number; data: QueueNodeData };
+  | {
+      id: string;
+      type: "fnNode";
+      position: { x: number; y: number };
+      width?: number;
+      height?: number;
+      data: FnNodeData;
+    }
+  | {
+      id: string;
+      type: "actionNode";
+      position: { x: number; y: number };
+      width?: number;
+      height?: number;
+      data: ActionNodeData;
+    }
+  | {
+      id: string;
+      type: "queueNode";
+      position: { x: number; y: number };
+      width?: number;
+      height?: number;
+      data: QueueNodeData;
+    }
+  | {
+      id: string;
+      type: "sipInputNode";
+      position: { x: number; y: number };
+      width?: number;
+      height?: number;
+      data: SIPInputNodeData;
+    };
 
 export type GraphEdge = {
   id: string;
   source: string;
   target: string;
   label: string;
-  data: { kind: "key" | "dst" | "dispatcher"; broken: boolean };
+  data: { kind: "key" | "dst" | "dispatcher" | "sip"; broken: boolean };
 };
 
 const FN_NODE_WIDTH = 220;
@@ -74,11 +110,13 @@ const ACTION_NODE_WIDTH = 240;
 const ACTION_NODE_HEIGHT = 88;
 const QUEUE_NODE_WIDTH = 220;
 const QUEUE_NODE_HEIGHT = 80;
+const SIP_NODE_WIDTH = 220;
+const SIP_NODE_HEIGHT = 64;
 
 export function buildNodesAndEdges(
   fns: Fn[],
   queues: Queue[],
-  entrypoint: string,
+  sip: SIPConfig,
 ): { nodes: GraphNode[]; edges: GraphEdge[] } {
   const fnNames = new Set(fns.map((f) => f.name).filter(Boolean));
   const queueNames = new Set(queues.map((q) => q.name).filter(Boolean));
@@ -90,6 +128,46 @@ export function buildNodesAndEdges(
 
   const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];
+  const entrypoints = new Set<string>();
+  for (const connection of sip.connection ?? []) {
+    const inputs =
+      connection.kind === "trunk"
+        ? connection.route.map((route) => ({
+            id: route.id,
+            entrypoint: route.entrypoint,
+            detail: route.catch_all ? "catch-all" : route.number,
+          }))
+        : [
+            {
+              id: connection.id,
+              entrypoint: connection.entrypoint,
+              detail: connection.extension || "endpoint",
+            },
+          ];
+    for (const input of inputs) {
+      if (!input.entrypoint) continue;
+      entrypoints.add(input.entrypoint);
+      const sourceID = `sip_${connection.id}_${input.id}`;
+      nodes.push({
+        id: sourceID,
+        type: "sipInputNode",
+        position: { x: 0, y: 0 },
+        data: {
+          kind: "sip",
+          connectionID: connection.id,
+          label: connection.name || connection.id,
+          detail: input.detail,
+        },
+      });
+      edges.push({
+        id: `e_${sourceID}`,
+        source: sourceID,
+        target: `fn_${input.entrypoint}`,
+        label: "",
+        data: { kind: "sip", broken: !fnNames.has(input.entrypoint) },
+      });
+    }
+  }
 
   fns.forEach((fn, i) => {
     if (!fn.name) return;
@@ -98,11 +176,15 @@ export function buildNodesAndEdges(
       id: fnId,
       type: "fnNode",
       position: { x: 0, y: 0 },
-      data: { kind: "fn", fn, index: i, isEntry: fn.name === entrypoint },
+      data: { kind: "fn", fn, index: i, isEntry: entrypoints.has(fn.name) },
     });
 
     fn.actions.forEach((action, j) => {
-      const source: ActionSource = { kind: "fn", fnName: fn.name, actionIndex: j };
+      const source: ActionSource = {
+        kind: "fn",
+        fnName: fn.name,
+        actionIndex: j,
+      };
       const actionId = actionNodeId(source);
       nodes.push({
         id: actionId,
@@ -126,7 +208,15 @@ export function buildNodesAndEdges(
       });
 
       // action → target edge, only for dst / dispatcher
-      appendActionTargetEdge(edges, actionId, `e_${fn.name}_${j}_to`, action, fnNames, queueNames, danglingQueueRefs);
+      appendActionTargetEdge(
+        edges,
+        actionId,
+        `e_${fn.name}_${j}_to`,
+        action,
+        fnNames,
+        queueNames,
+        danglingQueueRefs,
+      );
     });
   });
 
@@ -165,7 +255,15 @@ export function buildNodesAndEdges(
       label: "end",
       data: { kind: "key", broken: false },
     });
-    appendActionTargetEdge(edges, endId, `e_q_${q.name}_end_to`, q.end, fnNames, queueNames, danglingQueueRefs);
+    appendActionTargetEdge(
+      edges,
+      endId,
+      `e_q_${q.name}_end_to`,
+      q.end,
+      fnNames,
+      queueNames,
+      danglingQueueRefs,
+    );
   });
   // Broken dispatcher targets — placeholder nodes so the red edge has
   // something to terminate on.
@@ -178,7 +276,7 @@ export function buildNodesAndEdges(
     });
   }
 
-  runTreeLayout(nodes, edges, entrypoint);
+  runTreeLayout(nodes, edges);
   return { nodes, edges };
 }
 
@@ -207,7 +305,9 @@ function scriptGotoTargets(code: string): string[] {
   return [...out];
 }
 
-function dispatcherOrDst(a: Action):
+function dispatcherOrDst(
+  a: Action,
+):
   | { kind: "dst"; target: string }
   | { kind: "dispatcher"; target: string }
   | null {
@@ -241,7 +341,9 @@ function appendActionTargetEdge(
       id: edgeId,
       source: sourceId,
       target:
-        target.kind === "dst" ? `fn_${target.target}` : `queue_${target.target}`,
+        target.kind === "dst"
+          ? `fn_${target.target}`
+          : `queue_${target.target}`,
       label: "",
       data: { kind: target.kind, broken },
     });
@@ -277,11 +379,13 @@ const NODE_W: Record<GraphNode["type"], number> = {
   fnNode: FN_NODE_WIDTH,
   actionNode: ACTION_NODE_WIDTH,
   queueNode: QUEUE_NODE_WIDTH,
+  sipInputNode: SIP_NODE_WIDTH,
 };
 const NODE_H: Record<GraphNode["type"], number> = {
   fnNode: FN_NODE_HEIGHT,
   actionNode: ACTION_NODE_HEIGHT,
   queueNode: QUEUE_NODE_HEIGHT,
+  sipInputNode: SIP_NODE_HEIGHT,
 };
 
 // runTreeLayout is a left-to-right "tidy tree" layout tailored to IVR flows.
@@ -298,11 +402,7 @@ const NODE_H: Record<GraphNode["type"], number> = {
 // Nodes reached by more than one edge are laid out on first visit; the extra
 // edges are drawn as-is (they may cross — rare for menu trees). Orphan fns /
 // queues become additional roots stacked below the main tree.
-export function runTreeLayout(
-  nodes: GraphNode[],
-  edges: GraphEdge[],
-  entrypoint: string,
-) {
+export function runTreeLayout(nodes: GraphNode[], edges: GraphEdge[]) {
   const byId = new Map(nodes.map((n) => [n.id, n] as const));
   const COL_W = 320; // horizontal distance between ranks (> widest node)
   const ROW_GAP = 28; // vertical gap between stacked leaves
@@ -358,8 +458,10 @@ export function runTreeLayout(
   // Roots: entrypoint first, then any unvisited fn/queue (orphans), then any
   // stray node — each starts a fresh tree at depth 0, stacked below.
   const rootOrder = [
-    `fn_${entrypoint}`,
-    ...nodes.filter((n) => n.type === "fnNode" || n.type === "queueNode").map((n) => n.id),
+    ...nodes.filter((n) => n.type === "sipInputNode").map((n) => n.id),
+    ...nodes
+      .filter((n) => n.type === "fnNode" || n.type === "queueNode")
+      .map((n) => n.id),
     ...nodes.map((n) => n.id),
   ];
   for (const id of rootOrder) {
@@ -417,7 +519,8 @@ function truncate(s: string, n: number): string {
 }
 
 /** Visual classification of action kinds for node styling. */
-export type ActionCategory = "route" | "speak" | "media" | "control" | "service";
+export type ActionCategory =
+  "route" | "speak" | "media" | "control" | "service";
 
 export function categoryFor(kind: ActionKind | null): ActionCategory {
   switch (kind) {

@@ -1,7 +1,6 @@
 # Simonstorp
 
 [general]
-entrypoint = "main"
 # TTS backend: "polly" (default) or "elevenlabs". Override per menu/prompt
 # with `provider = "..."` inside any `tts = { ... }` block.
 default_tts_provider = "elevenlabs"
@@ -17,14 +16,22 @@ default_tts_engine = "eleven_multilingual_v2"
 
 # SIP Configuration
 [sip]
+max_concurrent_calls = 10
+record_path = "files/recording"
+
+[[sip.connection]]
+id = "primary"
+name = "Primary endpoint"
+kind = "endpoint"
+registration = "registered"
 server = "sip.anderstorpsfestivalen.se:5060"
 extension = "3005"
 username = "3005"
 transport = "udp"
-max_concurrent_calls = 10
-record_path = "files/recording"
+local_port = 5060
+expiry_seconds = 300
 external_ip = "45.154.28.76"
-# Password stored in creds/creds.json under "SIP.Password"
+entrypoint = "main"
 
 ############################
 # MAIN
@@ -138,7 +145,7 @@ name = "directory"
 prefix = { tts = { msg = """Directory. Press one for sales, two for support,
     three for billing. Press zero to go back.""" } }
 actions = [
-    # Extension shorthand expands to "sip:<ext>@<def.SIP.Domain>".
+	# Extension shorthand uses the domain of the SIP connection that accepted the call.
     { num = 1, transfer = "201" },
     { num = 2, transfer = "202" },
     { num = 3, transfer = "203" },

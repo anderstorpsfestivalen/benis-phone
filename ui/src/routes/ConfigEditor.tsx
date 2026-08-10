@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { api } from "../lib/api";
+import { api, type SIPStatusSnapshot } from "../lib/api";
 import { emptyDefinition } from "../lib/empty";
-import { parseTomlConfig } from "../lib/toml-parse";
+import { isLegacySIPToml, parseTomlConfig } from "../lib/toml-parse";
 import { renderToml } from "../lib/toml-render";
 import type { Definition } from "../generated/config";
-import { Field, TextInput, NumberInput, CheckboxInput } from "../components/Field";
+import { Field, TextInput } from "../components/Field";
 import FnGraph from "../components/FnGraph";
+import SIPConnectionsEditor from "../components/SIPConnectionsEditor";
+import { validateSIPDefinition } from "../lib/sip-validation";
 
 // Tabs other than `fn` are secondary configuration — fn is the primary view
 // the editor opens to and the only one that gets the full viewport width.
@@ -19,9 +21,18 @@ export default function ConfigEditor() {
   const [err, setErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedHash, setSavedHash] = useState<string>("");
+  const [secretState, setSecretState] = useState<Record<string, boolean>>({});
+  const [secretEdits, setSecretEdits] = useState<Record<string, string | null>>(
+    {},
+  );
+  const [sipStatus, setSipStatus] = useState<SIPStatusSnapshot>({
+    instances: [],
+  });
+  const [legacySIP, setLegacySIP] = useState(false);
 
   useEffect(() => {
-    api.get(name)
+    api
+      .get(name)
       .then((p) => {
         // Re-normalize through parseTomlConfig instead of trusting p.doc
         // verbatim: D1 stores the doc as JSON snapshotted at save time, so
@@ -31,13 +42,48 @@ export default function ConfigEditor() {
         // keeps controlled inputs from flipping to uncontrolled and
         // leaking the previous selection's value into the new node.
         try {
+          setLegacySIP(isLegacySIPToml(p.toml));
           setDoc(parseTomlConfig(p.toml));
         } catch {
           setDoc(p.doc);
         }
         setSavedHash(p.hash);
+        setSecretState(p.sip_secret_state ?? {});
       })
       .catch((e) => setErr(String(e)));
+  }, [name]);
+
+  useEffect(() => {
+    let closed = false;
+    let socket: WebSocket | undefined;
+    let reconnect: ReturnType<typeof setTimeout> | undefined;
+    const refresh = () =>
+      api
+        .sipStatus(name)
+        .then((snapshot) => {
+          if (!closed) setSipStatus(snapshot);
+        })
+        .catch(() => {});
+    refresh();
+    const connect = () => {
+      const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+      socket = new WebSocket(
+        `${protocol}//${location.host}/api/configs/${encodeURIComponent(name)}/sip-status/ws`,
+      );
+      socket.onmessage = () => refresh();
+      socket.onclose = () => {
+        if (!closed) reconnect = setTimeout(connect, 2_000);
+      };
+      socket.onerror = () => socket?.close();
+    };
+    connect();
+    const poll = setInterval(refresh, 30_000);
+    return () => {
+      closed = true;
+      clearInterval(poll);
+      if (reconnect) clearTimeout(reconnect);
+      socket?.close();
+    };
   }, [name]);
 
   const toml = useMemo(() => renderToml(doc), [doc]);
@@ -46,8 +92,25 @@ export default function ConfigEditor() {
     setSaving(true);
     setErr(null);
     try {
-      const p = await api.save(name, doc, toml);
+      const validationErrors = validateSIPDefinition(doc);
+      for (const connection of doc.sip.connection) {
+        const hasPassword =
+          secretEdits[connection.id] === null
+            ? false
+            : typeof secretEdits[connection.id] === "string" ||
+              !!secretState[connection.id];
+        if (connection.registration === "registered" && !hasPassword) {
+          validationErrors.push(
+            `${connection.name || connection.id}: enter a SIP password.`,
+          );
+        }
+      }
+      if (validationErrors.length) throw new Error(validationErrors.join(" "));
+      const p = await api.save(name, doc, toml, secretEdits);
       setSavedHash(p.hash);
+      setSecretState(p.sip_secret_state ?? {});
+      setSecretEdits({});
+      setLegacySIP(false);
     } catch (e) {
       setErr(String(e));
     } finally {
@@ -57,15 +120,28 @@ export default function ConfigEditor() {
 
   const setGeneral = (k: keyof Definition["general"], v: string) =>
     setDoc({ ...doc, general: { ...doc.general, [k]: v } });
-  const setSip = <K extends keyof Definition["sip"]>(k: K, v: Definition["sip"][K]) =>
-    setDoc({ ...doc, sip: { ...doc.sip, [k]: v } });
+  const setSecretEdit = (
+    connectionID: string,
+    value: string | null | undefined,
+  ) => {
+    setSecretEdits((current) => {
+      const next = { ...current };
+      if (value === undefined) delete next[connectionID];
+      else next[connectionID] = value;
+      return next;
+    });
+  };
 
   return (
     <div className={tab === "fn" ? "px-4" : "max-w-5xl mx-auto px-4"}>
       <div className="flex items-center gap-3 py-2">
-        <Link to="/" className="text-blue-slate hover:text-white text-sm">← back</Link>
+        <Link to="/" className="text-blue-slate hover:text-white text-sm">
+          ← back
+        </Link>
         <h1 className="font-mono text-white text-sm">{name}</h1>
-        <span className="text-xs text-blue-slate font-mono">{savedHash.slice(0, 12)}</span>
+        <span className="text-xs text-blue-slate font-mono">
+          {savedHash.slice(0, 12)}
+        </span>
 
         <div className="flex gap-1 ml-4">
           {(["fn", "general", "sip", "toml"] as Tab[]).map((t) => (
@@ -100,7 +176,8 @@ export default function ConfigEditor() {
         <FnGraph
           fns={doc.fn}
           queues={doc.queue}
-          entrypoint={doc.general.entrypoint}
+          sip={doc.sip}
+          onSelectSIP={() => setTab("sip")}
           onFnsChange={(fns) => setDoc({ ...doc, fn: fns })}
           onQueuesChange={(queue) => setDoc({ ...doc, queue })}
         />
@@ -108,15 +185,6 @@ export default function ConfigEditor() {
 
       {tab === "general" && (
         <div className="grid grid-cols-2 gap-3 max-w-2xl">
-          <Field
-            label="Entrypoint"
-            help="Name of the menu (fn) where inbound calls land. Usually 'main'. Must match a defined fn."
-          >
-            <TextInput
-              value={doc.general.entrypoint}
-              onChange={(v) => setGeneral("entrypoint", v)}
-            />
-          </Field>
           <Field
             label="Default TTS provider"
             help="Fallback TTS provider used by actions that don't specify their own. Supported: polly, elevenlabs."
@@ -157,80 +225,16 @@ export default function ConfigEditor() {
       )}
 
       {tab === "sip" && (
-        <div className="grid grid-cols-2 gap-3 max-w-2xl">
-          <Field
-            label="Server"
-            help="Host:port of the upstream SIP PBX to register with (e.g. pbx.example.com:5060). In -direct mode this is ignored."
-          >
-            <TextInput value={doc.sip.server} onChange={(v) => setSip("server", v)} />
-          </Field>
-          <Field
-            label="Extension"
-            help="The extension number this IVR registers as. Inbound calls to this extension are answered by the IVR."
-          >
-            <TextInput value={doc.sip.extension} onChange={(v) => setSip("extension", v)} />
-          </Field>
-          <Field
-            label="Username"
-            help="SIP auth username, usually the same as the extension. Paired with the password in creds.json."
-          >
-            <TextInput value={doc.sip.username} onChange={(v) => setSip("username", v)} />
-          </Field>
-          <Field
-            label="Domain"
-            help="SIP realm/domain (the part after @ in SIP URIs). Often matches the PBX hostname."
-          >
-            <TextInput value={doc.sip.domain} onChange={(v) => setSip("domain", v)} />
-          </Field>
-          <Field
-            label="Transport"
-            help="SIP transport. udp is the default for PBX registration. tcp/ws/wss are supported by the underlying library but rarely used here."
-          >
-            <TextInput value={doc.sip.transport} onChange={(v) => setSip("transport", v)} />
-          </Field>
-          <Field
-            label="Local port"
-            help="UDP/TCP port this binary listens on for SIP signaling. 5060 is the SIP default."
-          >
-            <NumberInput value={doc.sip.local_port} onChange={(v) => setSip("local_port", v)} />
-          </Field>
-          <Field
-            label="Max concurrent calls"
-            help="Hard cap on simultaneous IVR sessions. Additional inbound INVITEs are rejected with 486 Busy."
-          >
-            <NumberInput
-              value={doc.sip.max_concurrent_calls}
-              onChange={(v) => setSip("max_concurrent_calls", v)}
-            />
-          </Field>
-          <Field
-            label="Record path"
-            help="Filesystem path where call recordings are written. The Fn-level recording subfolder is appended to this."
-          >
-            <TextInput value={doc.sip.record_path} onChange={(v) => setSip("record_path", v)} />
-          </Field>
-          <Field
-            label="Expiry (s)"
-            help="REGISTER refresh interval in seconds. Shorter = faster recovery from PBX restart, more network chatter. 300 is typical."
-          >
-            <NumberInput
-              value={doc.sip.expiry_seconds}
-              onChange={(v) => setSip("expiry_seconds", v)}
-            />
-          </Field>
-          <Field
-            label="External IP"
-            help="Public IP advertised in SDP for RTP. Leave blank if the host has a public IP; set explicitly when behind NAT."
-          >
-            <TextInput value={doc.sip.external_ip} onChange={(v) => setSip("external_ip", v)} />
-          </Field>
-          <CheckboxInput
-            label="Direct mode (no PBX registration)"
-            value={doc.sip.direct}
-            onChange={(v) => setSip("direct", v)}
-            help="Skip REGISTER and accept any unauthenticated INVITE directly to this host:port. Used for local testing with a softphone."
-          />
-        </div>
+        <SIPConnectionsEditor
+          value={doc.sip}
+          fns={doc.fn}
+          secretState={secretState}
+          secretEdits={secretEdits}
+          status={sipStatus}
+          legacy={legacySIP}
+          onChange={(sip) => setDoc({ ...doc, sip })}
+          onSecretEdit={setSecretEdit}
+        />
       )}
 
       {tab === "toml" && (

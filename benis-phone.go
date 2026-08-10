@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"os/signal"
+	"regexp"
 	"sync"
 	"syscall"
 	"time"
@@ -26,8 +28,6 @@ func main() {
 	enableS3 := flag.Bool("s3", true, "s3 sync")
 	enableHttp := flag.Bool("http", true, "http server")
 	debug := flag.Bool("debug", false, "verbose logging (DebugLevel + SIP wire tracing)")
-	direct := flag.Bool("direct", false, "SIP debug mode: skip PBX registration, accept unauthenticated INVITEs")
-	directPort := flag.Int("direct-port", 0, "Override SIP local bind port when -direct is set (default: TOML local_port or 5060)")
 	listAudioDevices := flag.Bool("list-audio-devices", false, "List host audio capture devices (for livefeed config) and exit")
 	definition := flag.String("def",
 		"configurations/default.toml",
@@ -42,6 +42,8 @@ func main() {
 		"Remote-mode: poll for config hash changes at this interval (only used with -poll). 0 disables.")
 	poll := flag.Bool("poll", false,
 		"Remote-mode: enable HTTP poll fallback. By default the binary subscribes to the broker WebSocket; use -poll only when WS is blocked.")
+	instanceID := flag.String("instance-id", "", "Stable runtime identity for per-instance connection status (default: hostname)")
+	sipSecretsPath := flag.String("sip-secrets", "creds/sip.json", "File-source mode: JSON object mapping SIP connection IDs to passwords")
 	flag.Parse()
 
 	if *listAudioDevices {
@@ -97,12 +99,20 @@ func main() {
 		def          functions.Definition
 		remoteClient *functions.RemoteClient
 		currentHash  string
+		sipPasswords map[string]string
 	)
 	switch *source {
 	case "file":
 		def, err = functions.LoadFromFile(*definition)
 		if err != nil {
 			log.Fatal(err)
+		}
+		sipPasswords, err = loadSIPPasswords(*sipSecretsPath)
+		if err != nil && !os.IsNotExist(err) {
+			log.Fatalf("loading SIP secrets %s: %v", *sipSecretsPath, err)
+		}
+		if sipPasswords == nil {
+			sipPasswords = make(map[string]string)
 		}
 	case "remote":
 		if *configName == "" {
@@ -112,15 +122,19 @@ func main() {
 			log.Fatal("creds.json is missing PBXConfigToken (required for -source=remote)")
 		}
 		remoteClient = functions.NewRemoteClient(*remoteURL, *configName, credentials.PBXConfigToken)
-		def, err = remoteClient.LoadDefinition()
+		runtime, loadErr := remoteClient.LoadRuntimeConfig()
+		err = loadErr
 		if err != nil {
 			log.Fatalf("loading remote config %q from %s: %v", *configName, *remoteURL, err)
 		}
-		currentHash, err = remoteClient.FetchHash()
-		if err != nil {
-			// Non-fatal: definition already loaded; the WS push or
-			// the next poll tick will retry.
-			log.Warnf("fetching initial config hash: %v", err)
+		def = runtime.Definition
+		sipPasswords = runtime.SIPPasswords
+		currentHash = runtime.Revision
+		if currentHash == "" {
+			currentHash, err = remoteClient.FetchHash()
+			if err != nil {
+				log.Warnf("fetching initial config hash: %v", err)
+			}
 		}
 		log.WithFields(logrus.Fields{
 			"name": *configName,
@@ -131,62 +145,72 @@ func main() {
 		log.Fatalf("invalid -source %q (want file|remote)", *source)
 	}
 
-	// CLI flags override the TOML for quick debug workflows.
-	if *direct {
-		def.SIP.Direct = true
-	}
-	if *directPort > 0 {
-		def.SIP.LocalPort = *directPort
-	}
-
-	if def.SIP.Transport == "" {
-		def.SIP.Transport = "udp"
-	}
 	if def.SIP.RecordPath == "" {
 		def.SIP.RecordPath = "files/recording"
 	}
-	if !def.SIP.Direct && def.SIP.Server == "" {
-		log.Fatal("SIP server address is required (or use -direct)")
-	}
-	if !def.SIP.Direct && def.SIP.Extension == "" {
-		log.Fatal("SIP extension is required")
-	}
-	maxCalls := def.SIP.MaxConcurrentCalls
-	if maxCalls <= 0 {
-		maxCalls = 10
-	}
 
 	ttsReg := buildTTSRegistry(log, def, credentials)
-
-	sipClient, err := sip.NewClient(sipConfigFromDef(def, credentials), ttsReg, def, maxCalls)
-	if err != nil {
-		log.Fatal("Failed to create SIP client: ", err)
+	if *instanceID == "" {
+		*instanceID, err = os.Hostname()
+		if err != nil || *instanceID == "" {
+			*instanceID = "ivr"
+		}
 	}
-
-	if err := sipClient.Start(); err != nil {
-		log.Fatal("Failed to start SIP client: ", err)
+	if !regexp.MustCompile(`^[A-Za-z0-9_.-]{1,128}$`).MatchString(*instanceID) {
+		log.Fatal("-instance-id must use only letters, numbers, dot, underscore, or hyphen")
 	}
-	log.WithFields(logrus.Fields{
-		"server":    def.SIP.Server,
-		"extension": def.SIP.Extension,
-		"direct":    def.SIP.Direct,
-		"max_calls": maxCalls,
-	}).Info("SIP client started")
+	// File mode has no control-plane consumer, so it deliberately avoids an
+	// outgoing queue. The supervisor still records and logs current status.
+	var statusCh chan []byte
+	var statusReporter func(sip.StatusEvent)
+	if remoteClient != nil {
+		statusCh = make(chan []byte, 256)
+		statusReporter = func(event sip.StatusEvent) {
+			payload, marshalErr := encodeSIPStatus(*instanceID, event)
+			if marshalErr != nil {
+				return
+			}
+			select {
+			case statusCh <- payload:
+			default:
+				log.Warn("SIP status queue full; current state will be replayed after reconnect")
+			}
+		}
+	}
+	sipSupervisor := sip.NewSupervisor(ttsReg, def, statusReporter, log)
+	if err := sipSupervisor.Start(def, sipPasswords); err != nil {
+		log.Fatal("Failed to start SIP supervisor: ", err)
+	}
+	log.WithFields(logrus.Fields{"connections": len(def.SIP.Connections), "instance_id": *instanceID}).Info("SIP supervisor started")
 
 	// Hot-reload — only meaningful with a remote source.
 	var reloader *hotreload.Manager
 	if remoteClient != nil {
+		statusSnapshot := func() [][]byte {
+			events := sipSupervisor.StatusSnapshot()
+			payloads := make([][]byte, 0, len(events))
+			for _, event := range events {
+				payload, marshalErr := encodeSIPStatus(*instanceID, event)
+				if marshalErr == nil {
+					payloads = append(payloads, payload)
+				}
+			}
+			return payloads
+		}
 		reloader = hotreload.New(hotreload.Config{
-			RemoteClient: remoteClient,
-			SIPClient:    sipClient,
-			SyncFiles:    resync,
-			BaseURL:      *remoteURL,
-			Name:         *configName,
-			Token:        credentials.PBXConfigToken,
-			InitialHash:  currentHash,
-			Poll:         *poll,
-			PollInterval: *reloadInterval,
-			Logger:       log,
+			RemoteClient:   remoteClient,
+			SIPSupervisor:  sipSupervisor,
+			SyncFiles:      resync,
+			BaseURL:        *remoteURL,
+			Name:           *configName,
+			Token:          credentials.PBXConfigToken,
+			InstanceID:     *instanceID,
+			Status:         statusCh,
+			StatusSnapshot: statusSnapshot,
+			InitialHash:    currentHash,
+			Poll:           *poll,
+			PollInterval:   *reloadInterval,
+			Logger:         log,
 		})
 		reloader.Start()
 	}
@@ -206,7 +230,15 @@ func main() {
 	if reloader != nil {
 		reloader.Stop()
 	}
-	sipClient.Stop()
+	sipSupervisor.Stop()
+}
+
+func encodeSIPStatus(instanceID string, event sip.StatusEvent) ([]byte, error) {
+	return json.Marshal(struct {
+		Type       string `json:"type"`
+		InstanceID string `json:"instance_id"`
+		sip.StatusEvent
+	}{Type: "sip-status", InstanceID: instanceID, StatusEvent: event})
 }
 
 func buildTTSRegistry(log *logrus.Logger, def functions.Definition, credentials secrets.Credentials) *tts.Registry {
@@ -232,18 +264,14 @@ func buildTTSRegistry(log *logrus.Logger, def functions.Definition, credentials 
 	return reg
 }
 
-func sipConfigFromDef(def functions.Definition, credentials secrets.Credentials) sip.ClientConfig {
-	return sip.ClientConfig{
-		Server:        def.SIP.Server,
-		Extension:     def.SIP.Extension,
-		Username:      def.SIP.Username,
-		Password:      credentials.SIP.Password,
-		Domain:        def.SIP.Domain,
-		Transport:     def.SIP.Transport,
-		LocalPort:     def.SIP.LocalPort,
-		ExpirySeconds: def.SIP.ExpirySeconds,
-		RecordPath:    def.SIP.RecordPath,
-		ExternalIP:    def.SIP.ExternalIP,
-		Direct:        def.SIP.Direct,
+func loadSIPPasswords(path string) (map[string]string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
 	}
+	var passwords map[string]string
+	if err := json.Unmarshal(data, &passwords); err != nil {
+		return nil, err
+	}
+	return passwords, nil
 }

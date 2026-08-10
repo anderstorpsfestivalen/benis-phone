@@ -21,8 +21,8 @@ import (
 type sipController struct {
 	dialog        *diago.DialogServerSession
 	callID        string
-	recordBase    string    // from def.SIP.RecordPath
-	defaultDomain string    // from def.SIP.Domain (for transfer shorthand)
+	recordBase    string    // from the shared SIP record path
+	defaultDomain string    // from the accepting connection (for transfer shorthand)
 	rec           *recorder // shared with SIPPhone + OutputStream
 }
 

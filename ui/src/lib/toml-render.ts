@@ -1,4 +1,11 @@
-import type { Definition, Fn, Action, Queue, QueuePrompt } from "../generated/config";
+import type {
+  Definition,
+  Fn,
+  Action,
+  Queue,
+  QueuePrompt,
+  SIPConnection,
+} from "../generated/config";
 
 // Renders the editor's JSON doc into the exact TOML shape that
 // BurntSushi/toml parses back into core/functions.Definition. The goal is
@@ -17,10 +24,13 @@ export function renderToml(d: Definition): string {
   const parts: string[] = [];
 
   if (notEmpty(d.general)) {
-    parts.push("[general]\n" + kv(prune(d.general) as unknown as Record<string, unknown>));
+    parts.push(
+      "[general]\n" +
+        kv(prune(d.general) as unknown as Record<string, unknown>),
+    );
   }
   if (notEmpty(d.sip)) {
-    parts.push("[sip]\n" + kv(prune(d.sip) as unknown as Record<string, unknown>));
+    parts.push(renderSIP(d));
   }
   for (const fn of d.fn ?? []) {
     parts.push(renderFn(fn));
@@ -31,18 +41,65 @@ export function renderToml(d: Definition): string {
   return parts.join("\n\n") + "\n";
 }
 
+function renderSIP(d: Definition): string {
+  const blocks: string[] = [
+    "[sip]\n" +
+      kv(
+        prune({
+          max_concurrent_calls: d.sip.max_concurrent_calls,
+          record_path: d.sip.record_path,
+        }) as Record<string, unknown>,
+      ),
+  ];
+  for (const connection of d.sip.connection ?? []) {
+    blocks.push(renderSIPConnection(connection));
+  }
+  return blocks.join("\n\n");
+}
+
+function renderSIPConnection(connection: SIPConnection): string {
+  const body = ["[[sip.connection]]"];
+  const value = prune({
+    id: connection.id,
+    name: connection.name,
+    kind: connection.kind,
+    registration: connection.registration,
+    server: connection.server,
+    extension: connection.extension,
+    username: connection.username,
+    domain: connection.domain,
+    transport: connection.transport,
+    local_port: connection.local_port,
+    expiry_seconds: connection.expiry_seconds,
+    external_ip: connection.external_ip,
+    allowed_cidrs: connection.allowed_cidrs,
+    entrypoint: connection.entrypoint,
+  }) as Record<string, unknown>;
+  const rendered = kv(value);
+  if (rendered) body.push(rendered);
+  for (const route of connection.route ?? []) {
+    body.push("[[sip.connection.route]]");
+    body.push(kv(prune(route) as unknown as Record<string, unknown>));
+  }
+  return body.join("\n");
+}
+
 function renderFn(fn: Fn): string {
   const body: string[] = ["[[fn]]"];
   if (fn.name) body.push(`name = ${formatString(fn.name)}`);
-  if (notEmpty(fn.recording)) body.push(`recording = ${inline(prune(fn.recording))}`);
+  if (notEmpty(fn.recording))
+    body.push(`recording = ${inline(prune(fn.recording))}`);
   if (notEmpty(fn.prefix)) body.push(`prefix = ${inline(prune(fn.prefix))}`);
   if (notEmpty(fn.gate)) body.push(`gate = ${inline(prune(fn.gate))}`);
   if (fn.clear_callstack) body.push(`clear_callstack = true`);
-  if (fn.inputlength && fn.inputlength > 0) body.push(`inputlength = ${fn.inputlength}`);
+  if (fn.inputlength && fn.inputlength > 0)
+    body.push(`inputlength = ${fn.inputlength}`);
   if (fn.actions && fn.actions.length) {
     body.push("actions = [");
     body.push(
-      fn.actions.map((a) => "    " + inline(prune(actionForToml(a)))).join(",\n"),
+      fn.actions
+        .map((a) => "    " + inline(prune(actionForToml(a))))
+        .join(",\n"),
     );
     body.push("]");
   }
@@ -79,15 +136,18 @@ function actionForToml(a: Action): Record<string, unknown> {
 function renderQueue(q: Queue): string {
   const body: string[] = ["[[queue]]"];
   if (q.name) body.push(`name = ${formatString(q.name)}`);
-  if (notEmpty(q.entrymsg)) body.push(`entrymsg = ${inline(prune(q.entrymsg))}`);
+  if (notEmpty(q.entrymsg))
+    body.push(`entrymsg = ${inline(prune(q.entrymsg))}`);
   if (q.minpos) body.push(`minpos = ${q.minpos}`);
   if (q.maxpos) body.push(`maxpos = ${q.maxpos}`);
   if (q.speed) body.push(`speed = ${q.speed}`);
   if (q.minprompt) body.push(`minprompt = ${q.minprompt}`);
   if (q.maxprompt) body.push(`maxprompt = ${q.maxprompt}`);
-  if (notEmpty(q.currentpos)) body.push(`currentpos = ${inline(prune(q.currentpos))}`);
+  if (notEmpty(q.currentpos))
+    body.push(`currentpos = ${inline(prune(q.currentpos))}`);
   if (notEmpty(q.bgmusic)) body.push(`bgmusic = ${inline(prune(q.bgmusic))}`);
-  if (notEmpty(q.end)) body.push(`end = ${inline(prune(actionForToml(q.end)))}`);
+  if (notEmpty(q.end))
+    body.push(`end = ${inline(prune(actionForToml(q.end)))}`);
   for (const p of q.prompt ?? []) {
     body.push(renderQueuePrompt(p));
   }

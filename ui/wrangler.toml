@@ -39,3 +39,4 @@ new_sqlite_classes = ["ConfigBroker"]
 
 # Wrangler secrets (set with `wrangler secret put`):
 #   CONFIG_BEARER_TOKEN — shared with the Go binary via creds/creds.json
+#   SIP_SECRET_ENCRYPTION_KEY — base64-encoded 32-byte AES-GCM key

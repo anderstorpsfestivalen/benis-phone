@@ -16,6 +16,8 @@ import type {
   Script,
   Service,
   SIPConfig,
+  SIPConnection,
+  SIPRoute,
   TTS,
 } from "../generated/config";
 
@@ -134,25 +136,43 @@ export const emptyQueue = (name = ""): Queue => ({
 });
 
 export const emptyGeneral = (): General => ({
-  entrypoint: "main",
   default_tts_voice: "",
   default_tts_lang: "",
   default_tts_engine: "",
   default_tts_provider: "",
 });
 
-export const emptySIP = (): SIPConfig => ({
+export const configID = (): string => crypto.randomUUID();
+
+export const emptySIPRoute = (entrypoint = ""): SIPRoute => ({
+  id: configID(),
+  number: "",
+  entrypoint,
+  catch_all: false,
+});
+
+export const emptySIPConnection = (entrypoint = ""): SIPConnection => ({
+  id: configID(),
+  name: "New connection",
+  kind: "endpoint",
+  registration: "registered",
   server: "",
   extension: "",
   username: "",
   domain: "",
   transport: "udp",
-  local_port: 5060,
-  max_concurrent_calls: 10,
-  record_path: "files/recording",
+  local_port: 0,
   expiry_seconds: 300,
   external_ip: "",
-  direct: false,
+  allowed_cidrs: [],
+  entrypoint,
+  route: [],
+});
+
+export const emptySIP = (): SIPConfig => ({
+  max_concurrent_calls: 10,
+  record_path: "files/recording",
+  connection: [],
 });
 
 export const emptyDefinition = (): Definition => ({

@@ -1,6 +1,6 @@
 import type { Config } from "tailwindcss";
 
-// Palette override: only these five colors exist. Importing any default
+// Palette override: only these project colors exist. Importing any default
 // tailwind color (e.g. bg-red-500) will produce a build error — that's
 // intentional. Edit this file to add a color; do not pull from defaults.
 const config: Config = {
@@ -13,6 +13,9 @@ const config: Config = {
       gunmetal: "#3f4045",
       "shadow-grey": "#30292f",
       "blue-slate": "#5d737e",
+      success: "#45b97c",
+      warning: "#e0a84f",
+      danger: "#e05a67",
       white: "#fcfcfc",
     },
     extend: {

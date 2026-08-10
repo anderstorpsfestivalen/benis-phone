@@ -7,8 +7,8 @@ export default defineConfig({
     port: 5173,
     proxy: {
       // Local dev: forward /api and /config to wrangler dev (8787).
-      "/api": "http://localhost:8787",
-      "/config": "http://localhost:8787",
+      "/api": { target: "http://localhost:8787", ws: true },
+      "/config": { target: "http://localhost:8787", ws: true },
     },
   },
   build: {

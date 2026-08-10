@@ -26,6 +26,9 @@ func Decode(data []byte) (Definition, error) {
 	}
 	conf.Functions = make(map[string]*Fn)
 	conf.Prepare()
+	if err := conf.Validate(); err != nil {
+		return Definition{}, err
+	}
 	return conf, nil
 }
 
@@ -39,46 +42,40 @@ type Definition struct {
 	Queues []Queue `toml:"queue"`
 }
 
-// SIPConfig holds SIP client configuration for registering with a PBX.
+// SIPConfig holds process-wide SIP settings and the independently managed
+// connections that feed calls into this Definition's function graph.
 type SIPConfig struct {
-	// Server is the SIP server/PBX address (e.g., "pbx.example.com" or "192.168.1.100:5060")
-	Server string `toml:"server"`
+	MaxConcurrentCalls int             `toml:"max_concurrent_calls"`
+	RecordPath         string          `toml:"record_path"`
+	Connections        []SIPConnection `toml:"connection"`
+}
 
-	// Extension is the extension number to register as (e.g., "100")
-	Extension string `toml:"extension"`
+// SIPConnection is one isolated SIP listener. Registered connections send
+// REGISTER to Server; inbound connections only accept calls from AllowedCIDRs.
+type SIPConnection struct {
+	ID            string   `toml:"id"`
+	Name          string   `toml:"name"`
+	Kind          string   `toml:"kind"`         // endpoint | trunk
+	Registration  string   `toml:"registration"` // registered | inbound
+	Server        string   `toml:"server"`
+	Extension     string   `toml:"extension"`
+	Username      string   `toml:"username"`
+	Domain        string   `toml:"domain"`
+	Transport     string   `toml:"transport"`
+	LocalPort     int      `toml:"local_port"`
+	ExpirySeconds int      `toml:"expiry_seconds"`
+	ExternalIP    string   `toml:"external_ip"`
+	AllowedCIDRs  []string `toml:"allowed_cidrs"`
 
-	// Username for SIP authentication (often same as extension)
-	Username string `toml:"username"`
+	Entrypoint string     `toml:"entrypoint"`
+	Routes     []SIPRoute `toml:"route"`
+}
 
-	// Domain is the SIP domain (often same as server, e.g., "pbx.example.com")
-	Domain string `toml:"domain"`
-
-	// Transport is the SIP transport: udp, tcp, ws, wss (default: "udp")
-	Transport string `toml:"transport"`
-
-	// LocalPort is the local port to bind to (default: 5060)
-	LocalPort int `toml:"local_port"`
-
-	// MaxConcurrentCalls limits concurrent calls (default: 10)
-	MaxConcurrentCalls int `toml:"max_concurrent_calls"`
-
-	// RecordPath is the base directory for call recordings
-	RecordPath string `toml:"record_path"`
-
-	// ExpirySeconds is the registration expiry time (default: 300)
-	ExpirySeconds int `toml:"expiry_seconds"`
-
-	// ExternalIP is your public IP address for NAT traversal (required if behind NAT)
-	// This IP will be used in SDP for RTP media. If empty, local IP is used.
-	ExternalIP string `toml:"external_ip"`
-
-	// Direct enables server-less debug mode: bind a listener and accept any
-	// unauthenticated INVITE without registering with a PBX. Server and
-	// Password are ignored in this mode. Intended for local softphone testing
-	// (call sip:anything@<host>:<port>).
-	Direct bool `toml:"direct"`
-
-	// Password should be in creds.json under SIP.Password for security
+type SIPRoute struct {
+	ID         string `toml:"id"`
+	Number     string `toml:"number"`
+	Entrypoint string `toml:"entrypoint"`
+	CatchAll   bool   `toml:"catch_all"`
 }
 
 func (d *Definition) Prepare() {
@@ -201,8 +198,6 @@ func (d *Definition) ResolveDispatcher(name string) (Dispatcher, error) {
 }
 
 type General struct {
-	Entrypoint string
-
 	// https://docs.aws.amazon.com/polly/latest/dg/voicelist.html
 	DefaultTTSVoice string `toml:"default_tts_voice"`
 

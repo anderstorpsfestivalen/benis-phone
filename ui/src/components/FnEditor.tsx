@@ -19,7 +19,8 @@ export default function FnEditor({
   onChange: (v: Fn) => void;
   onSelectAction?: (index: number) => void;
 }) {
-  const set = <K extends keyof Fn>(k: K, v: Fn[K]) => onChange({ ...value, [k]: v });
+  const set = <K extends keyof Fn>(k: K, v: Fn[K]) =>
+    onChange({ ...value, [k]: v });
 
   function addAction() {
     set("actions", [...value.actions, emptyAction()]);
@@ -27,7 +28,10 @@ export default function FnEditor({
   }
 
   function removeAction(i: number) {
-    set("actions", value.actions.filter((_, n) => n !== i));
+    set(
+      "actions",
+      value.actions.filter((_, n) => n !== i),
+    );
   }
 
   return (
@@ -35,7 +39,7 @@ export default function FnEditor({
       <div className="grid grid-cols-2 gap-3">
         <Field
           label="Name"
-          help="Unique identifier for this menu. Referenced by other actions via dst, by the General entrypoint, and by dispatcher targets. Lowercase, no spaces."
+          help="Unique identifier for this menu. Referenced by actions, SIP endpoint/trunk entrypoints, and dispatcher targets. Lowercase, no spaces."
         >
           <TextInput value={value.name} onChange={(v) => set("name", v)} />
         </Field>
@@ -65,7 +69,10 @@ export default function FnEditor({
         />
       </div>
 
-      <details className="border border-shadow-grey rounded" open={!!value.prefix.tts.msg}>
+      <details
+        className="border border-shadow-grey rounded"
+        open={!!value.prefix.tts.msg}
+      >
         <summary className="px-3 py-2 cursor-pointer text-sm text-blue-slate">
           Prefix (announcement on entry)
         </summary>
@@ -79,7 +86,14 @@ export default function FnEditor({
 
       <details
         className="border border-shadow-grey rounded"
-        open={!!(value.gate.dst || value.gate.accept || value.gate.prompt || value.gate.deny_tmpl)}
+        open={
+          !!(
+            value.gate.dst ||
+            value.gate.accept ||
+            value.gate.prompt ||
+            value.gate.deny_tmpl
+          )
+        }
       >
         <summary className="px-3 py-2 cursor-pointer text-sm text-blue-slate">
           Gate (input validation)
@@ -138,7 +152,8 @@ export default function FnEditor({
         </div>
         {value.actions.length === 0 && (
           <div className="text-xs text-blue-slate italic">
-            No actions yet. Add one — it will appear as its own node in the graph.
+            No actions yet. Add one — it will appear as its own node in the
+            graph.
           </div>
         )}
         <ul className="flex flex-col gap-1">
@@ -150,9 +165,13 @@ export default function FnEditor({
                 key={i}
                 className="flex items-center gap-2 px-2 py-1 border border-shadow-grey rounded text-xs font-mono"
               >
-                <span className="text-blue-slate w-6 text-center">{dtmfLabel(a.num)}</span>
+                <span className="text-blue-slate w-6 text-center">
+                  {dtmfLabel(a.num)}
+                </span>
                 <span className="text-white">{kind ?? "empty"}</span>
-                <span className="text-blue-slate truncate flex-1">{detail}</span>
+                <span className="text-blue-slate truncate flex-1">
+                  {detail}
+                </span>
                 <button
                   onClick={() => onSelectAction?.(i)}
                   className="px-2 py-0.5 border border-shadow-grey text-blue-slate hover:text-white rounded"

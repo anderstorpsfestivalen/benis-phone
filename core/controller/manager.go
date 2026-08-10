@@ -58,10 +58,14 @@ func (m *SessionManager) UpdateDefinition(def functions.Definition) {
 	m.definition.Store(&def)
 }
 
-// CreateSession creates and registers a new session with the given components.
+// CreateSession creates and registers a new session with the definition
+// snapshot captured by the listener that accepted the call. Keeping the
+// snapshot explicit prevents a failed listener replacement from pairing its
+// old routes with a newer global definition.
+//
 // callCtl may be nil for backends that don't support call control. Returns an
 // error if the maximum concurrent calls limit is reached.
-func (m *SessionManager) CreateSession(id string, ph phone.FlowPhone, audioSink audio.AudioSink, rec audio.AudioSource, callCtl callctl.Controller) (*Session, error) {
+func (m *SessionManager) CreateSession(id, entrypoint string, def functions.Definition, ph phone.FlowPhone, audioSink audio.AudioSink, rec audio.AudioSource, callCtl callctl.Controller) (*Session, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -73,16 +77,30 @@ func (m *SessionManager) CreateSession(id string, ph phone.FlowPhone, audioSink 
 		return nil, fmt.Errorf("session %s already exists", id)
 	}
 
-	session := NewSession(id, ph, audioSink, rec, m.TTS, m.Definition(), callCtl)
+	if _, ok := def.Functions[entrypoint]; !ok {
+		return nil, fmt.Errorf("entrypoint %q does not name a function", entrypoint)
+	}
+	session := NewSession(id, entrypoint, ph, audioSink, rec, m.TTS, def, callCtl)
 	m.sessions[id] = session
 
 	log.WithFields(log.Fields{
-		"session_id":     id,
-		"active_calls":   len(m.sessions),
-		"max_calls":      m.MaxConcurrentCalls,
+		"session_id":   id,
+		"active_calls": len(m.sessions),
+		"max_calls":    m.MaxConcurrentCalls,
 	}).Info("Session created")
 
 	return session, nil
+}
+
+// UpdateMaxConcurrentCalls applies the shared limit to future calls. Existing
+// calls are never terminated when the configured limit is reduced.
+func (m *SessionManager) UpdateMaxConcurrentCalls(max int) {
+	if max <= 0 {
+		max = 10
+	}
+	m.mu.Lock()
+	m.MaxConcurrentCalls = max
+	m.mu.Unlock()
 }
 
 // GetSession returns a session by ID, or nil if not found.

@@ -1,11 +1,24 @@
 [general]
-    entrypoint = "main"
     # AWS Polly specific
     # https://docs.aws.amazon.com/polly/latest/dg/voicelist.html
     default_tts_voice = "Astrid"
     # en-US , sv-SE
     # https://docs.aws.amazon.com/polly/latest/dg/SupportedLanguage.html
     default_tts_lang = "sv-SE"
+
+[sip]
+    max_concurrent_calls = 10
+    record_path = "files/recording"
+
+[[sip.connection]]
+    id = "local-atp"
+    name = "Local ATP endpoint"
+    kind = "endpoint"
+    registration = "inbound"
+    transport = "udp"
+    local_port = 5060
+    allowed_cidrs = ["127.0.0.0/8"]
+    entrypoint = "main"
 
 # main
 [[fn]]

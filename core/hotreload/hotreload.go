@@ -1,8 +1,8 @@
 // Package hotreload owns the runtime config reload behaviour for the IVR
 // binary: it subscribes to the worker's ConfigBroker over WebSocket,
 // optionally polls /config?...&hash=1 as a fallback, listens for SIGUSR1,
-// and on every trigger re-syncs the R2 file mirror before swapping the
-// active Definition on the SessionManager.
+// and on every trigger re-syncs the R2 file mirror before reconciling the
+// active flow definition, SIP listeners, registrations, and routes.
 //
 // One Manager per running binary. Start spawns goroutines for each
 // transport; Stop tears them all down for graceful shutdown. The Manager
@@ -27,17 +27,21 @@ import (
 // fields except SyncFiles are required; SyncFiles may be nil when the
 // binary was started with -s3=false.
 type Config struct {
-	// RemoteClient is the HTTP client for /config (hash + body fetch).
+	// RemoteClient is the HTTP client for /config and /config/runtime.
 	RemoteClient *functions.RemoteClient
-	// SIPClient receives the new Definition via SessionManager().UpdateDefinition().
-	SIPClient *sip.Client
+	// SIPSupervisor reconciles both flow snapshots and connection lifecycles.
+	SIPSupervisor *sip.Supervisor
 	// SyncFiles is invoked before each Definition swap when non-nil.
 	// Typically wraps filesync.Start("files/").
 	SyncFiles func()
 	// BaseURL / Name / Token are forwarded to the WSWatcher.
-	BaseURL string
-	Name    string
-	Token   string
+	BaseURL    string
+	Name       string
+	Token      string
+	InstanceID string
+	Status     <-chan []byte
+	// StatusSnapshot is replayed after each WebSocket reconnect.
+	StatusSnapshot func() [][]byte
 	// InitialHash is the hash observed at startup. Used to short-circuit
 	// the first WS push if it matches.
 	InitialHash string
@@ -92,10 +96,13 @@ func (m *Manager) Start() {
 	go func() {
 		defer m.wg.Done()
 		w := &functions.WSWatcher{
-			BaseURL: m.cfg.BaseURL,
-			Name:    m.cfg.Name,
-			Token:   m.cfg.Token,
-			Logger:  m.log,
+			BaseURL:    m.cfg.BaseURL,
+			Name:       m.cfg.Name,
+			Token:      m.cfg.Token,
+			InstanceID: m.cfg.InstanceID,
+			Outgoing:   m.cfg.Status,
+			Snapshot:   m.cfg.StatusSnapshot,
+			Logger:     m.log,
 			OnUpdate: func(_ string) {
 				m.reloadOnce(false)
 			},
@@ -156,8 +163,8 @@ func (m *Manager) runPoll() {
 
 // reloadOnce pulls the worker's current hash; if it differs from the
 // last one we saw (or force is set), it re-syncs the R2 bucket so any
-// newly-referenced audio files land on disk before the new Definition
-// is swapped in. The hash mutex serialises concurrent triggers
+// newly-referenced audio files land on disk before the new runtime bundle
+// is applied. The hash mutex serialises concurrent triggers
 // (WS event + poll tick + SIGUSR1) so we never run two reloads in
 // parallel and never observe a torn currentHash.
 func (m *Manager) reloadOnce(force bool) {
@@ -175,14 +182,21 @@ func (m *Manager) reloadOnce(force bool) {
 	if m.cfg.SyncFiles != nil {
 		m.cfg.SyncFiles()
 	}
-	def, err := m.cfg.RemoteClient.LoadDefinition()
+	runtime, err := m.cfg.RemoteClient.LoadRuntimeConfig()
 	if err != nil {
 		m.log.Warnf("hot-reload: definition fetch failed: %v", err)
 		return
 	}
-	m.cfg.SIPClient.SessionManager().UpdateDefinition(def)
-	m.hash = h
-	m.log.WithField("hash", ShortHash(h)).Info("Hot-reloaded config")
+	if err := m.cfg.SIPSupervisor.Apply(runtime.Definition, runtime.SIPPasswords); err != nil {
+		m.log.Warnf("hot-reload: apply failed: %v", err)
+		return
+	}
+	appliedHash := runtime.Revision
+	if appliedHash == "" {
+		appliedHash = h
+	}
+	m.hash = appliedHash
+	m.log.WithField("hash", ShortHash(appliedHash)).Info("Hot-reloaded config")
 }
 
 // ShortHash returns the first 8 characters of a hex digest for tidy log

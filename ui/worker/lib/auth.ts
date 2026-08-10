@@ -3,6 +3,8 @@ import { timingSafeEqual } from "./hash";
 export interface Env {
   DB: D1Database;
   CONFIG_BEARER_TOKEN: string;
+  // Base64-encoded 32-byte AES-GCM key for write-only SIP credentials.
+  SIP_SECRET_ENCRYPTION_KEY: string;
   // Static assets binding (the built React app in ./dist). Calling
   // env.ASSETS.fetch(req) serves a file if one exists.
   ASSETS: Fetcher;

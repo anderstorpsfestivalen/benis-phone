@@ -1,12 +1,18 @@
 import { definitionSchema } from "../../src/generated/schemas";
+import type { Definition } from "../../src/generated/config";
+import { validateSIPDefinition } from "../../src/lib/sip-validation";
+import { renderToml } from "../../src/lib/toml-render";
 import type { Env } from "../lib/auth";
 import { sha256Hex } from "../lib/hash";
+import { getConfig, listConfigs, upsertConfigStatement } from "../lib/db";
 import {
-  deleteConfig,
-  getConfig,
-  listConfigs,
-  upsertConfig,
-} from "../lib/db";
+  deleteSIPSecretStatement,
+  decryptSIPPassword,
+  encryptSIPPassword,
+  listSIPSecrets,
+  putSIPSecretStatement,
+  staleSIPSecrets,
+} from "../lib/secrets";
 import { badRequest, json, notFound } from "../lib/responses";
 
 const NAME_RE = /^[a-zA-Z0-9_-]{1,64}$/;
@@ -35,6 +41,12 @@ export async function handleApi(
     if (req.method !== "POST") return badRequest("method not allowed");
     return duplicate(req, env, name);
   }
+  if (sub === "/sip-status" && req.method === "GET") {
+    return statusSnapshot(env, name);
+  }
+  if (sub === "/sip-status/ws" && req.headers.get("Upgrade") === "websocket") {
+    return statusSocket(req, env, name);
+  }
 
   if (sub !== "") return notFound();
 
@@ -50,6 +62,24 @@ export async function handleApi(
   }
 }
 
+function broker(env: Env) {
+  return env.CONFIG_BROKER.get(env.CONFIG_BROKER.idFromName("global"));
+}
+
+function statusSnapshot(env: Env, name: string): Promise<Response> {
+  return broker(env).fetch(
+    `https://broker/status?name=${encodeURIComponent(name)}`,
+  );
+}
+
+function statusSocket(req: Request, env: Env, name: string): Promise<Response> {
+  const url = new URL(req.url);
+  url.hostname = "broker";
+  url.pathname = "/status/subscribe";
+  url.search = `?name=${encodeURIComponent(name)}`;
+  return broker(env).fetch(new Request(url, req));
+}
+
 async function getOne(env: Env, name: string): Promise<Response> {
   const row = await getConfig(env, name);
   if (!row) return notFound();
@@ -60,11 +90,27 @@ async function getOne(env: Env, name: string): Promise<Response> {
     hash: row.hash,
     created_at: row.created_at,
     updated_at: row.updated_at,
+    sip_secret_state: Object.fromEntries(
+      (await listSIPSecrets(env, name)).map((secret) => [
+        secret.connection_id,
+        true,
+      ]),
+    ),
   });
 }
 
-async function putOne(req: Request, env: Env, name: string, ctx: ExecutionContext): Promise<Response> {
-  let body: { doc: unknown; toml: string };
+async function putOne(
+  req: Request,
+  env: Env,
+  name: string,
+  ctx: ExecutionContext,
+): Promise<Response> {
+  let body: {
+    doc: unknown;
+    toml: string;
+    sip_secrets?: Record<string, string | null>;
+    draft?: boolean;
+  };
   try {
     body = (await req.json()) as { doc: unknown; toml: string };
   } catch {
@@ -77,18 +123,127 @@ async function putOne(req: Request, env: Env, name: string, ctx: ExecutionContex
   if (!parsed.success) {
     return badRequest(`doc validation failed: ${parsed.error.message}`);
   }
+  const candidate = body.doc as Partial<Definition>;
+  if (
+    !candidate.sip ||
+    !Array.isArray(candidate.sip.connection) ||
+    !Array.isArray(candidate.fn) ||
+    !candidate.general ||
+    !Array.isArray(candidate.queue)
+  ) {
+    return badRequest(
+      "doc must contain general, sip.connection, fn, and queue",
+    );
+  }
+  const doc = candidate as Definition;
+  const existing = await getConfig(env, name);
+  const newDraft = body.draft === true && existing === null;
+  const configErrors = validateSIPDefinition(doc).filter(
+    (error) => !(newDraft && error === "Add at least one SIP connection."),
+  );
+  if (configErrors.length) return badRequest(configErrors.join(" "));
+  if (body.toml !== renderToml(doc)) {
+    return badRequest("toml does not match the submitted config document");
+  }
+  const connectionIDs = new Set(
+    (doc.sip?.connection ?? []).map((connection) => connection.id),
+  );
+  const registeredConnectionIDs = new Set(
+    doc.sip.connection
+      .filter((connection) => connection.registration === "registered")
+      .map((connection) => connection.id),
+  );
+  if (
+    connectionIDs.size !== (doc.sip?.connection ?? []).length ||
+    connectionIDs.has("")
+  ) {
+    return badRequest("every SIP connection requires a unique id");
+  }
+  for (const [connectionID, password] of Object.entries(
+    body.sip_secrets ?? {},
+  )) {
+    if (!connectionIDs.has(connectionID))
+      return badRequest(`unknown SIP connection id ${connectionID}`);
+    if (!registeredConnectionIDs.has(connectionID) && password !== null) {
+      return badRequest(
+        `SIP password for inbound connection ${connectionID} must be null`,
+      );
+    }
+    if (
+      password !== null &&
+      (typeof password !== "string" || password.length === 0)
+    ) {
+      return badRequest(
+        `SIP password for ${connectionID} must be non-empty or null`,
+      );
+    }
+  }
 
   const now = Date.now();
-  const existing = await getConfig(env, name);
+  const existingSecrets = await listSIPSecrets(env, name);
+  const explicitChanges = Object.entries(body.sip_secrets ?? {});
+  const removedSecrets = staleSIPSecrets(
+    existingSecrets,
+    registeredConnectionIDs,
+  );
+  const finalSecretIDs = new Set(
+    existingSecrets.map((secret) => secret.connection_id),
+  );
+  for (const removed of removedSecrets)
+    finalSecretIDs.delete(removed.connection_id);
+  for (const [connectionID, password] of explicitChanges) {
+    if (password === null) finalSecretIDs.delete(connectionID);
+    else finalSecretIDs.add(connectionID);
+  }
+  for (const connection of doc.sip.connection) {
+    if (
+      !newDraft &&
+      connection.registration === "registered" &&
+      !finalSecretIDs.has(connection.id)
+    ) {
+      return badRequest(
+        `${connection.name || connection.id}: a SIP password is required`,
+      );
+    }
+  }
+  const secretsChanged =
+    explicitChanges.length > 0 || removedSecrets.length > 0;
+  const secretRevision =
+    (existing?.secret_revision ?? 0) + (secretsChanged ? 1 : 0);
   const row = {
     name,
     doc: JSON.stringify(body.doc),
     toml: body.toml,
-    hash: await sha256Hex(body.toml),
+    hash: await sha256Hex(`${body.toml}\nsecret-revision:${secretRevision}`),
+    secret_revision: secretRevision,
     created_at: existing?.created_at ?? now,
     updated_at: now,
   };
-  await upsertConfig(env, row);
+  const statements: D1PreparedStatement[] = [upsertConfigStatement(env, row)];
+  for (const secret of removedSecrets) {
+    statements.push(deleteSIPSecretStatement(env, name, secret.connection_id));
+  }
+  for (const [connectionID, password] of explicitChanges) {
+    if (password === null) {
+      statements.push(deleteSIPSecretStatement(env, name, connectionID));
+      continue;
+    }
+    const encrypted = await encryptSIPPassword(
+      env.SIP_SECRET_ENCRYPTION_KEY,
+      name,
+      connectionID,
+      password,
+    );
+    statements.push(
+      putSIPSecretStatement(env, {
+        config_name: name,
+        connection_id: connectionID,
+        ...encrypted,
+        updated_at: now,
+      }),
+    );
+  }
+  await env.DB.batch(statements);
   // Tell the broker so subscribed Go binaries pull the new config. Fire
   // and forget — failures here don't roll the save back; the binary will
   // catch up on next reconnect or SIGUSR1.
@@ -100,19 +255,40 @@ async function putOne(req: Request, env: Env, name: string, ctx: ExecutionContex
     hash: row.hash,
     created_at: row.created_at,
     updated_at: row.updated_at,
+    sip_secret_state: Object.fromEntries(
+      [...connectionIDs].map((id) => [
+        id,
+        !registeredConnectionIDs.has(id) || body.sip_secrets?.[id] === null
+          ? false
+          : body.sip_secrets?.[id] !== undefined ||
+            existingSecrets.some((secret) => secret.connection_id === id),
+      ]),
+    ),
   });
 }
 
-async function deleteOne(env: Env, name: string, ctx: ExecutionContext): Promise<Response> {
-  const ok = await deleteConfig(env, name);
-  if (!ok) return notFound();
+async function deleteOne(
+  env: Env,
+  name: string,
+  ctx: ExecutionContext,
+): Promise<Response> {
+  const exists = await getConfig(env, name);
+  if (!exists) return notFound();
+  await env.DB.batch([
+    deleteSIPSecretStatement(env, name),
+    env.DB.prepare("DELETE FROM configs WHERE name = ?").bind(name),
+  ]);
   // Notify subscribers — they'll find /config returns 404 on next pull
   // and can decide how to handle it (most likely: stay on current).
   notifyBroker(env, ctx, name, "");
   return new Response(null, { status: 204 });
 }
 
-async function duplicate(req: Request, env: Env, from: string): Promise<Response> {
+async function duplicate(
+  req: Request,
+  env: Env,
+  from: string,
+): Promise<Response> {
   let body: { name: string };
   try {
     body = (await req.json()) as { name: string };
@@ -122,17 +298,55 @@ async function duplicate(req: Request, env: Env, from: string): Promise<Response
   if (!NAME_RE.test(body.name)) return badRequest("invalid target name");
   const src = await getConfig(env, from);
   if (!src) return notFound("source not found");
-  if (await getConfig(env, body.name)) return badRequest("target already exists");
+  if (await getConfig(env, body.name))
+    return badRequest("target already exists");
   const now = Date.now();
+  let registeredSourceIDs = new Set<string>();
+  try {
+    const sourceDoc = JSON.parse(src.doc) as Definition;
+    registeredSourceIDs = new Set(
+      (sourceDoc.sip?.connection ?? [])
+        .filter((connection) => connection.registration === "registered")
+        .map((connection) => connection.id),
+    );
+  } catch {
+    // Preserve the config duplicate but fail closed for credential copying.
+  }
+  const sourceSecrets = (await listSIPSecrets(env, from)).filter((secret) =>
+    registeredSourceIDs.has(secret.connection_id),
+  );
+  const secretRevision = sourceSecrets.length > 0 ? 1 : 0;
   const row = {
     name: body.name,
     doc: src.doc,
     toml: src.toml,
-    hash: src.hash,
+    hash: await sha256Hex(`${src.toml}\nsecret-revision:${secretRevision}`),
+    secret_revision: secretRevision,
     created_at: now,
     updated_at: now,
   };
-  await upsertConfig(env, row);
+  const statements: D1PreparedStatement[] = [upsertConfigStatement(env, row)];
+  for (const sourceSecret of sourceSecrets) {
+    const password = await decryptSIPPassword(
+      env.SIP_SECRET_ENCRYPTION_KEY,
+      sourceSecret,
+    );
+    const encrypted = await encryptSIPPassword(
+      env.SIP_SECRET_ENCRYPTION_KEY,
+      body.name,
+      sourceSecret.connection_id,
+      password,
+    );
+    statements.push(
+      putSIPSecretStatement(env, {
+        config_name: body.name,
+        connection_id: sourceSecret.connection_id,
+        ...encrypted,
+        updated_at: now,
+      }),
+    );
+  }
+  await env.DB.batch(statements);
   return json({
     name: row.name,
     doc: JSON.parse(row.doc),
@@ -140,10 +354,18 @@ async function duplicate(req: Request, env: Env, from: string): Promise<Response
     hash: row.hash,
     created_at: row.created_at,
     updated_at: row.updated_at,
+    sip_secret_state: Object.fromEntries(
+      sourceSecrets.map((secret) => [secret.connection_id, true]),
+    ),
   });
 }
 
-function notifyBroker(env: Env, ctx: ExecutionContext, name: string, hash: string) {
+function notifyBroker(
+  env: Env,
+  ctx: ExecutionContext,
+  name: string,
+  hash: string,
+) {
   const id = env.CONFIG_BROKER.idFromName("global");
   const stub = env.CONFIG_BROKER.get(id);
   const url = `https://broker/notify?name=${encodeURIComponent(name)}&hash=${encodeURIComponent(hash)}`;

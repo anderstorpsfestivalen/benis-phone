@@ -16,5 +16,10 @@
     "composite": true,
     "outDir": "./dist-types/worker"
   },
-  "include": ["worker", "src/generated"]
+  "include": [
+    "worker",
+    "src/generated",
+    "src/lib/sip-validation.ts",
+    "src/lib/toml-render.ts"
+  ]
 }

@@ -19,9 +19,17 @@ import (
 // the new TOML (the existing reloadOnce flow). On disconnect it reconnects
 // with exponential backoff up to a 60-second cap.
 type WSWatcher struct {
-	BaseURL string // e.g. "https://ivr.anderstorpsfestivalen.se"
-	Name    string // config name we care about
-	Token   string // bearer (PBXConfigToken)
+	BaseURL    string // e.g. "https://ivr.anderstorpsfestivalen.se"
+	Name       string // config name we care about
+	Token      string // bearer (PBXConfigToken)
+	InstanceID string
+	// Outgoing carries already-encoded control-plane messages such as
+	// per-connection SIP status events.
+	Outgoing <-chan []byte
+	// Snapshot returns the latest encoded status for every connection. It is
+	// replayed after runtime-hello on each connection so queue drops or a
+	// disconnected runtime cannot leave the control plane permanently stale.
+	Snapshot func() [][]byte
 	// OnUpdate is invoked once per broker event matching Name. The hash
 	// is supplied for logging / dedupe but the caller is expected to
 	// re-fetch via the existing RemoteClient.
@@ -57,7 +65,7 @@ func (w *WSWatcher) Run(ctx context.Context) {
 }
 
 func (w *WSWatcher) runOnce(ctx context.Context) error {
-	u, err := buildWSURL(w.BaseURL, w.Name)
+	u, err := buildWSURL(w.BaseURL, w.Name, w.InstanceID)
 	if err != nil {
 		return err
 	}
@@ -77,25 +85,53 @@ func (w *WSWatcher) runOnce(ctx context.Context) error {
 		"name": w.Name,
 	}).Info("config-ws connected")
 
-	// Keep-alive: the broker registers a runtime auto-response that
-	// answers "ping" with "pong" without waking the hibernated DO. This
-	// keeps NAT / load balancers from idling the TCP connection out.
+	// One writer owns all outgoing frames: status events and a heartbeat that
+	// lets the UI distinguish an idle healthy runtime from an offline one.
 	pingCtx, cancelPing := context.WithCancel(ctx)
 	defer cancelPing()
+	writeErr := make(chan error, 1)
 	go func() {
 		t := time.NewTicker(30 * time.Second)
 		defer t.Stop()
+		write := func(data []byte) bool {
+			writeCtx, cancel := context.WithTimeout(pingCtx, 10*time.Second)
+			err := c.Write(writeCtx, websocket.MessageText, data)
+			cancel()
+			if err != nil {
+				select {
+				case writeErr <- err:
+				default:
+				}
+				_ = c.Close(websocket.StatusInternalError, "write failed")
+				return false
+			}
+			return true
+		}
+		for _, data := range w.initialMessages() {
+			if !write(data) {
+				return
+			}
+		}
 		for {
 			select {
 			case <-pingCtx.Done():
 				return
 			case <-t.C:
-				writeCtx, cancel := context.WithTimeout(pingCtx, 10*time.Second)
-				if err := c.Write(writeCtx, websocket.MessageText, []byte("ping")); err != nil {
-					cancel()
+				heartbeat, _ := json.Marshal(map[string]any{
+					"type": "heartbeat", "instance_id": w.InstanceID,
+					"at": time.Now().UTC().Format(time.RFC3339Nano),
+				})
+				if !write(heartbeat) {
 					return
 				}
-				cancel()
+			case data, ok := <-w.Outgoing:
+				if !ok {
+					w.Outgoing = nil
+					continue
+				}
+				if !write(data) {
+					return
+				}
 			}
 		}
 	}()
@@ -103,11 +139,12 @@ func (w *WSWatcher) runOnce(ctx context.Context) error {
 	for {
 		_, data, err := c.Read(ctx)
 		if err != nil {
+			select {
+			case writeErrValue := <-writeErr:
+				return fmt.Errorf("write: %w", writeErrValue)
+			default:
+			}
 			return fmt.Errorf("read: %w", err)
-		}
-		if string(data) == "pong" {
-			// Runtime auto-response to our keep-alive. Ignore.
-			continue
 		}
 		var msg struct {
 			Type string `json:"type"`
@@ -128,8 +165,20 @@ func (w *WSWatcher) runOnce(ctx context.Context) error {
 	}
 }
 
+func (w *WSWatcher) initialMessages() [][]byte {
+	hello, _ := json.Marshal(map[string]any{
+		"type": "runtime-hello", "instance_id": w.InstanceID,
+		"at": time.Now().UTC().Format(time.RFC3339Nano),
+	})
+	messages := [][]byte{hello}
+	if w.Snapshot != nil {
+		messages = append(messages, w.Snapshot()...)
+	}
+	return messages
+}
+
 // buildWSURL turns "https://host" + name into "wss://host/config/ws?name=...".
-func buildWSURL(baseURL, name string) (string, error) {
+func buildWSURL(baseURL, name, instanceID string) (string, error) {
 	u, err := url.Parse(baseURL)
 	if err != nil {
 		return "", fmt.Errorf("invalid base url %q: %w", baseURL, err)
@@ -145,6 +194,7 @@ func buildWSURL(baseURL, name string) (string, error) {
 	u.Path = "/config/ws"
 	q := u.Query()
 	q.Set("name", name)
+	q.Set("instance_id", instanceID)
 	u.RawQuery = q.Encode()
 	return u.String(), nil
 }

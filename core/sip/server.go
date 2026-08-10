@@ -2,15 +2,16 @@ package sip
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/anderstorpsfestivalen/benis-phone/core/controller"
 	"github.com/anderstorpsfestivalen/benis-phone/core/functions"
-	"github.com/anderstorpsfestivalen/benis-phone/core/tts"
 	"github.com/emiago/diago"
 	"github.com/emiago/diago/media"
 	"github.com/emiago/sipgo"
@@ -33,6 +34,14 @@ var telephoneEventPT100 = media.Codec{
 
 // ClientConfig holds SIP client configuration for registering with a PBX.
 type ClientConfig struct {
+	ConnectionID string
+	Name         string
+	Kind         string
+	Registration string
+	Entrypoint   string
+	Routes       []functions.SIPRoute
+	AllowedCIDRs []string
+
 	// Server is the SIP server/PBX address (e.g., "pbx.example.com:5060")
 	Server string
 
@@ -63,82 +72,55 @@ type ClientConfig struct {
 	// ExternalIP is the public IP for NAT traversal (used in SDP for RTP)
 	ExternalIP string
 
-	// Direct enables server-less debug mode: skip REGISTER and just listen on
-	// LocalPort for unauthenticated INVITEs. Server can be empty.
-	Direct bool
+	// InboundOnly skips REGISTER. Calls still have to pass AllowedCIDRs.
+	InboundOnly bool
 }
 
 // Client handles SIP registration and incoming calls as a PBX extension.
 type Client struct {
-	config  ClientConfig
-	ua      *sipgo.UserAgent
-	diago   *diago.Diago
-	manager *controller.SessionManager
-	tts     *tts.Registry
-	def     functions.Definition
-
-	regTx *diago.RegisterTransaction
+	configMu   sync.RWMutex
+	config     ClientConfig
+	definition functions.Definition
+	ua         *sipgo.UserAgent
+	diago      *diago.Diago
+	manager    *controller.SessionManager
+	regCancel  context.CancelFunc
+	regLifeMu  sync.Mutex
+	regWG      sync.WaitGroup
+	stopOnce   sync.Once
 
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	activeCalls map[string]*callContext
-	mu          sync.Mutex
+	activeCalls  map[string]*callContext
+	pendingCalls int
+	mu           sync.Mutex
 
 	registered bool
 	regMu      sync.RWMutex
+
+	accepting bool
+	statusMu  sync.RWMutex
+	status    func(StatusEvent)
 }
 
 // callContext holds per-call resources
 type callContext struct {
-	session    *controller.Session
-	sipPhone   *SIPPhone
-	audioSink  *RTPAudioSink
-	audioSrc   *RTPAudioSource
-	callCtl    *sipController
-	cancelFunc context.CancelFunc
+	session     *controller.Session
+	dialog      *diago.DialogServerSession
+	sipPhone    *SIPPhone
+	audioSink   *RTPAudioSink
+	audioSrc    *RTPAudioSource
+	callCtl     *sipController
+	cancelFunc  context.CancelFunc
+	cleanupDone chan struct{}
 }
 
 // NewClient creates a new SIP client that will register with a PBX.
-func NewClient(config ClientConfig, ttsReg *tts.Registry, def functions.Definition, maxCalls int) (*Client, error) {
-	// Set defaults
-	if config.Transport == "" {
-		config.Transport = "udp"
-	}
+func NewClient(config ClientConfig, def functions.Definition, manager *controller.SessionManager, status func(StatusEvent)) (*Client, error) {
+	config = normalizeClientConfig(config)
 	if config.LocalPort == 0 {
-		config.LocalPort = 5060
-	}
-	if config.ExpirySeconds == 0 {
-		config.ExpirySeconds = 300
-	}
-	if config.Direct {
-		// Production NAT settings would leak the public IP into Contact/SDP
-		// and break local routing. Wipe them so the listener advertises the
-		// LAN IP we actually bound to.
-		config.ExternalIP = ""
-		config.Server = ""
-	}
-	if config.Username == "" {
-		config.Username = config.Extension
-	}
-	if config.Extension == "" {
-		// Direct mode doesn't need a real extension — any URI user works.
-		config.Extension = "debug"
-	}
-	if config.Domain == "" {
-		if config.Direct {
-			// No PBX to derive a domain from. Use the bind IP if we know it,
-			// otherwise a placeholder — softphones don't care for direct calls.
-			config.Domain = "local"
-		} else {
-			// Extract domain from server address
-			host, _, err := net.SplitHostPort(config.Server)
-			if err != nil {
-				config.Domain = config.Server
-			} else {
-				config.Domain = host
-			}
-		}
+		return nil, fmt.Errorf("local port must be allocated before creating SIP client")
 	}
 
 	// Create user agent with the extension as the SIP user and domain as hostname
@@ -150,10 +132,10 @@ func NewClient(config ClientConfig, ttsReg *tts.Registry, def functions.Definiti
 		return nil, fmt.Errorf("failed to create SIP user agent: %w", err)
 	}
 
-	// Detect local IP for binding/SDP. In direct mode there's no server to
+	// Detect local IP for binding/SDP. In inbound-only mode there's no server to
 	// route towards, so we just discover a reasonable LAN IP.
 	var localIP string
-	if config.Direct {
+	if config.InboundOnly {
 		localIP, err = getLANIP()
 		if err != nil {
 			return nil, fmt.Errorf("failed to detect local IP: %w", err)
@@ -212,22 +194,49 @@ func NewClient(config ClientConfig, ttsReg *tts.Registry, def functions.Definiti
 		diago.WithClient(sipClient),
 	)
 
-	// Create session manager
-	manager := controller.NewSessionManager(ttsReg, def, maxCalls)
-
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Client{
 		config:      config,
+		definition:  def,
 		ua:          ua,
 		diago:       dg,
 		manager:     manager,
-		tts:         ttsReg,
-		def:         def,
 		ctx:         ctx,
 		cancel:      cancel,
 		activeCalls: make(map[string]*callContext),
+		accepting:   true,
+		status:      status,
 	}, nil
+}
+
+func normalizeClientConfig(config ClientConfig) ClientConfig {
+	config.Transport = strings.ToLower(strings.TrimSpace(config.Transport))
+	if config.Transport == "" {
+		config.Transport = "udp"
+	}
+	if config.ExpirySeconds == 0 {
+		config.ExpirySeconds = 300
+	}
+	if config.Extension == "" {
+		config.Extension = config.ConnectionID
+	}
+	if config.Username == "" {
+		config.Username = config.Extension
+	}
+	if config.Domain == "" {
+		if config.InboundOnly {
+			config.Domain = "local"
+		} else {
+			host, _, err := net.SplitHostPort(config.Server)
+			if err != nil {
+				config.Domain = config.Server
+			} else {
+				config.Domain = host
+			}
+		}
+	}
+	return config
 }
 
 // SessionManager returns the controller managing per-call sessions. Used
@@ -236,95 +245,239 @@ func (c *Client) SessionManager() *controller.SessionManager {
 	return c.manager
 }
 
-// Start registers with the PBX (or, in Direct mode, just listens) and begins
+// Start registers with the PBX (or only listens for an inbound connection) and begins
 // accepting calls.
 func (c *Client) Start() error {
+	cfg := c.Config()
+	c.emit("starting", "", "starting SIP listener")
 	log.WithFields(log.Fields{
-		"server":    c.config.Server,
-		"extension": c.config.Extension,
-		"domain":    c.config.Domain,
-		"transport": c.config.Transport,
-		"direct":    c.config.Direct,
+		"connection": cfg.ConnectionID,
+		"server":     cfg.Server,
+		"extension":  cfg.Extension,
+		"domain":     cfg.Domain,
+		"transport":  cfg.Transport,
+		"inbound":    cfg.InboundOnly,
 	}).Info("Starting SIP client")
 
 	// Start serving incoming calls first (this sets up the transport).
 	// ServeBackground waits for the listener to be ready before returning.
 	if err := c.diago.ServeBackground(c.ctx, c.handleIncomingCall); err != nil {
+		c.emit("error", "bind_failed", err.Error())
 		return fmt.Errorf("failed to start SIP server: %w", err)
 	}
 
-	if c.config.Direct {
-		// Server-less debug mode: skip REGISTER, just accept INVITEs.
+	if cfg.InboundOnly {
 		c.regMu.Lock()
 		c.registered = true
 		c.regMu.Unlock()
 		log.WithFields(log.Fields{
-			"bind_port": c.config.LocalPort,
-			"transport": c.config.Transport,
-			"call_uri":  fmt.Sprintf("sip:%s@<host>:%d", c.config.Extension, c.config.LocalPort),
-		}).Info("Direct mode: listening for unauthenticated INVITEs (no PBX registration)")
+			"connection": cfg.ConnectionID,
+			"bind_port":  cfg.LocalPort,
+			"transport":  cfg.Transport,
+		}).Info("Inbound SIP connection listening (no REGISTER)")
+		c.emit("listening", "", "inbound listener ready")
 		return nil
 	}
+	c.restartRegistration()
+	return nil
+}
 
-	// Build the registrar URI
+func (c *Client) restartRegistration() {
+	c.regLifeMu.Lock()
+	defer c.regLifeMu.Unlock()
+	c.stopRegistrationLocked()
+	if c.ctx.Err() != nil {
+		return
+	}
+	cfg := c.Config()
+	c.regMu.Lock()
+	regCtx, cancel := context.WithCancel(c.ctx)
+	c.regCancel = cancel
+	c.registered = false
+	c.regMu.Unlock()
+
+	if cfg.InboundOnly {
+		c.regMu.Lock()
+		c.registered = true
+		c.regMu.Unlock()
+		c.emit("listening", "", "inbound listener ready")
+		return
+	}
+	c.emit("registering", "", "registering with upstream PBX")
 	registrarURI := sip.Uri{
-		User: c.config.Extension,
-		Host: c.config.Domain,
+		User:      cfg.Extension,
+		Host:      cfg.Domain,
+		UriParams: sip.HeaderParams{"transport": cfg.Transport},
 	}
 
 	regOpts := diago.RegisterOptions{
-		Username:  c.config.Username,
-		Password:  c.config.Password,
-		ProxyHost: c.config.Server,
-		Expiry:    time.Duration(c.config.ExpirySeconds) * time.Second,
+		Username:  cfg.Username,
+		Password:  cfg.Password,
+		ProxyHost: cfg.Server,
+		Expiry:    time.Duration(cfg.ExpirySeconds) * time.Second,
 		OnRegistered: func() {
 			c.regMu.Lock()
 			c.registered = true
 			c.regMu.Unlock()
 			log.WithFields(log.Fields{
-				"extension": c.config.Extension,
-				"server":    c.config.Server,
+				"connection": cfg.ConnectionID,
+				"extension":  cfg.Extension,
+				"server":     cfg.Server,
 			}).Info("Successfully registered with PBX")
+			c.emit("ready", "", "registered with upstream PBX")
 		},
 	}
 
-	// Now start registration (transport is ready)
+	c.regWG.Add(1)
 	go func() {
-		err := c.diago.Register(c.ctx, registrarURI, regOpts)
-		if err != nil && err != context.Canceled {
+		defer c.regWG.Done()
+		for regCtx.Err() == nil {
+			err := c.diago.Register(regCtx, registrarURI, regOpts)
+			if err == nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return
+			}
 			log.WithError(err).Error("Registration failed")
 			c.regMu.Lock()
 			c.registered = false
 			c.regMu.Unlock()
+			code := "registration_failed"
+			var responseErr *diago.RegisterResponseError
+			if errors.As(err, &responseErr) && (responseErr.StatusCode() == 401 || responseErr.StatusCode() == 403 || responseErr.StatusCode() == 407) {
+				code = "auth_failed"
+			}
+			c.emit("error", code, err.Error())
+			select {
+			case <-regCtx.Done():
+				return
+			case <-time.After(30 * time.Second):
+				c.emit("registering", "retry", "retrying registration")
+			}
 		}
 	}()
+}
 
-	return nil
+func (c *Client) stopRegistration() {
+	c.regLifeMu.Lock()
+	defer c.regLifeMu.Unlock()
+	c.stopRegistrationLocked()
+}
+
+func (c *Client) stopRegistrationLocked() {
+	c.regMu.Lock()
+	if c.regCancel != nil {
+		c.regCancel()
+		c.regCancel = nil
+	}
+	c.regMu.Unlock()
+	c.regWG.Wait()
+}
+
+// Config returns a copy of the current connection configuration.
+func (c *Client) Config() ClientConfig {
+	c.configMu.RLock()
+	defer c.configMu.RUnlock()
+	return c.config
+}
+
+// beginIncomingCall captures one coherent listener snapshot and reserves a
+// call slot before Drain can observe the listener as idle. Without the pending
+// reservation, a call already inside diago but not yet in activeCalls could be
+// torn down underneath its answer/session setup.
+func (c *Client) beginIncomingCall() (ClientConfig, functions.Definition, bool) {
+	c.configMu.RLock()
+	defer c.configMu.RUnlock()
+	if !c.accepting {
+		return ClientConfig{}, functions.Definition{}, false
+	}
+	c.mu.Lock()
+	c.pendingCalls++
+	c.mu.Unlock()
+	return c.config, c.definition, true
+}
+
+func (c *Client) releasePendingCall() {
+	c.mu.Lock()
+	c.pendingCalls--
+	c.mu.Unlock()
+}
+
+// Update changes routing and registration settings without restarting the
+// listener. The supervisor only calls this when bind/NAT settings are stable.
+func (c *Client) Update(cfg ClientConfig, def functions.Definition, restartRegistration bool) {
+	c.configMu.Lock()
+	c.config = cfg
+	c.definition = def
+	c.configMu.Unlock()
+	if restartRegistration {
+		c.restartRegistration()
+	}
+}
+
+func (c *Client) emit(state, code, message string) {
+	c.statusMu.RLock()
+	defer c.statusMu.RUnlock()
+	if c.status == nil {
+		return
+	}
+	cfg := c.Config()
+	c.status(newStatus(cfg.ConnectionID, state, code, message, cfg.LocalPort))
+}
+
+// silenceStatus prevents a superseded listener from overwriting the status
+// emitted by its live replacement while the old listener drains calls.
+func (c *Client) silenceStatus() {
+	c.statusMu.Lock()
+	c.status = nil
+	c.statusMu.Unlock()
 }
 
 // Stop gracefully stops the SIP client and unregisters.
 func (c *Client) Stop() {
-	log.Info("Stopping SIP client")
+	c.stopOnce.Do(func() {
+		cfg := c.Config()
+		log.WithField("connection", cfg.ConnectionID).Info("Stopping SIP client")
 
-	// Cancel context to stop registration loop and call handling
-	c.cancel()
+		// Cancel registration before closing the UA so diago can send its
+		// best-effort unregister using the still-live transport.
+		c.stopRegistration()
+		c.cancel()
 
-	// Stop all active calls
-	c.mu.Lock()
-	for callID, cc := range c.activeCalls {
-		cc.cancelFunc()
-		delete(c.activeCalls, callID)
-	}
-	c.mu.Unlock()
+		// cleanupCall is idempotent through its activeCalls delete, so it is
+		// safe if a dialog monitor is finishing at the same time.
+		c.mu.Lock()
+		calls := make(map[string]*callContext, len(c.activeCalls))
+		for callID, cc := range c.activeCalls {
+			calls[callID] = cc
+		}
+		c.mu.Unlock()
+		for callID, cc := range calls {
+			c.cleanupCall(callID, cc.dialog)
+			<-cc.cleanupDone
+		}
 
-	// Stop all sessions via manager
-	c.manager.StopAll()
+		// A supervisor may immediately bind a replacement to this port.
+		// Closing the UA synchronously releases all SIP transports first.
+		if err := c.ua.Close(); err != nil {
+			log.WithError(err).WithField("connection", cfg.ConnectionID).Warn("Closing SIP user agent")
+		}
 
-	c.regMu.Lock()
-	c.registered = false
-	c.regMu.Unlock()
+		c.regMu.Lock()
+		c.registered = false
+		c.regMu.Unlock()
 
-	log.Info("SIP client stopped")
+		c.emit("stopped", "", "SIP connection stopped")
+		log.WithField("connection", cfg.ConnectionID).Info("SIP client stopped")
+	})
+}
+
+// Drain prevents new calls and unregisters while keeping the listener and
+// active dialogs alive. The supervisor calls Stop after ActiveCalls reaches 0.
+func (c *Client) Drain() {
+	c.configMu.Lock()
+	c.accepting = false
+	c.configMu.Unlock()
+	c.stopRegistration()
+	c.emit("draining", "", "waiting for active calls to finish")
 }
 
 // IsRegistered returns true if currently registered with the PBX.
@@ -337,12 +490,41 @@ func (c *Client) IsRegistered() bool {
 // handleIncomingCall is called for each incoming SIP INVITE.
 func (c *Client) handleIncomingCall(dialog *diago.DialogServerSession) {
 	callID := uuid.New().String()
+	cfg, def, accepting := c.beginIncomingCall()
+	if !accepting {
+		_ = dialog.Respond(503, "Service Unavailable", nil)
+		return
+	}
+	pending := true
+	defer func() {
+		if pending {
+			c.releasePendingCall()
+		}
+	}()
+	if !sourceAllowed(dialog.InviteRequest.Source(), cfg.AllowedCIDRs) {
+		log.WithFields(log.Fields{"connection": cfg.ConnectionID, "source": dialog.InviteRequest.Source()}).Warn("Rejected SIP INVITE outside allowed CIDRs")
+		_ = dialog.Respond(403, "Forbidden", nil)
+		return
+	}
+	called := dialog.InviteRequest.Recipient.User
+	if called == "" {
+		called = dialog.ToUser()
+	}
+	entrypoint, ok := resolveEntrypoint(cfg, called)
+	if !ok {
+		log.WithFields(log.Fields{"connection": cfg.ConnectionID, "called": called}).Info("No SIP route matched")
+		_ = dialog.Respond(404, "Not Found", nil)
+		return
+	}
 
 	log.WithFields(log.Fields{
-		"call_id":   callID,
-		"from":      dialog.FromUser(),
-		"to":        dialog.ToUser(),
-		"transport": dialog.Transport(),
+		"call_id":    callID,
+		"connection": cfg.ConnectionID,
+		"from":       dialog.FromUser(),
+		"to":         dialog.ToUser(),
+		"called":     called,
+		"entrypoint": entrypoint,
+		"transport":  dialog.Transport(),
 	}).Info("Incoming SIP call")
 
 	// Send 100 Trying
@@ -351,9 +533,9 @@ func (c *Client) handleIncomingCall(dialog *diago.DialogServerSession) {
 		return
 	}
 
-	if !c.config.Direct {
+	if !cfg.InboundOnly {
 		// Send 180 Ringing only when behind a real PBX. Some softphones in
-		// direct-call mode CANCEL during the provisional window, which races
+		// direct peers sometimes CANCEL during the provisional window, which races
 		// the 200 OK and produces "transaction terminated" on Answer.
 		if err := dialog.Ringing(); err != nil {
 			log.WithError(err).Error("Failed to send Ringing")
@@ -375,7 +557,7 @@ func (c *Client) handleIncomingCall(dialog *diago.DialogServerSession) {
 			telephoneEventPT100,           // DTMF — PT 100 (Linphone)
 		},
 	}
-	if !c.config.Direct {
+	if !cfg.InboundOnly {
 		// RTPNATSymetric learns the remote RTP source from incoming packets —
 		// essential behind NAT, harmful on a flat LAN where the offered SDP
 		// already points at a reachable address.
@@ -412,7 +594,7 @@ func (c *Client) handleIncomingCall(dialog *diago.DialogServerSession) {
 		return
 	}
 
-	audioSrc := NewRTPAudioSource(dialog, c.config.RecordPath)
+	audioSrc := NewRTPAudioSource(dialog, cfg.RecordPath)
 
 	// Wire the per-call recorder so SIPPhone taps inbound and OutputStream
 	// (inside audioSink) taps outbound. The sipController also holds a
@@ -420,10 +602,10 @@ func (c *Client) handleIncomingCall(dialog *diago.DialogServerSession) {
 	rec := audioSink.Recorder()
 	sipPhone.SetRecorder(rec)
 
-	callCtl := newSIPController(callID, dialog, c.config.RecordPath, c.config.Domain, rec)
+	callCtl := newSIPController(callID, dialog, cfg.RecordPath, cfg.Domain, rec)
 
 	// Create session via manager
-	session, err := c.manager.CreateSession(callID, sipPhone, audioSink, audioSrc, callCtl)
+	session, err := c.manager.CreateSession(callID, entrypoint, def, sipPhone, audioSink, audioSrc, callCtl)
 	if err != nil {
 		log.WithError(err).Error("Failed to create session")
 		dialog.Hangup(c.ctx)
@@ -441,16 +623,20 @@ func (c *Client) handleIncomingCall(dialog *diago.DialogServerSession) {
 	// Create call context
 	callCtx, cancelFunc := context.WithCancel(c.ctx)
 	cc := &callContext{
-		session:    session,
-		sipPhone:   sipPhone,
-		audioSink:  audioSink,
-		audioSrc:   audioSrc,
-		callCtl:    callCtl,
-		cancelFunc: cancelFunc,
+		session:     session,
+		dialog:      dialog,
+		sipPhone:    sipPhone,
+		audioSink:   audioSink,
+		audioSrc:    audioSrc,
+		callCtl:     callCtl,
+		cancelFunc:  cancelFunc,
+		cleanupDone: make(chan struct{}),
 	}
 
 	c.mu.Lock()
 	c.activeCalls[callID] = cc
+	c.pendingCalls--
+	pending = false
 	c.mu.Unlock()
 
 	// Start session in background
@@ -477,6 +663,7 @@ func (c *Client) monitorDialog(callID string, dialog *diago.DialogServerSession,
 	if !exists {
 		return
 	}
+	defer close(cc.cleanupDone)
 
 	// Wait for either context cancellation or DTMF loop to end
 	select {
@@ -538,7 +725,45 @@ func (c *Client) cleanupCall(callID string, dialog *diago.DialogServerSession) {
 
 // ActiveCalls returns the number of active calls.
 func (c *Client) ActiveCalls() int {
-	return c.manager.ActiveSessionCount()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return len(c.activeCalls) + c.pendingCalls
+}
+
+func (c *Client) IsAccepting() bool {
+	c.configMu.RLock()
+	defer c.configMu.RUnlock()
+	return c.accepting
+}
+
+func resolveEntrypoint(cfg ClientConfig, called string) (string, bool) {
+	conn := functions.SIPConnection{
+		Kind:       cfg.Kind,
+		Entrypoint: cfg.Entrypoint,
+		Routes:     cfg.Routes,
+	}
+	return conn.ResolveEntrypoint(called)
+}
+
+func sourceAllowed(source string, cidrs []string) bool {
+	if len(cidrs) == 0 {
+		return true
+	}
+	host, _, err := net.SplitHostPort(source)
+	if err != nil {
+		host = source
+	}
+	ip := net.ParseIP(strings.Trim(host, "[]"))
+	if ip == nil {
+		return false
+	}
+	for _, raw := range cidrs {
+		_, network, err := net.ParseCIDR(strings.TrimSpace(raw))
+		if err == nil && network.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }
 
 // getOutboundIP finds the local IP address that would be used to reach the given destination.

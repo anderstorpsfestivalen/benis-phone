@@ -2,13 +2,21 @@ import { checkAccess, checkBearer, type Env } from "./lib/auth";
 import { handleApi } from "./handlers/configs";
 import { handleFiles } from "./handlers/files";
 import { handlePreview } from "./handlers/preview";
-import { handleConfig, handleConfigWS } from "./handlers/serve";
+import {
+  handleConfig,
+  handleConfigWS,
+  handleRuntimeConfig,
+} from "./handlers/serve";
 import { notFound, unauthorized } from "./lib/responses";
 
 export { ConfigBroker } from "./durable/configBroker";
 
 export default {
-  async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  async fetch(
+    req: Request,
+    env: Env,
+    ctx: ExecutionContext,
+  ): Promise<Response> {
     const url = new URL(req.url);
     try {
       // Bearer-token WebSocket endpoint (Go binary). Long-lived push
@@ -17,6 +25,10 @@ export default {
       if (url.pathname === "/config/ws") {
         if (!checkBearer(req, env)) return unauthorized();
         return await handleConfigWS(req, env);
+      }
+      if (url.pathname === "/config/runtime") {
+        if (!checkBearer(req, env)) return unauthorized();
+        return await handleRuntimeConfig(req, env);
       }
 
       // Bearer-token endpoint (Go binary). Outside the Access perimeter on

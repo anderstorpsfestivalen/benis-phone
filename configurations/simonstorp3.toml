@@ -5,23 +5,28 @@
 # else mirrors simonstorp.toml.
 
 [general]
-entrypoint = "main"
 default_tts_provider = "elevenlabs"
 default_tts_voice = "IKne3meq5aSn9XLyUdCD"
 default_tts_lang = "sv-SE"
 default_tts_engine = "eleven_multilingual_v2"
 
 [sip]
+max_concurrent_calls = 10
+record_path = "files/recording"
+
+[[sip.connection]]
+id = "primary"
+name = "Primary endpoint"
+kind = "endpoint"
+registration = "registered"
 server = "sip.anderstorpsfestivalen.se:5060"
 extension = "3005"
 username = "3005"
 transport = "udp"
 local_port = 5060
-max_concurrent_calls = 10
-record_path = "files/recording"
 expiry_seconds = 300
 external_ip = "45.154.28.76"
-# Password stored in creds/creds.json under "SIP.Password"
+entrypoint = "main"
 
 ############################
 # MAIN
@@ -135,7 +140,7 @@ name = "directory"
 prefix = { tts = { msg = """Directory. Press one for sales, two for support,
     three for billing. Press zero to go back.""" } }
 actions = [
-    # Extension shorthand expands to "sip:<ext>@<def.SIP.Domain>".
+	# Extension shorthand uses the domain of the SIP connection that accepted the call.
     { num = 1, transfer = "201" },
     { num = 2, transfer = "202" },
     { num = 3, transfer = "203" },

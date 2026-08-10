@@ -60,7 +60,6 @@ export const gateSchema: z.ZodType<unknown> = z.lazy(() => z.object({
 }).passthrough());
 
 export const generalSchema: z.ZodType<unknown> = z.lazy(() => z.object({
-  entrypoint: z.string().optional(),
   default_tts_voice: z.string().optional(),
   default_tts_lang: z.string().optional(),
   default_tts_engine: z.string().optional(),
@@ -126,17 +125,34 @@ export const recordingSchema: z.ZodType<unknown> = z.lazy(() => z.object({
 }).passthrough());
 
 export const sipConfigSchema: z.ZodType<unknown> = z.lazy(() => z.object({
+  max_concurrent_calls: z.number().optional(),
+  record_path: z.string().optional(),
+  connection: z.array(sipConnectionSchema).optional(),
+}).passthrough());
+
+export const sipConnectionSchema: z.ZodType<unknown> = z.lazy(() => z.object({
+  id: z.string().optional(),
+  name: z.string().optional(),
+  kind: z.string().optional(),
+  registration: z.string().optional(),
   server: z.string().optional(),
   extension: z.string().optional(),
   username: z.string().optional(),
   domain: z.string().optional(),
   transport: z.string().optional(),
   local_port: z.number().optional(),
-  max_concurrent_calls: z.number().optional(),
-  record_path: z.string().optional(),
   expiry_seconds: z.number().optional(),
   external_ip: z.string().optional(),
-  direct: z.boolean().optional(),
+  allowed_cidrs: z.array(z.string()).optional(),
+  entrypoint: z.string().optional(),
+  route: z.array(sipRouteSchema).optional(),
+}).passthrough());
+
+export const sipRouteSchema: z.ZodType<unknown> = z.lazy(() => z.object({
+  id: z.string().optional(),
+  number: z.string().optional(),
+  entrypoint: z.string().optional(),
+  catch_all: z.boolean().optional(),
 }).passthrough());
 
 export const scriptSchema: z.ZodType<unknown> = z.lazy(() => z.object({

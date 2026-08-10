@@ -27,7 +27,7 @@ export default function ConfigList() {
   async function create() {
     if (!newName.trim()) return;
     const doc = emptyDefinition();
-    await api.save(newName.trim(), doc, renderToml(doc));
+    await api.save(newName.trim(), doc, renderToml(doc), {}, true);
     setNewName("");
     nav(`/editor/${encodeURIComponent(newName.trim())}`);
   }
@@ -38,13 +38,19 @@ export default function ConfigList() {
       const text = await file.text();
       const doc = parseTomlConfig(text);
       // Default name = filename without extension; user can override.
-      const defaultName = file.name.replace(/\.toml$/i, "").replace(/[^a-zA-Z0-9_-]/g, "_");
+      const defaultName = file.name
+        .replace(/\.toml$/i, "")
+        .replace(/[^a-zA-Z0-9_-]/g, "_");
       const name = prompt("Save imported config as:", defaultName);
       if (!name) return;
       const trimmed = name.trim();
-      if (configs?.some((c) => c.name === trimmed) &&
-          !confirm(`"${trimmed}" already exists. Overwrite?`)) return;
-      await api.save(trimmed, doc, renderToml(doc));
+      if (
+        configs?.some((c) => c.name === trimmed) &&
+        !confirm(`"${trimmed}" already exists. Overwrite?`)
+      )
+        return;
+      const exists = configs?.some((c) => c.name === trimmed) ?? false;
+      await api.save(trimmed, doc, renderToml(doc), {}, !exists);
       nav(`/editor/${encodeURIComponent(trimmed)}`);
     } catch (e) {
       setErr(`Import failed: ${e instanceof Error ? e.message : String(e)}`);

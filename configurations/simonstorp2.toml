@@ -1,20 +1,26 @@
 [general]
-entrypoint = "main"
 default_tts_voice = "IKne3meq5aSn9XLyUdCD"
 default_tts_lang = "sv-SE"
 default_tts_engine = "eleven_multilingual_v2"
 default_tts_provider = "elevenlabs"
 
 [sip]
+max_concurrent_calls = 10
+record_path = "files/recording"
+
+[[sip.connection]]
+id = "primary"
+name = "Primary endpoint"
+kind = "endpoint"
+registration = "registered"
 server = "sip.anderstorpsfestivalen.se:5060"
 extension = "3005"
 username = "3005"
 transport = "udp"
 local_port = 5060
-max_concurrent_calls = 10
-record_path = "files/recording"
 expiry_seconds = 300
 external_ip = "45.154.28.76"
+entrypoint = "main"
 
 [[fn]]
 name = "main"

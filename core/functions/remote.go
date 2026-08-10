@@ -1,14 +1,20 @@
 package functions
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"time"
 )
+
+type RuntimeConfig struct {
+	Revision     string            `json:"revision"`
+	TOML         string            `json:"toml"`
+	SIPPasswords map[string]string `json:"sip_passwords"`
+	Definition   Definition        `json:"-"`
+}
 
 // RemoteClient fetches configs from the Cloudflare Worker (pbx.<zone>/config).
 type RemoteClient struct {
@@ -32,15 +38,37 @@ func NewRemoteClient(baseURL, name, token string) *RemoteClient {
 // LoadDefinition GETs /config?name=<name>, decodes the TOML, and returns
 // the prepared Definition. Errors carry HTTP status when relevant.
 func (r *RemoteClient) LoadDefinition() (Definition, error) {
-	body, err := r.fetch(false)
+	runtime, err := r.LoadRuntimeConfig()
 	if err != nil {
 		return Definition{}, err
 	}
-	return Decode(body)
+	return runtime.Definition, nil
 }
 
-// FetchHash GETs /config?name=<name>&hash=1 and returns the body trimmed
-// of whitespace. The Worker returns sha256(toml) as lowercase hex.
+// LoadRuntimeConfig fetches the editor-safe TOML together with the SIP
+// passwords that only the bearer-authenticated IVR runtime is allowed to see.
+func (r *RemoteClient) LoadRuntimeConfig() (RuntimeConfig, error) {
+	body, err := r.fetchPath("/config/runtime", false)
+	if err != nil {
+		return RuntimeConfig{}, err
+	}
+	var cfg RuntimeConfig
+	if err := json.Unmarshal(body, &cfg); err != nil {
+		return RuntimeConfig{}, fmt.Errorf("decode runtime config: %w", err)
+	}
+	def, err := Decode([]byte(cfg.TOML))
+	if err != nil {
+		return RuntimeConfig{}, err
+	}
+	cfg.Definition = def
+	if cfg.SIPPasswords == nil {
+		cfg.SIPPasswords = make(map[string]string)
+	}
+	return cfg, nil
+}
+
+// FetchHash GETs /config?name=<name>&hash=1 and returns the opaque revision
+// digest, which changes for either TOML or encrypted-secret updates.
 func (r *RemoteClient) FetchHash() (string, error) {
 	body, err := r.fetch(true)
 	if err != nil {
@@ -58,11 +86,15 @@ func (r *RemoteClient) FetchHash() (string, error) {
 }
 
 func (r *RemoteClient) fetch(hashOnly bool) ([]byte, error) {
+	return r.fetchPath("/config", hashOnly)
+}
+
+func (r *RemoteClient) fetchPath(path string, hashOnly bool) ([]byte, error) {
 	u, err := url.Parse(r.BaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("invalid remote url %q: %w", r.BaseURL, err)
 	}
-	u.Path = "/config"
+	u.Path = path
 	q := u.Query()
 	q.Set("name", r.Name)
 	if hashOnly {
@@ -89,7 +121,7 @@ func (r *RemoteClient) fetch(hashOnly bool) ([]byte, error) {
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("remote /config returned %s: %s", resp.Status, truncate(string(body), 200))
+		return nil, fmt.Errorf("remote %s returned %s: %s", path, resp.Status, truncate(string(body), 200))
 	}
 	// Sanity check: TOML never starts with '<'. If it does, we got an HTML
 	// page back through a 200 response — usually Cloudflare Access serving
@@ -110,14 +142,6 @@ func (r *RemoteClient) fetch(hashOnly bool) ([]byte, error) {
 		)
 	}
 	return body, nil
-}
-
-// LocalHash computes the same SHA-256 hex digest the Worker stores. Used
-// for comparing a freshly-loaded local file against the remote hash, and
-// for one-shot testing during development.
-func LocalHash(toml []byte) string {
-	sum := sha256.Sum256(toml)
-	return hex.EncodeToString(sum[:])
 }
 
 func truncate(s string, n int) string {

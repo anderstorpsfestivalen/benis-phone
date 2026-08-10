@@ -58,7 +58,6 @@ export interface Gate {
 }
 
 export interface General {
-  entrypoint: string;
   default_tts_voice: string;
   default_tts_lang: string;
   default_tts_engine: string;
@@ -124,17 +123,34 @@ export interface Recording {
 }
 
 export interface SIPConfig {
+  max_concurrent_calls: number;
+  record_path: string;
+  connection: SIPConnection[];
+}
+
+export interface SIPConnection {
+  id: string;
+  name: string;
+  kind: string;
+  registration: string;
   server: string;
   extension: string;
   username: string;
   domain: string;
   transport: string;
   local_port: number;
-  max_concurrent_calls: number;
-  record_path: string;
   expiry_seconds: number;
   external_ip: string;
-  direct: boolean;
+  allowed_cidrs: string[];
+  entrypoint: string;
+  route: SIPRoute[];
+}
+
+export interface SIPRoute {
+  id: string;
+  number: string;
+  entrypoint: string;
+  catch_all: boolean;
 }
 
 export interface Script {

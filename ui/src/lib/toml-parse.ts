@@ -17,6 +17,8 @@ import {
   emptyPrefix,
   emptyQueue,
   emptyService,
+  emptySIPConnection,
+  emptySIPRoute,
   emptyTTS,
 } from "./empty";
 
@@ -30,7 +32,8 @@ export function parseTomlConfig(text: string): Definition {
 }
 
 type AnyRec = Record<string, unknown>;
-const asObj = (x: unknown): AnyRec => (x && typeof x === "object" ? (x as AnyRec) : {});
+const asObj = (x: unknown): AnyRec =>
+  x && typeof x === "object" ? (x as AnyRec) : {};
 const asArr = (x: unknown): unknown[] => (Array.isArray(x) ? x : []);
 const asStr = (x: unknown, d = ""): string => (typeof x === "string" ? x : d);
 const asNum = (x: unknown, d = 0): number => (typeof x === "number" ? x : d);
@@ -38,11 +41,86 @@ const asBool = (x: unknown): boolean => x === true;
 
 function normalizeDefinition(raw: AnyRec): Definition {
   const e = emptyDefinition();
+  const rawSIP = asObj(raw.sip);
+  let connections = asArr(rawSIP.connection).map(normalizeSIPConnection);
+  // Legacy configs are readable in the editor solely so the operator can
+  // complete the required breaking migration. The runtime rejects them.
+  if (connections.length === 0 && asStr(rawSIP.server)) {
+    connections = [
+      {
+        ...emptySIPConnection(asStr(asObj(raw.general).entrypoint, "main")),
+        id: "legacy-sip",
+        name: "Migrated SIP connection",
+        server: asStr(rawSIP.server),
+        extension: asStr(rawSIP.extension),
+        username: asStr(rawSIP.username),
+        domain: asStr(rawSIP.domain),
+        transport: asStr(rawSIP.transport, "udp"),
+        local_port: asNum(rawSIP.local_port, 5060),
+        expiry_seconds: asNum(rawSIP.expiry_seconds, 300),
+        external_ip: asStr(rawSIP.external_ip),
+      },
+    ];
+  }
   return {
-    general: { ...e.general, ...asObj(raw.general) } as Definition["general"],
-    sip: { ...e.sip, ...asObj(raw.sip) } as Definition["sip"],
+    general: {
+      default_tts_voice: asStr(asObj(raw.general).default_tts_voice),
+      default_tts_lang: asStr(asObj(raw.general).default_tts_lang),
+      default_tts_engine: asStr(asObj(raw.general).default_tts_engine),
+      default_tts_provider: asStr(asObj(raw.general).default_tts_provider),
+    },
+    sip: {
+      max_concurrent_calls: asNum(
+        rawSIP.max_concurrent_calls,
+        e.sip.max_concurrent_calls,
+      ),
+      record_path: asStr(rawSIP.record_path, e.sip.record_path),
+      connection: connections,
+    },
     fn: asArr(raw.fn).map(normalizeFn),
     queue: asArr(raw.queue).map(normalizeQueue),
+  };
+}
+
+export function isLegacySIPToml(text: string): boolean {
+  const raw = parse(text) as AnyRec;
+  const sip = asObj(raw.sip);
+  return asArr(sip.connection).length === 0 && !!asStr(sip.server);
+}
+
+function normalizeSIPConnection(
+  raw: unknown,
+): Definition["sip"]["connection"][number] {
+  const r = asObj(raw);
+  const e = emptySIPConnection();
+  return {
+    ...e,
+    id: asStr(r.id),
+    name: asStr(r.name),
+    kind: asStr(r.kind, "endpoint"),
+    registration: asStr(r.registration, "registered"),
+    server: asStr(r.server),
+    extension: asStr(r.extension),
+    username: asStr(r.username),
+    domain: asStr(r.domain),
+    transport: asStr(r.transport, "udp"),
+    local_port: asNum(r.local_port),
+    expiry_seconds: asNum(r.expiry_seconds, 300),
+    external_ip: asStr(r.external_ip),
+    allowed_cidrs: asArr(r.allowed_cidrs)
+      .map((value) => asStr(value))
+      .filter(Boolean),
+    entrypoint: asStr(r.entrypoint),
+    route: asArr(r.route).map((route) => {
+      const value = asObj(route);
+      return {
+        ...emptySIPRoute(),
+        id: asStr(value.id),
+        number: asStr(value.number),
+        entrypoint: asStr(value.entrypoint),
+        catch_all: asBool(value.catch_all),
+      };
+    }),
   };
 }
 
