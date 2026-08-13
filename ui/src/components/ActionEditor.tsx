@@ -27,7 +27,7 @@ const ACTION_KIND_HELP: Record<ActionKind, string> = {
   dtmf: "Transmit a string of DTMF digits to the remote end, 200 ms apart. Useful for chaining into upstream IVRs.",
   livefeed: "Stream a host audio capture device into the caller's outbound RTP. Device is a case-insensitive substring match; channel picks the audio channel.",
   genericjson: "Fetch a JSON HTTP endpoint, render the response through a Go text/template, and speak it through TTS. Navigate untyped JSON with {{.Data.foo.bar}}, iterate with {{range .Data.items}}, or use the full jq language via {{jq .Data \".[] | select(.name == \\\"X\\\") | .temperature\"}}. Helpers: int, round, default, jq, jqAll, first, last, join, add, sub, mul, div, keys, length.",
-  script: "Write the whole flow as JavaScript (run by goja). Bindings: speak(text), readKey() (returns a DTMF key or null), http.get(url, opts?) / http.post(url, bodyObjOrString, opts?) → { status, json, text } with json a native JS value, vars.get/set (shared .Vars), args (this node's args), goto(fn, param?) to hand off to another menu on exit, and log(...). Navigate JSON with plain JS (.find/.filter/?.) — no jq. Note: Test it runs in the browser (V8), the runtime is goja (ES5.1+), so avoid the newest JS APIs.",
+  script: "Write the whole flow as JavaScript (run by goja). Bindings: speak(text, opts?) (cached by default; use { cache: false } to bypass), readKey() (returns a DTMF key or null), http.get(url, opts?) / http.post(url, bodyObjOrString, opts?) → { status, json, text } with json a native JS value, vars.get/set (shared .Vars), args (this node's args), goto(fn, param?) to hand off to another menu on exit, and log(...). Navigate JSON with plain JS (.find/.filter/?.) — no jq. Note: Test it runs in the browser (V8), the runtime is goja (ES5.1+), so avoid the newest JS APIs.",
   clear: "Stop any currently-playing audio in this call session without otherwise affecting state.",
 };
 
@@ -833,7 +833,7 @@ function ScriptEditor({
         <div className="flex items-center justify-between">
           <label className="text-xs text-blue-slate uppercase flex items-center">
             Code (JavaScript, run by goja)
-            <HelpDot help="speak(text), readKey(), http.get/post → {status,json,text}, vars.get/set, args, goto(fn,param?), log(...). Use plain JS to navigate JSON (.find/.filter) — no jq. Runs in the browser (V8) for Test it; the runtime is goja (ES5.1+)." />
+            <HelpDot help="speak(text, opts?) is cached by default; pass { cache: false } to bypass. Also available: readKey(), http.get/post → {status,json,text}, vars.get/set, args, goto(fn,param?), log(...). Use plain JS to navigate JSON (.find/.filter) — no jq. Runs in the browser (V8) for Test it; the runtime is goja (ES5.1+)." />
           </label>
           <div className="flex gap-2">
             <button
@@ -976,7 +976,7 @@ function ScriptTestPanel({
 function transcriptLine(e: TranscriptEvent): string {
   switch (e.type) {
     case "speak":
-      return `🔊 ${e.text}`;
+      return `🔊 ${e.text}${e.cache ? "" : " (cache bypassed)"}`;
     case "readKey":
       return `⌨  readKey() → ${e.key === null ? "null" : e.key}`;
     case "http":

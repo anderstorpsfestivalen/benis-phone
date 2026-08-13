@@ -367,12 +367,20 @@ func (s *Session) handleActionDepth(action *functions.Action, reuseDepth int) {
 // synthesizes it to mp3 bytes. Shared by every runtime-rendered readout
 // (script speak(), genericjson).
 func (s *Session) synth(override functions.TTS, text string) ([]byte, error) {
+	return s.synthWithCache(override, text, true)
+}
+
+// synthWithCache is the script-aware variant of synth. Most runtime-rendered
+// speech should use synth and remain cached; scripts can explicitly bypass the
+// cache for a one-off utterance via speak(text, { cache: false }).
+func (s *Session) synthWithCache(override functions.TTS, text string, cache bool) ([]byte, error) {
 	t := s.Definition.ResolveTTS(override, text)
 	return s.TTS.Synthesize(t.Provider, tts.Request{
 		Message:  t.Message,
 		Voice:    t.Voice,
 		Language: t.Language,
 		Engine:   t.Engine,
+		NoCache:  !cache,
 	})
 }
 

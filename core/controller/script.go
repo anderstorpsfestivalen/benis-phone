@@ -66,9 +66,10 @@ type scriptIO struct {
 
 // Speak synthesizes text (honoring the script's TTS overrides, then definition
 // defaults) and plays it to the caller, blocking until playback finishes or a
-// barge-in Clear() cuts it short.
-func (io *scriptIO) Speak(ctx context.Context, text string) error {
-	data, err := io.session.synth(io.tts, text)
+// barge-in Clear() cuts it short. cache is true unless the script explicitly
+// calls speak(text, { cache: false }).
+func (io *scriptIO) Speak(ctx context.Context, text string, cache bool) error {
+	data, err := io.session.synthWithCache(io.tts, text, cache)
 	if err != nil {
 		return err
 	}
@@ -113,10 +114,21 @@ func (s *Session) runScript(ctx context.Context, io *scriptIO, prog *goja.Progra
 		}
 	}()
 
-	// speak(text): synth + play, blocking until done. A returned error becomes
-	// a thrown JS exception (goja auto-converts a trailing error return).
-	_ = vm.Set("speak", func(text string) error {
-		return io.Speak(ctx, text)
+	// speak(text, opts?): synth + play, blocking until done. Synthesis is cached
+	// by default; { cache: false } bypasses both cache reads and writes.
+	_ = vm.Set("speak", func(call goja.FunctionCall) goja.Value {
+		text := call.Argument(0).String()
+		cache := true
+		if opts := call.Argument(1); !goja.IsUndefined(opts) && !goja.IsNull(opts) {
+			cacheValue := opts.ToObject(vm).Get("cache")
+			if !goja.IsUndefined(cacheValue) && !goja.IsNull(cacheValue) {
+				cache = cacheValue.ToBoolean()
+			}
+		}
+		if err := io.Speak(ctx, text, cache); err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return goja.Undefined()
 	})
 
 	// readKey(): block for a DTMF key; returns "0".."9"/"*"/"#", or null on

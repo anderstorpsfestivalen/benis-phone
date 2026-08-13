@@ -2,7 +2,7 @@
 // editor can "Test it" without saving the config or ringing the IVR. The
 // worker mirrors the Go runtime bindings (speak/readKey/http/vars/args/goto/
 // log) with test doubles:
-//   - speak(text)        → records a transcript line
+//   - speak(text, opts?) → records a transcript line (cached unless opts.cache is false)
 //   - readKey()          → shifts the next key from a caller-supplied sequence
 //                          (null when the sequence is exhausted)
 //   - http.get/post      → synchronous XHR through /api/genericjson/preview
@@ -16,7 +16,7 @@
 // for flow logic and HTTP shape.
 
 export type TranscriptEvent =
-  | { type: "speak"; text: string }
+  | { type: "speak"; text: string; cache: boolean }
   | { type: "readKey"; key: string | null }
   | { type: "http"; method: string; url: string; status: number }
   | { type: "goto"; fn: string; param: unknown }
@@ -73,7 +73,10 @@ self.onmessage = function (e) {
     transcript.push({ type: "readKey", key: k });
     return k;
   }
-  function speak(text) { transcript.push({ type: "speak", text: String(text) }); }
+  function speak(text, opts) {
+    var cache = !(opts && opts.cache === false);
+    transcript.push({ type: "speak", text: String(text), cache: cache });
+  }
   var varsApi = {
     get: function (n) { return vars[n]; },
     set: function (n, v) { vars[n] = v; },

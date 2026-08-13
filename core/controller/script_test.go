@@ -32,8 +32,8 @@ func (f *fakeSink) PlayFromStream(data []byte) error {
 	f.played = append(f.played, data)
 	return nil
 }
-func (f *fakeSink) Clear()          {}
-func (f *fakeSink) IsPlaying() bool { return false }
+func (f *fakeSink) Clear()                                              {}
+func (f *fakeSink) IsPlaying() bool                                     { return false }
 func (f *fakeSink) ExternalPlayback(beep.StreamSeekCloser, beep.Format) {}
 func (f *fakeSink) PlaySource(audio.Source) error                       { return nil }
 
@@ -58,6 +58,27 @@ func (echoProvider) CacheKey(req tts.Request) string {
 	return fmt.Sprintf("%x", sha1.Sum([]byte(req.Message)))
 }
 func (echoProvider) Synthesize(req tts.Request) ([]byte, error) { return []byte(req.Message), nil }
+
+type countingEchoProvider struct {
+	mu    sync.Mutex
+	calls map[string]int
+}
+
+func (provider *countingEchoProvider) Name() string { return "counting-echo" }
+func (provider *countingEchoProvider) CacheKey(req tts.Request) string {
+	return fmt.Sprintf("%x", sha1.Sum([]byte(req.Message)))
+}
+func (provider *countingEchoProvider) Synthesize(req tts.Request) ([]byte, error) {
+	provider.mu.Lock()
+	defer provider.mu.Unlock()
+	provider.calls[req.Message]++
+	return []byte(req.Message), nil
+}
+func (provider *countingEchoProvider) callCount(message string) int {
+	provider.mu.Lock()
+	defer provider.mu.Unlock()
+	return provider.calls[message]
+}
 
 func newScriptSession(t *testing.T) (*Session, *fakeSink) {
 	t.Helper()
@@ -154,6 +175,33 @@ func TestScriptReadKey(t *testing.T) {
 	spoken := sink.spoken()
 	if len(spoken) != 1 || spoken[0] != "two" {
 		t.Fatalf("spoken = %v, want [two]", spoken)
+	}
+}
+
+func TestScriptSpeakCachesByDefaultAndCanBypass(t *testing.T) {
+	provider := &countingEchoProvider{calls: make(map[string]int)}
+	reg := tts.NewRegistry(t.TempDir(), provider.Name())
+	reg.Register(provider)
+	s := &Session{
+		ID:         "test",
+		Audio:      &fakeSink{},
+		TTS:        reg,
+		scriptKeys: make(chan string, 8),
+	}
+
+	code := `
+		speak("DAGS ATT RULLA?");
+		speak("DAGS ATT RULLA?");
+		speak("live value", { cache: false });
+		speak("live value", { cache: false });
+	`
+	runScriptForTest(t, s, code, nil)
+
+	if got := provider.callCount("DAGS ATT RULLA?"); got != 1 {
+		t.Fatalf("cached menu provider calls = %d, want 1", got)
+	}
+	if got := provider.callCount("live value"); got != 2 {
+		t.Fatalf("uncached provider calls = %d, want 2", got)
 	}
 }
 

@@ -16,7 +16,7 @@ import (
 // The controller runs the compiled program in its own goroutine with a small,
 // synchronous API bound into the runtime (see core/controller/script.go):
 //
-//	speak(text)                     – synth TTS + play, blocks until done
+//	speak(text, opts?)              – synth TTS + play; cached unless opts.cache is false
 //	readKey()                       – block for a DTMF key; "0".."9"/"*"/"#" or null on timeout
 //	http.get(url, opts?)            – returns { status, json, text }; json is a native JS value
 //	http.post(url, bodyObjOrStr, opts?)
@@ -30,7 +30,7 @@ import (
 // native parsed JS objects, so scripts navigate data with plain JavaScript
 // (.find/.filter/?.) rather than jq. goja targets ES5.1 plus much of ES6.
 //
-// TOML usage (inside an action) — the code is normally a '''triple-quoted''' literal:
+// TOML usage (inside an action) — the code is normally a multiline literal:
 //
 //	[[fn.actions]]
 //	num = 4

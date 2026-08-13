@@ -1,6 +1,7 @@
 package tts
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 )
@@ -28,6 +29,26 @@ func (provider immediateProvider) Name() string            { return string(provi
 func (provider immediateProvider) CacheKey(Request) string { return string(provider) }
 func (provider immediateProvider) Synthesize(Request) ([]byte, error) {
 	return []byte(provider), nil
+}
+
+type countingProvider struct {
+	mu    sync.Mutex
+	calls int
+}
+
+func (provider *countingProvider) Name() string                { return "counting" }
+func (provider *countingProvider) CacheKey(req Request) string { return HashKey(req.Message) }
+func (provider *countingProvider) Synthesize(Request) ([]byte, error) {
+	provider.mu.Lock()
+	defer provider.mu.Unlock()
+	provider.calls++
+	return []byte(fmt.Sprintf("call-%d", provider.calls)), nil
+}
+
+func (provider *countingProvider) callCount() int {
+	provider.mu.Lock()
+	defer provider.mu.Unlock()
+	return provider.calls
 }
 
 func TestRegistryReplacementPreservesInFlightSynthesis(t *testing.T) {
@@ -63,5 +84,50 @@ func TestRegistryReplacementPreservesInFlightSynthesis(t *testing.T) {
 	}
 	if string(data) != "new" {
 		t.Fatalf("post-reload synthesis = %q", data)
+	}
+}
+
+func TestRegistryCachesByDefaultAndCanBypass(t *testing.T) {
+	provider := &countingProvider{}
+	registry := NewRegistry(t.TempDir(), provider.Name())
+	registry.Register(provider)
+
+	first, err := registry.Synthesize("", Request{Message: "menu"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := registry.Synthesize("", Request{Message: "menu"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(first) != "call-1" || string(second) != "call-1" {
+		t.Fatalf("cached results = %q, %q; want call-1 twice", first, second)
+	}
+	if got := provider.callCount(); got != 1 {
+		t.Fatalf("provider calls after cached requests = %d, want 1", got)
+	}
+
+	third, err := registry.Synthesize("", Request{Message: "menu", NoCache: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fourth, err := registry.Synthesize("", Request{Message: "menu", NoCache: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(third) != "call-2" || string(fourth) != "call-3" {
+		t.Fatalf("uncached results = %q, %q; want call-2, call-3", third, fourth)
+	}
+	if got := provider.callCount(); got != 3 {
+		t.Fatalf("provider calls after bypassed requests = %d, want 3", got)
+	}
+
+	// A bypassed request must not overwrite the existing cached menu audio.
+	again, err := registry.Synthesize("", Request{Message: "menu"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(again) != "call-1" {
+		t.Fatalf("cached result after bypass = %q, want call-1", again)
 	}
 }

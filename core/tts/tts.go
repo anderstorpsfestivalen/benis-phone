@@ -27,6 +27,10 @@ type Request struct {
 	Voice    string
 	Language string
 	Engine   string
+
+	// NoCache bypasses both cache reads and writes. The zero value keeps the
+	// normal, cached behavior so existing callers remain cached by default.
+	NoCache bool
 }
 
 // Provider is the contract every TTS backend implements.
@@ -122,20 +126,29 @@ func (r *Registry) Synthesize(providerName string, req Request) ([]byte, error) 
 		return nil, fmt.Errorf("tts: provider %q not registered", providerName)
 	}
 
-	key := p.CacheKey(req)
-	if data, err := r.readCache(key); err == nil {
-		log.WithFields(log.Fields{"provider": providerName, "voice": req.Voice}).Trace("TTS cache hit")
-		return data, nil
+	key := ""
+	if !req.NoCache {
+		key = p.CacheKey(req)
+		if data, err := r.readCache(key); err == nil {
+			log.WithFields(log.Fields{"provider": providerName, "voice": req.Voice}).Trace("TTS cache hit")
+			return data, nil
+		}
+	} else {
+		log.WithFields(log.Fields{"provider": providerName, "voice": req.Voice, "len": len(req.Message)}).Debug("TTS cache bypassed, calling provider")
 	}
 
-	log.WithFields(log.Fields{"provider": providerName, "voice": req.Voice, "len": len(req.Message)}).Debug("TTS cache miss, calling provider")
+	if !req.NoCache {
+		log.WithFields(log.Fields{"provider": providerName, "voice": req.Voice, "len": len(req.Message)}).Debug("TTS cache miss, calling provider")
+	}
 	data, err := p.Synthesize(req)
 	if err != nil {
 		return nil, fmt.Errorf("tts: %s: %w", providerName, err)
 	}
 
-	if werr := r.writeCache(key, data); werr != nil {
-		log.WithError(werr).Warn("tts: failed to write cache")
+	if !req.NoCache {
+		if werr := r.writeCache(key, data); werr != nil {
+			log.WithError(werr).Warn("tts: failed to write cache")
+		}
 	}
 	return data, nil
 }
